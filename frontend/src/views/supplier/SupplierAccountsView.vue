@@ -12,6 +12,13 @@
         </div>
       </header>
 
+      <div v-if="stats" class="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div v-for="item in statCards" :key="item.label" class="card p-4">
+          <p class="text-xs text-gray-500 dark:text-gray-400">{{ item.label }}</p>
+          <p class="mt-1 text-2xl font-semibold text-gray-900 dark:text-white">{{ item.value }}</p>
+        </div>
+      </div>
+
       <section class="card p-4">
         <div class="grid gap-3 sm:grid-cols-2 lg:grid-cols-6">
           <label class="lg:col-span-2">
@@ -124,12 +131,14 @@ import {
   type SupplierAccountInput,
   type SupplierAccountKind,
   type SupplierAccountUpdateInput,
+  type SupplierStats,
 } from '@/api/supplier'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const accounts = ref<SupplierAccount[]>([])
 const allowedKinds = ref<SupplierAccountKind[]>([])
+const stats = ref<SupplierStats | null>(null)
 const loading = ref(true)
 const saving = ref(false)
 const page = ref(1)
@@ -142,6 +151,12 @@ const filters = reactive<SupplierAccountFilters>({ search: '', platform: '', typ
 
 const platforms = computed(() => [...new Set(allowedKinds.value.map((kind) => kind.platform))].sort())
 const accountTypes = computed(() => [...new Set(allowedKinds.value.filter((kind) => !filters.platform || kind.platform === filters.platform).map((kind) => kind.type))].sort())
+const statCards = computed(() => stats.value ? [
+  { label: t('supplier.accounts.totalCount'), value: stats.value.account_count },
+  { label: t('supplier.accounts.pendingCount'), value: stats.value.pending_count },
+  { label: t('supplier.accounts.schedulableCount'), value: stats.value.schedulable_count },
+  { label: t('supplier.accounts.errorCount'), value: stats.value.error_count },
+] : [])
 
 async function load() {
   loading.value = true
@@ -247,6 +262,7 @@ onMounted(async () => {
   try {
     const profile = await getProfile()
     allowedKinds.value = profile.allowed_account_kinds
+    stats.value = profile.stats
   } catch (error) {
     appStore.showError((error as { message?: string }).message || t('supplier.accounts.loadFailed'))
   }

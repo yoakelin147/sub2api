@@ -9,6 +9,7 @@ const list = vi.fn().mockResolvedValue({
     id: 7, code: 'vendor-a', name: 'Vendor A', status: 'active', notes: null,
     allowed_account_kinds: [{ platform: 'openai', type: 'apikey' }],
     access_token: { exists: false, masked_key: null, created_at: null, last_used_at: null },
+    stats: { member_count: 1, account_count: 2, pending_count: 1, schedulable_count: 0, error_count: 0 },
     created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
   }], total: 1, page: 1, page_size: 20, pages: 1,
 })

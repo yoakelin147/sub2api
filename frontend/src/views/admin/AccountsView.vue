@@ -242,6 +242,16 @@
                 </template>
               </HelpTooltip>
               <span v-else class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
+              <router-link
+                v-if="row.supplier_id"
+                :to="{ path: '/admin/suppliers', query: { supplier: String(row.supplier_id) } }"
+                class="mt-1 inline-flex w-fit items-center rounded bg-amber-100 px-1.5 py-0.5 text-[10px] font-medium text-amber-800 hover:bg-amber-200 dark:bg-amber-900/30 dark:text-amber-200"
+              >
+                {{ t('supplier.admin.supplierSource', { name: supplierNames[row.supplier_id] || `#${row.supplier_id}` }) }}
+              </router-link>
+              <span v-else class="mt-1 inline-flex w-fit rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-dark-800 dark:text-gray-400">
+                {{ t('supplier.admin.platformOwned') }}
+              </span>
               <span
                 v-if="accountDisplayEmail(row)"
                 class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]"
@@ -537,6 +547,7 @@ import type { Account, AccountListItem, AccountPlatform, AccountSchedulerGroupSc
 const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
+const supplierNames = ref<Record<number, string>>({})
 
 const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
@@ -2534,9 +2545,13 @@ onMounted(async () => {
 
   load()
   loadUpstreamBillingProbeGlobalState()
-  const [proxiesResult, groupsResult] = await Promise.allSettled([
+  const supplierListRequest = adminAPI.suppliers?.list
+    ? adminAPI.suppliers.list(1, 1000)
+    : Promise.resolve({ items: [], total: 0, page: 1, page_size: 1000, pages: 1 })
+  const [proxiesResult, groupsResult, suppliersResult] = await Promise.allSettled([
     adminAPI.proxies.getAll(),
-    adminAPI.groups.getAll()
+    adminAPI.groups.getAll(),
+    supplierListRequest
   ])
   if (proxiesResult.status === 'fulfilled') {
     proxies.value = proxiesResult.value
@@ -2547,6 +2562,11 @@ onMounted(async () => {
     groups.value = groupsResult.value
   } else {
     console.error('Failed to load groups:', groupsResult.reason)
+  }
+  if (suppliersResult.status === 'fulfilled') {
+    supplierNames.value = Object.fromEntries(suppliersResult.value.items.map((supplier) => [supplier.id, supplier.name]))
+  } else {
+    console.error('Failed to load suppliers:', suppliersResult.reason)
   }
   window.addEventListener('scroll', handleScroll, true)
   window.addEventListener('resize', handleViewportResize)

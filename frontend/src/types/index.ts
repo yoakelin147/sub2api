@@ -1164,6 +1164,12 @@ export interface Account {
   notes?: string | null
   platform: AccountPlatform
   type: AccountType
+  supplier_id?: number | null
+  supplier_external_id?: string | null
+  review_status?: 'pending' | 'approved' | 'rejected'
+  reviewed_at?: string | null
+  reviewed_by?: number | null
+  review_note?: string | null
   // 后端响应里 credentials 已脱敏：access_token / refresh_token / id_token /
   // api_key / session_key / cookie / aws_secret_access_key / aws_session_token /
   // service_account_json / service_account / private_key 不会出现，

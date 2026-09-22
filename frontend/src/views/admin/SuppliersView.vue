@@ -38,7 +38,11 @@
               <span class="min-w-0">
                 <span class="block truncate font-medium text-gray-900 dark:text-white">{{ item.name }}</span>
                 <span class="block truncate font-mono text-xs text-gray-500">{{ item.code }}</span>
-                <span class="mt-2 block text-xs text-gray-500">{{ item.allowed_account_kinds.length }} {{ t('supplier.admin.allowedKinds') }}</span>
+                <span class="mt-2 block text-xs text-gray-500">
+                  {{ t('supplier.admin.memberCount') }} {{ item.stats.member_count }} ·
+                  {{ t('supplier.admin.accountCount') }} {{ item.stats.account_count }} ·
+                  {{ t('supplier.accounts.pendingCount') }} {{ item.stats.pending_count }}
+                </span>
               </span>
               <span :class="item.status === 'active' ? 'badge badge-success' : 'badge badge-danger'">{{ item.status }}</span>
             </button>
@@ -61,6 +65,7 @@
 <script setup lang="ts">
 import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
+import { useRoute } from 'vue-router'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
 import Pagination from '@/components/common/Pagination.vue'
@@ -71,6 +76,7 @@ import { useAppStore } from '@/stores/app'
 
 const { t } = useI18n()
 const appStore = useAppStore()
+const route = useRoute()
 const suppliers = ref<AdminSupplier[]>([])
 const selected = ref<AdminSupplier | null>(null)
 const editing = ref<AdminSupplier | null>(null)
@@ -91,6 +97,10 @@ async function load() {
     total.value = result.total
     if (selected.value) {
       selected.value = result.items.find((item) => item.id === selected.value?.id) ?? null
+    }
+    const requestedID = Number(route.query.supplier)
+    if (!selected.value && Number.isSafeInteger(requestedID) && requestedID > 0) {
+      selected.value = result.items.find((item) => item.id === requestedID) ?? await suppliersAPI.get(requestedID)
     }
   } catch (error) {
     appStore.showError((error as { message?: string }).message || t('supplier.admin.loadFailed'))

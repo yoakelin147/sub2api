@@ -8,6 +8,7 @@ const getProfile = vi.fn().mockResolvedValue({
   id: 7, code: 'vendor', name: 'Vendor', status: 'active',
   allowed_account_kinds: [{ platform: 'openai', type: 'apikey' }],
   access_token: { exists: false, masked_key: null, created_at: null, last_used_at: null },
+  stats: { member_count: 1, account_count: 1, pending_count: 1, schedulable_count: 0, error_count: 0 },
 })
 const listAccounts = vi.fn().mockResolvedValue({
   items: [{

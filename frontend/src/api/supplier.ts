@@ -13,6 +13,14 @@ export interface SupplierTokenStatus {
   last_used_at: string | null
 }
 
+export interface SupplierStats {
+  member_count: number
+  account_count: number
+  pending_count: number
+  schedulable_count: number
+  error_count: number
+}
+
 export interface SupplierProfile {
   id: number
   code: string
@@ -20,6 +28,7 @@ export interface SupplierProfile {
   status: 'active' | 'disabled'
   allowed_account_kinds: SupplierAccountKind[]
   access_token: SupplierTokenStatus
+  stats: SupplierStats
 }
 
 export interface SupplierAccount {

@@ -4,6 +4,7 @@ import type {
   SupplierAccountFilters,
   SupplierAccountKind,
   SupplierTokenStatus,
+  SupplierStats,
 } from '@/api/supplier'
 
 export interface AdminSupplierAccount {
@@ -35,6 +36,7 @@ export interface AdminSupplier {
   notes: string | null
   allowed_account_kinds: SupplierAccountKind[]
   access_token: SupplierTokenStatus
+  stats: SupplierStats
   created_at: string
   updated_at: string
 }
