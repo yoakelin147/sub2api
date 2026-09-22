@@ -325,7 +325,7 @@ func initializeApplication(buildInfo handler.BuildInfo) (*Application, error) {
 	supplierTokenService := service.NewSupplierTokenService(supplierRepository)
 	supplierAccountRepository := repository.NewSupplierAccountRepository(client, db, schedulerCache)
 	supplierAccountService := service.NewSupplierAccountService(supplierAccountRepository, supplierService, configConfig)
-	supplierHandler := handler.NewSupplierHandler(supplierService, supplierTokenService, supplierAccountService)
+	supplierHandler := handler.NewSupplierHandler(supplierService, supplierTokenService, supplierAccountService, accountTestService)
 	idempotencyCoordinator := service.ProvideIdempotencyCoordinator(idempotencyRepository, configConfig)
 	idempotencyCleanupService := service.ProvideIdempotencyCleanupService(idempotencyRepository, configConfig)
 	openAIQuotaAutoResetService := service.ProvideOpenAIQuotaAutoResetService(accountRepository, openAIQuotaService, rateLimitService, idempotencyCoordinator, auditLogService, settingService, leaderLockCache)

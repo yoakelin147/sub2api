@@ -25,6 +25,7 @@ func RegisterSupplierRoutes(
 	accounts.GET("/:id", h.GetAccount)
 	accounts.PUT("/:id", h.UpdateAccount)
 	accounts.DELETE("/:id", h.DeleteAccount)
+	accounts.POST("/:id/test", h.TestAccount)
 
 	accessToken := supplier.Group("/access-token")
 	accessToken.Use(middleware.SupplierJWTOnly())

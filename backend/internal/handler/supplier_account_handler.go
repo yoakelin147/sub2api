@@ -43,6 +43,12 @@ type supplierAccountBatchRequest struct {
 	Accounts []supplierAccountRequest `json:"accounts"`
 }
 
+type supplierAccountTestRequest struct {
+	Model  string `json:"model"`
+	Prompt string `json:"prompt"`
+	Mode   string `json:"mode"`
+}
+
 func (h *SupplierHandler) ListAccounts(c *gin.Context) {
 	supplierID, ok := middleware.GetSupplierIDFromContext(c)
 	if !ok {
@@ -157,6 +163,24 @@ func (h *SupplierHandler) DeleteAccount(c *gin.Context) {
 		return
 	}
 	response.Success(c, gin.H{"message": "Supplier account deleted"})
+}
+
+func (h *SupplierHandler) TestAccount(c *gin.Context) {
+	supplierID, accountID, ok := supplierAndAccountIDs(c)
+	if !ok {
+		return
+	}
+	var request supplierAccountTestRequest
+	if err := decodeStrictSupplierJSON(c, &request); err != nil {
+		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
+		return
+	}
+	account, err := h.accounts.GetByID(c.Request.Context(), supplierID, accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	_ = h.tester.TestAccount(c, account, request.Model, request.Prompt, request.Mode)
 }
 
 func supplierAndAccountIDs(c *gin.Context) (int64, int64, bool) {

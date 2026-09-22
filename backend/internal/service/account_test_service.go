@@ -333,13 +333,18 @@ func createTestPayload(modelID string) (map[string]any, error) {
 // opts is optional media (image/audio data URLs for real generation / STT).
 func (s *AccountTestService) TestAccountConnection(c *gin.Context, accountID int64, modelID string, prompt string, mode string, opts ...AccountTestOptions) error {
 	ctx := c.Request.Context()
-	testOpts := firstAccountTestOptions(opts)
-
 	// Get account
 	account, err := s.accountRepo.GetByID(ctx, accountID)
 	if err != nil {
 		return s.sendErrorAndEnd(c, "Account not found")
 	}
+	return s.TestAccount(c, account, modelID, prompt, mode, opts...)
+}
+
+// TestAccount tests an already-authorized account. Callers are responsible for
+// loading the account through their own ownership boundary before calling it.
+func (s *AccountTestService) TestAccount(c *gin.Context, account *Account, modelID string, prompt string, mode string, opts ...AccountTestOptions) error {
+	testOpts := firstAccountTestOptions(opts)
 
 	// Synthetic UI load-test accounts exercise the real SSE parsing and modal
 	// interactions, but intentionally do not send their placeholder credentials
