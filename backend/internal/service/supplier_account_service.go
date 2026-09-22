@@ -13,6 +13,11 @@ import (
 )
 
 var (
+	ErrSupplierAccountBatchTooLarge = infraerrors.New(
+		http.StatusRequestEntityTooLarge,
+		"BATCH_TOO_LARGE",
+		"supplier account batch exceeds the maximum size",
+	)
 	ErrSupplierAccountKindNotAllowed = infraerrors.Forbidden(
 		"ACCOUNT_KIND_NOT_ALLOWED",
 		"supplier is not allowed to submit this account kind",
@@ -49,6 +54,24 @@ type SupplierAccountService struct {
 	cfg       *config.Config
 }
 
+const MaxSupplierAccountBatchSize = 500
+
+type SupplierAccountBatchItemResult struct {
+	Index      int    `json:"index"`
+	ExternalID string `json:"external_id,omitempty"`
+	AccountID  int64  `json:"account_id,omitempty"`
+	Success    bool   `json:"success"`
+	ErrorCode  string `json:"error_code,omitempty"`
+	Message    string `json:"message,omitempty"`
+}
+
+type SupplierAccountBatchResult struct {
+	Total     int                              `json:"total"`
+	Succeeded int                              `json:"succeeded"`
+	Failed    int                              `json:"failed"`
+	Results   []SupplierAccountBatchItemResult `json:"results"`
+}
+
 func NewSupplierAccountService(
 	repo SupplierAccountRepository,
 	suppliers *SupplierService,
@@ -62,6 +85,10 @@ func (s *SupplierAccountService) Create(ctx context.Context, supplierID int64, i
 	if err != nil {
 		return nil, err
 	}
+	return s.createWithSupplier(ctx, supplier, input)
+}
+
+func (s *SupplierAccountService) createWithSupplier(ctx context.Context, supplier *Supplier, input CreateSupplierAccountInput) (*Account, error) {
 	platform := strings.ToLower(strings.TrimSpace(input.Platform))
 	accountType := strings.ToLower(strings.TrimSpace(input.Type))
 	if !supplierAllowsAccountKind(supplier, platform, accountType) {
@@ -99,10 +126,39 @@ func (s *SupplierAccountService) Create(ctx context.Context, supplierID int64, i
 	if externalID != "" {
 		account.SupplierExternalID = &externalID
 	}
-	if err := s.repo.CreateOwned(ctx, supplierID, account); err != nil {
+	if err := s.repo.CreateOwned(ctx, supplier.ID, account); err != nil {
 		return nil, err
 	}
 	return account, nil
+}
+
+func (s *SupplierAccountService) BatchCreate(ctx context.Context, supplierID int64, inputs []CreateSupplierAccountInput) (*SupplierAccountBatchResult, error) {
+	if len(inputs) == 0 || len(inputs) > MaxSupplierAccountBatchSize {
+		return nil, ErrSupplierAccountBatchTooLarge
+	}
+	supplier, err := s.activeSupplier(ctx, supplierID)
+	if err != nil {
+		return nil, err
+	}
+	result := &SupplierAccountBatchResult{Total: len(inputs), Results: make([]SupplierAccountBatchItemResult, 0, len(inputs))}
+	for index, input := range inputs {
+		item := SupplierAccountBatchItemResult{Index: index, ExternalID: strings.TrimSpace(input.ExternalID)}
+		account, err := s.createWithSupplier(ctx, supplier, input)
+		if err != nil {
+			if infraerrors.Code(err) >= http.StatusInternalServerError {
+				return nil, err
+			}
+			item.ErrorCode = infraerrors.Reason(err)
+			item.Message = infraerrors.Message(err)
+			result.Failed++
+		} else {
+			item.Success = true
+			item.AccountID = account.ID
+			result.Succeeded++
+		}
+		result.Results = append(result.Results, item)
+	}
+	return result, nil
 }
 
 func (s *SupplierAccountService) GetByID(ctx context.Context, supplierID, accountID int64) (*Account, error) {

@@ -63,3 +63,35 @@ func executeUserIdempotentJSON(
 	}
 	response.Success(c, result.Data)
 }
+
+func executeSupplierIdempotentJSON(
+	c *gin.Context,
+	scope string,
+	payload any,
+	ttl time.Duration,
+	execute func(context.Context) (any, error),
+) {
+	coordinator := service.DefaultIdempotencyCoordinator()
+	if coordinator == nil {
+		response.ErrorFrom(c, service.ErrIdempotencyStoreUnavail)
+		return
+	}
+	supplierID, ok := middleware2.GetSupplierIDFromContext(c)
+	if !ok {
+		middleware2.AbortWithError(c, 401, "SUPPLIER_AUTH_REQUIRED", "Supplier authentication required")
+		return
+	}
+	result, err := coordinator.Execute(c.Request.Context(), service.IdempotencyExecuteOptions{
+		Scope: scope, ActorScope: "supplier:" + strconv.FormatInt(supplierID, 10),
+		Method: c.Request.Method, Route: c.FullPath(), IdempotencyKey: c.GetHeader("Idempotency-Key"),
+		Payload: payload, RequireKey: true, TTL: ttl,
+	}, execute)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if result != nil && result.Replayed {
+		c.Header("X-Idempotency-Replayed", "true")
+	}
+	response.Success(c, result.Data)
+}

@@ -21,6 +21,7 @@ func RegisterSupplierRoutes(
 	accounts := supplier.Group("/accounts")
 	accounts.GET("", h.ListAccounts)
 	accounts.POST("", h.CreateAccount)
+	accounts.POST("/batch", h.BatchCreateAccounts)
 	accounts.GET("/:id", h.GetAccount)
 	accounts.PUT("/:id", h.UpdateAccount)
 	accounts.DELETE("/:id", h.DeleteAccount)

@@ -283,3 +283,26 @@ func TestExecuteUserIdempotentJSONConcurrentRetrySingleSideEffectAndReplay(t *te
 	require.Equal(t, "true", headers3.Get("X-Idempotency-Replayed"))
 	require.Equal(t, int32(1), executed.Load())
 }
+
+func TestExecuteSupplierIdempotentJSONFailsClosedWithoutCoordinator(t *testing.T) {
+	previous := service.DefaultIdempotencyCoordinator()
+	service.SetDefaultIdempotencyCoordinator(nil)
+	t.Cleanup(func() { service.SetDefaultIdempotencyCoordinator(previous) })
+
+	var executed bool
+	router := gin.New()
+	router.POST("/supplier/accounts/batch", func(c *gin.Context) {
+		c.Set(string(middleware.ContextKeySupplierID), int64(7))
+		executeSupplierIdempotentJSON(c, "supplier.accounts.batch_create", map[string]any{"a": 1}, time.Minute, func(context.Context) (any, error) {
+			executed = true
+			return gin.H{"ok": true}, nil
+		})
+	})
+
+	recorder := httptest.NewRecorder()
+	request := httptest.NewRequest(http.MethodPost, "/supplier/accounts/batch", nil)
+	request.Header.Set("Idempotency-Key", "batch-1")
+	router.ServeHTTP(recorder, request)
+	require.False(t, executed)
+	require.Equal(t, http.StatusServiceUnavailable, recorder.Code)
+}

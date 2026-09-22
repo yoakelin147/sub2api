@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -17,6 +18,7 @@ import (
 )
 
 const maxSupplierAccountRequestBytes = 1 << 20
+const maxSupplierAccountBatchRequestBytes = 2 << 20
 
 type supplierAccountRequest struct {
 	ExternalID  string         `json:"external_id"`
@@ -35,6 +37,10 @@ type supplierAccountUpdateRequest struct {
 	Credentials *map[string]any `json:"credentials"`
 	ExpiresAt   *int64          `json:"expires_at"`
 	Status      *string         `json:"status"`
+}
+
+type supplierAccountBatchRequest struct {
+	Accounts []supplierAccountRequest `json:"accounts"`
 }
 
 func (h *SupplierHandler) ListAccounts(c *gin.Context) {
@@ -97,6 +103,29 @@ func (h *SupplierHandler) CreateAccount(c *gin.Context) {
 	response.Success(c, supplierAccountResponse(account))
 }
 
+func (h *SupplierHandler) BatchCreateAccounts(c *gin.Context) {
+	var request supplierAccountBatchRequest
+	if err := decodeStrictSupplierJSONLimit(c, &request, maxSupplierAccountBatchRequestBytes); err != nil {
+		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
+		return
+	}
+	inputs := make([]service.CreateSupplierAccountInput, 0, len(request.Accounts))
+	for _, item := range request.Accounts {
+		inputs = append(inputs, service.CreateSupplierAccountInput{
+			ExternalID: item.ExternalID, Name: item.Name, Notes: item.Notes,
+			Platform: item.Platform, Type: item.Type, Credentials: item.Credentials,
+			ExpiresAt: unixTime(item.ExpiresAt),
+		})
+	}
+	executeSupplierIdempotentJSON(c, "supplier.accounts.batch_create", request, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		supplierID, ok := middleware.GetSupplierIDFromContext(c)
+		if !ok {
+			return nil, service.ErrSupplierTokenInvalid
+		}
+		return h.accounts.BatchCreate(ctx, supplierID, inputs)
+	})
+}
+
 func (h *SupplierHandler) UpdateAccount(c *gin.Context) {
 	supplierID, accountID, ok := supplierAndAccountIDs(c)
 	if !ok {
@@ -145,7 +174,11 @@ func supplierAndAccountIDs(c *gin.Context) (int64, int64, bool) {
 }
 
 func decodeStrictSupplierJSON(c *gin.Context, target any) error {
-	decoder := json.NewDecoder(io.LimitReader(c.Request.Body, maxSupplierAccountRequestBytes+1))
+	return decodeStrictSupplierJSONLimit(c, target, maxSupplierAccountRequestBytes)
+}
+
+func decodeStrictSupplierJSONLimit(c *gin.Context, target any, limit int64) error {
+	decoder := json.NewDecoder(io.LimitReader(c.Request.Body, limit+1))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return err
