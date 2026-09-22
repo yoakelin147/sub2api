@@ -272,7 +272,7 @@ func (h *SupplierHandler) RemoveMember(c *gin.Context) {
 		return
 	}
 	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "member_user_id": userID})
-	response.Success(c, user)
+	response.Success(c, dto.UserFromServiceAdmin(user))
 }
 
 func (h *SupplierHandler) ListAccounts(c *gin.Context) {
