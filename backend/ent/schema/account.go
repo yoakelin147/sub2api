@@ -70,6 +70,27 @@ func (Account) Fields() []ent.Field {
 		field.String("type").
 			MaxLen(20).
 			NotEmpty(),
+		field.Int64("supplier_id").
+			Optional().
+			Nillable(),
+		field.String("supplier_external_id").
+			MaxLen(191).
+			Optional().
+			Nillable(),
+		field.String("review_status").
+			MaxLen(20).
+			Default(domain.AccountReviewStatusApproved),
+		field.Time("reviewed_at").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "timestamptz"}),
+		field.Int64("reviewed_by").
+			Optional().
+			Nillable(),
+		field.String("review_note").
+			Optional().
+			Nillable().
+			SchemaType(map[string]string{dialect.Postgres: "text"}),
 
 		// credentials: 认证凭证，以 JSONB 格式存储
 		// 结构取决于 type 字段：
@@ -227,6 +248,12 @@ func (Account) Edges() []ent.Edge {
 			Unique(),
 		// usage_logs: 该账户的使用日志
 		edge.To("usage_logs", UsageLog.Type),
+		edge.To("supplier", Supplier.Type).
+			Field("supplier_id").
+			Unique(),
+		edge.To("reviewer", User.Type).
+			Field("reviewed_by").
+			Unique(),
 	}
 }
 
@@ -249,5 +276,7 @@ func (Account) Indexes() []ent.Index {
 		index.Fields("priority", "status"),
 		index.Fields("deleted_at"), // 软删除查询优化
 		index.Fields("parent_account_id"),
+		index.Fields("supplier_id", "status"),
+		index.Fields("supplier_id", "review_status"),
 	}
 }

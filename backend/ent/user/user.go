@@ -27,6 +27,8 @@ const (
 	FieldPasswordHash = "password_hash"
 	// FieldRole holds the string denoting the role field in the database.
 	FieldRole = "role"
+	// FieldSupplierID holds the string denoting the supplier_id field in the database.
+	FieldSupplierID = "supplier_id"
 	// FieldBalance holds the string denoting the balance field in the database.
 	FieldBalance = "balance"
 	// FieldFrozenBalance holds the string denoting the frozen_balance field in the database.
@@ -91,6 +93,10 @@ const (
 	EdgePendingAuthSessions = "pending_auth_sessions"
 	// EdgePlatformQuotas holds the string denoting the platform_quotas edge name in mutations.
 	EdgePlatformQuotas = "platform_quotas"
+	// EdgeSupplier holds the string denoting the supplier edge name in mutations.
+	EdgeSupplier = "supplier"
+	// EdgeReviewedSupplierAccounts holds the string denoting the reviewed_supplier_accounts edge name in mutations.
+	EdgeReviewedSupplierAccounts = "reviewed_supplier_accounts"
 	// EdgeUserAllowedGroups holds the string denoting the user_allowed_groups edge name in mutations.
 	EdgeUserAllowedGroups = "user_allowed_groups"
 	// Table holds the table name of the user in the database.
@@ -184,6 +190,20 @@ const (
 	PlatformQuotasInverseTable = "user_platform_quotas"
 	// PlatformQuotasColumn is the table column denoting the platform_quotas relation/edge.
 	PlatformQuotasColumn = "user_id"
+	// SupplierTable is the table that holds the supplier relation/edge.
+	SupplierTable = "users"
+	// SupplierInverseTable is the table name for the Supplier entity.
+	// It exists in this package in order to avoid circular dependency with the "supplier" package.
+	SupplierInverseTable = "suppliers"
+	// SupplierColumn is the table column denoting the supplier relation/edge.
+	SupplierColumn = "supplier_id"
+	// ReviewedSupplierAccountsTable is the table that holds the reviewed_supplier_accounts relation/edge.
+	ReviewedSupplierAccountsTable = "accounts"
+	// ReviewedSupplierAccountsInverseTable is the table name for the Account entity.
+	// It exists in this package in order to avoid circular dependency with the "account" package.
+	ReviewedSupplierAccountsInverseTable = "accounts"
+	// ReviewedSupplierAccountsColumn is the table column denoting the reviewed_supplier_accounts relation/edge.
+	ReviewedSupplierAccountsColumn = "reviewed_by"
 	// UserAllowedGroupsTable is the table that holds the user_allowed_groups relation/edge.
 	UserAllowedGroupsTable = "user_allowed_groups"
 	// UserAllowedGroupsInverseTable is the table name for the UserAllowedGroup entity.
@@ -202,6 +222,7 @@ var Columns = []string{
 	FieldEmail,
 	FieldPasswordHash,
 	FieldRole,
+	FieldSupplierID,
 	FieldBalance,
 	FieldFrozenBalance,
 	FieldConcurrency,
@@ -333,6 +354,11 @@ func ByPasswordHash(opts ...sql.OrderTermOption) OrderOption {
 // ByRole orders the results by the role field.
 func ByRole(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldRole, opts...).ToFunc()
+}
+
+// BySupplierID orders the results by the supplier_id field.
+func BySupplierID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierID, opts...).ToFunc()
 }
 
 // ByBalance orders the results by the balance field.
@@ -612,6 +638,27 @@ func ByPlatformQuotas(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// BySupplierField orders the results by supplier field.
+func BySupplierField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSupplierStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByReviewedSupplierAccountsCount orders the results by reviewed_supplier_accounts count.
+func ByReviewedSupplierAccountsCount(opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborsCount(s, newReviewedSupplierAccountsStep(), opts...)
+	}
+}
+
+// ByReviewedSupplierAccounts orders the results by reviewed_supplier_accounts terms.
+func ByReviewedSupplierAccounts(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newReviewedSupplierAccountsStep(), append([]sql.OrderTerm{term}, terms...)...)
+	}
+}
+
 // ByUserAllowedGroupsCount orders the results by user_allowed_groups count.
 func ByUserAllowedGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -714,6 +761,20 @@ func newPlatformQuotasStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(PlatformQuotasInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, PlatformQuotasTable, PlatformQuotasColumn),
+	)
+}
+func newSupplierStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SupplierInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, false, SupplierTable, SupplierColumn),
+	)
+}
+func newReviewedSupplierAccountsStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ReviewedSupplierAccountsInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.O2M, true, ReviewedSupplierAccountsTable, ReviewedSupplierAccountsColumn),
 	)
 }
 func newUserAllowedGroupsStep() *sqlgraph.Step {

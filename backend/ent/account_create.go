@@ -14,7 +14,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
+	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
 // AccountCreate is the builder for creating a Account entity.
@@ -96,6 +98,90 @@ func (_c *AccountCreate) SetPlatform(v string) *AccountCreate {
 // SetType sets the "type" field.
 func (_c *AccountCreate) SetType(v string) *AccountCreate {
 	_c.mutation.SetType(v)
+	return _c
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_c *AccountCreate) SetSupplierID(v int64) *AccountCreate {
+	_c.mutation.SetSupplierID(v)
+	return _c
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableSupplierID(v *int64) *AccountCreate {
+	if v != nil {
+		_c.SetSupplierID(*v)
+	}
+	return _c
+}
+
+// SetSupplierExternalID sets the "supplier_external_id" field.
+func (_c *AccountCreate) SetSupplierExternalID(v string) *AccountCreate {
+	_c.mutation.SetSupplierExternalID(v)
+	return _c
+}
+
+// SetNillableSupplierExternalID sets the "supplier_external_id" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableSupplierExternalID(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetSupplierExternalID(*v)
+	}
+	return _c
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (_c *AccountCreate) SetReviewStatus(v string) *AccountCreate {
+	_c.mutation.SetReviewStatus(v)
+	return _c
+}
+
+// SetNillableReviewStatus sets the "review_status" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableReviewStatus(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetReviewStatus(*v)
+	}
+	return _c
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (_c *AccountCreate) SetReviewedAt(v time.Time) *AccountCreate {
+	_c.mutation.SetReviewedAt(v)
+	return _c
+}
+
+// SetNillableReviewedAt sets the "reviewed_at" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableReviewedAt(v *time.Time) *AccountCreate {
+	if v != nil {
+		_c.SetReviewedAt(*v)
+	}
+	return _c
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (_c *AccountCreate) SetReviewedBy(v int64) *AccountCreate {
+	_c.mutation.SetReviewedBy(v)
+	return _c
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableReviewedBy(v *int64) *AccountCreate {
+	if v != nil {
+		_c.SetReviewedBy(*v)
+	}
+	return _c
+}
+
+// SetReviewNote sets the "review_note" field.
+func (_c *AccountCreate) SetReviewNote(v string) *AccountCreate {
+	_c.mutation.SetReviewNote(v)
+	return _c
+}
+
+// SetNillableReviewNote sets the "review_note" field if the given value is not nil.
+func (_c *AccountCreate) SetNillableReviewNote(v *string) *AccountCreate {
+	if v != nil {
+		_c.SetReviewNote(*v)
+	}
 	return _c
 }
 
@@ -488,6 +574,30 @@ func (_c *AccountCreate) AddUsageLogs(v ...*UsageLog) *AccountCreate {
 	return _c.AddUsageLogIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_c *AccountCreate) SetSupplier(v *Supplier) *AccountCreate {
+	return _c.SetSupplierID(v.ID)
+}
+
+// SetReviewerID sets the "reviewer" edge to the User entity by ID.
+func (_c *AccountCreate) SetReviewerID(id int64) *AccountCreate {
+	_c.mutation.SetReviewerID(id)
+	return _c
+}
+
+// SetNillableReviewerID sets the "reviewer" edge to the User entity by ID if the given value is not nil.
+func (_c *AccountCreate) SetNillableReviewerID(id *int64) *AccountCreate {
+	if id != nil {
+		_c = _c.SetReviewerID(*id)
+	}
+	return _c
+}
+
+// SetReviewer sets the "reviewer" edge to the User entity.
+func (_c *AccountCreate) SetReviewer(v *User) *AccountCreate {
+	return _c.SetReviewerID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_c *AccountCreate) Mutation() *AccountMutation {
 	return _c.mutation
@@ -538,6 +648,10 @@ func (_c *AccountCreate) defaults() error {
 		}
 		v := account.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
+	}
+	if _, ok := _c.mutation.ReviewStatus(); !ok {
+		v := account.DefaultReviewStatus
+		_c.mutation.SetReviewStatus(v)
 	}
 	if _, ok := _c.mutation.Credentials(); !ok {
 		if account.DefaultCredentials == nil {
@@ -614,6 +728,19 @@ func (_c *AccountCreate) check() error {
 	if v, ok := _c.mutation.GetType(); ok {
 		if err := account.TypeValidator(v); err != nil {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Account.type": %w`, err)}
+		}
+	}
+	if v, ok := _c.mutation.SupplierExternalID(); ok {
+		if err := account.SupplierExternalIDValidator(v); err != nil {
+			return &ValidationError{Name: "supplier_external_id", err: fmt.Errorf(`ent: validator failed for field "Account.supplier_external_id": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ReviewStatus(); !ok {
+		return &ValidationError{Name: "review_status", err: errors.New(`ent: missing required field "Account.review_status"`)}
+	}
+	if v, ok := _c.mutation.ReviewStatus(); ok {
+		if err := account.ReviewStatusValidator(v); err != nil {
+			return &ValidationError{Name: "review_status", err: fmt.Errorf(`ent: validator failed for field "Account.review_status": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Credentials(); !ok {
@@ -712,6 +839,22 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.GetType(); ok {
 		_spec.SetField(account.FieldType, field.TypeString, value)
 		_node.Type = value
+	}
+	if value, ok := _c.mutation.SupplierExternalID(); ok {
+		_spec.SetField(account.FieldSupplierExternalID, field.TypeString, value)
+		_node.SupplierExternalID = &value
+	}
+	if value, ok := _c.mutation.ReviewStatus(); ok {
+		_spec.SetField(account.FieldReviewStatus, field.TypeString, value)
+		_node.ReviewStatus = value
+	}
+	if value, ok := _c.mutation.ReviewedAt(); ok {
+		_spec.SetField(account.FieldReviewedAt, field.TypeTime, value)
+		_node.ReviewedAt = &value
+	}
+	if value, ok := _c.mutation.ReviewNote(); ok {
+		_spec.SetField(account.FieldReviewNote, field.TypeString, value)
+		_node.ReviewNote = &value
 	}
 	if value, ok := _c.mutation.Credentials(); ok {
 		_spec.SetField(account.FieldCredentials, field.TypeJSON, value)
@@ -887,6 +1030,40 @@ func (_c *AccountCreate) createSpec() (*Account, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.SupplierID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ReviewerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ReviewerTable,
+			Columns: []string{account.ReviewerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.ReviewedBy = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -1020,6 +1197,108 @@ func (u *AccountUpsert) SetType(v string) *AccountUpsert {
 // UpdateType sets the "type" field to the value that was provided on create.
 func (u *AccountUpsert) UpdateType() *AccountUpsert {
 	u.SetExcluded(account.FieldType)
+	return u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *AccountUpsert) SetSupplierID(v int64) *AccountUpsert {
+	u.Set(account.FieldSupplierID, v)
+	return u
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateSupplierID() *AccountUpsert {
+	u.SetExcluded(account.FieldSupplierID)
+	return u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *AccountUpsert) ClearSupplierID() *AccountUpsert {
+	u.SetNull(account.FieldSupplierID)
+	return u
+}
+
+// SetSupplierExternalID sets the "supplier_external_id" field.
+func (u *AccountUpsert) SetSupplierExternalID(v string) *AccountUpsert {
+	u.Set(account.FieldSupplierExternalID, v)
+	return u
+}
+
+// UpdateSupplierExternalID sets the "supplier_external_id" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateSupplierExternalID() *AccountUpsert {
+	u.SetExcluded(account.FieldSupplierExternalID)
+	return u
+}
+
+// ClearSupplierExternalID clears the value of the "supplier_external_id" field.
+func (u *AccountUpsert) ClearSupplierExternalID() *AccountUpsert {
+	u.SetNull(account.FieldSupplierExternalID)
+	return u
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (u *AccountUpsert) SetReviewStatus(v string) *AccountUpsert {
+	u.Set(account.FieldReviewStatus, v)
+	return u
+}
+
+// UpdateReviewStatus sets the "review_status" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateReviewStatus() *AccountUpsert {
+	u.SetExcluded(account.FieldReviewStatus)
+	return u
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (u *AccountUpsert) SetReviewedAt(v time.Time) *AccountUpsert {
+	u.Set(account.FieldReviewedAt, v)
+	return u
+}
+
+// UpdateReviewedAt sets the "reviewed_at" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateReviewedAt() *AccountUpsert {
+	u.SetExcluded(account.FieldReviewedAt)
+	return u
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (u *AccountUpsert) ClearReviewedAt() *AccountUpsert {
+	u.SetNull(account.FieldReviewedAt)
+	return u
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *AccountUpsert) SetReviewedBy(v int64) *AccountUpsert {
+	u.Set(account.FieldReviewedBy, v)
+	return u
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateReviewedBy() *AccountUpsert {
+	u.SetExcluded(account.FieldReviewedBy)
+	return u
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (u *AccountUpsert) ClearReviewedBy() *AccountUpsert {
+	u.SetNull(account.FieldReviewedBy)
+	return u
+}
+
+// SetReviewNote sets the "review_note" field.
+func (u *AccountUpsert) SetReviewNote(v string) *AccountUpsert {
+	u.Set(account.FieldReviewNote, v)
+	return u
+}
+
+// UpdateReviewNote sets the "review_note" field to the value that was provided on create.
+func (u *AccountUpsert) UpdateReviewNote() *AccountUpsert {
+	u.SetExcluded(account.FieldReviewNote)
+	return u
+}
+
+// ClearReviewNote clears the value of the "review_note" field.
+func (u *AccountUpsert) ClearReviewNote() *AccountUpsert {
+	u.SetNull(account.FieldReviewNote)
 	return u
 }
 
@@ -1571,6 +1850,125 @@ func (u *AccountUpsertOne) SetType(v string) *AccountUpsertOne {
 func (u *AccountUpsertOne) UpdateType() *AccountUpsertOne {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateType()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *AccountUpsertOne) SetSupplierID(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateSupplierID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *AccountUpsertOne) ClearSupplierID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearSupplierID()
+	})
+}
+
+// SetSupplierExternalID sets the "supplier_external_id" field.
+func (u *AccountUpsertOne) SetSupplierExternalID(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetSupplierExternalID(v)
+	})
+}
+
+// UpdateSupplierExternalID sets the "supplier_external_id" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateSupplierExternalID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateSupplierExternalID()
+	})
+}
+
+// ClearSupplierExternalID clears the value of the "supplier_external_id" field.
+func (u *AccountUpsertOne) ClearSupplierExternalID() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearSupplierExternalID()
+	})
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (u *AccountUpsertOne) SetReviewStatus(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewStatus(v)
+	})
+}
+
+// UpdateReviewStatus sets the "review_status" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateReviewStatus() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewStatus()
+	})
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (u *AccountUpsertOne) SetReviewedAt(v time.Time) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewedAt(v)
+	})
+}
+
+// UpdateReviewedAt sets the "reviewed_at" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateReviewedAt() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewedAt()
+	})
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (u *AccountUpsertOne) ClearReviewedAt() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearReviewedAt()
+	})
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *AccountUpsertOne) SetReviewedBy(v int64) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewedBy(v)
+	})
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateReviewedBy() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewedBy()
+	})
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (u *AccountUpsertOne) ClearReviewedBy() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearReviewedBy()
+	})
+}
+
+// SetReviewNote sets the "review_note" field.
+func (u *AccountUpsertOne) SetReviewNote(v string) *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewNote(v)
+	})
+}
+
+// UpdateReviewNote sets the "review_note" field to the value that was provided on create.
+func (u *AccountUpsertOne) UpdateReviewNote() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewNote()
+	})
+}
+
+// ClearReviewNote clears the value of the "review_note" field.
+func (u *AccountUpsertOne) ClearReviewNote() *AccountUpsertOne {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearReviewNote()
 	})
 }
 
@@ -2356,6 +2754,125 @@ func (u *AccountUpsertBulk) SetType(v string) *AccountUpsertBulk {
 func (u *AccountUpsertBulk) UpdateType() *AccountUpsertBulk {
 	return u.Update(func(s *AccountUpsert) {
 		s.UpdateType()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *AccountUpsertBulk) SetSupplierID(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateSupplierID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *AccountUpsertBulk) ClearSupplierID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearSupplierID()
+	})
+}
+
+// SetSupplierExternalID sets the "supplier_external_id" field.
+func (u *AccountUpsertBulk) SetSupplierExternalID(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetSupplierExternalID(v)
+	})
+}
+
+// UpdateSupplierExternalID sets the "supplier_external_id" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateSupplierExternalID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateSupplierExternalID()
+	})
+}
+
+// ClearSupplierExternalID clears the value of the "supplier_external_id" field.
+func (u *AccountUpsertBulk) ClearSupplierExternalID() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearSupplierExternalID()
+	})
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (u *AccountUpsertBulk) SetReviewStatus(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewStatus(v)
+	})
+}
+
+// UpdateReviewStatus sets the "review_status" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateReviewStatus() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewStatus()
+	})
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (u *AccountUpsertBulk) SetReviewedAt(v time.Time) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewedAt(v)
+	})
+}
+
+// UpdateReviewedAt sets the "reviewed_at" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateReviewedAt() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewedAt()
+	})
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (u *AccountUpsertBulk) ClearReviewedAt() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearReviewedAt()
+	})
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (u *AccountUpsertBulk) SetReviewedBy(v int64) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewedBy(v)
+	})
+}
+
+// UpdateReviewedBy sets the "reviewed_by" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateReviewedBy() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewedBy()
+	})
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (u *AccountUpsertBulk) ClearReviewedBy() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearReviewedBy()
+	})
+}
+
+// SetReviewNote sets the "review_note" field.
+func (u *AccountUpsertBulk) SetReviewNote(v string) *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.SetReviewNote(v)
+	})
+}
+
+// UpdateReviewNote sets the "review_note" field to the value that was provided on create.
+func (u *AccountUpsertBulk) UpdateReviewNote() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.UpdateReviewNote()
+	})
+}
+
+// ClearReviewNote clears the value of the "review_note" field.
+func (u *AccountUpsertBulk) ClearReviewNote() *AccountUpsertBulk {
+	return u.Update(func(s *AccountUpsert) {
+		s.ClearReviewNote()
 	})
 }
 

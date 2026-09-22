@@ -15,7 +15,9 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/group"
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
+	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
 // AccountUpdate is the builder for updating Account entities.
@@ -116,6 +118,120 @@ func (_u *AccountUpdate) SetNillableType(v *string) *AccountUpdate {
 	if v != nil {
 		_u.SetType(*v)
 	}
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *AccountUpdate) SetSupplierID(v int64) *AccountUpdate {
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableSupplierID(v *int64) *AccountUpdate {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *AccountUpdate) ClearSupplierID() *AccountUpdate {
+	_u.mutation.ClearSupplierID()
+	return _u
+}
+
+// SetSupplierExternalID sets the "supplier_external_id" field.
+func (_u *AccountUpdate) SetSupplierExternalID(v string) *AccountUpdate {
+	_u.mutation.SetSupplierExternalID(v)
+	return _u
+}
+
+// SetNillableSupplierExternalID sets the "supplier_external_id" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableSupplierExternalID(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetSupplierExternalID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierExternalID clears the value of the "supplier_external_id" field.
+func (_u *AccountUpdate) ClearSupplierExternalID() *AccountUpdate {
+	_u.mutation.ClearSupplierExternalID()
+	return _u
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (_u *AccountUpdate) SetReviewStatus(v string) *AccountUpdate {
+	_u.mutation.SetReviewStatus(v)
+	return _u
+}
+
+// SetNillableReviewStatus sets the "review_status" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableReviewStatus(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetReviewStatus(*v)
+	}
+	return _u
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (_u *AccountUpdate) SetReviewedAt(v time.Time) *AccountUpdate {
+	_u.mutation.SetReviewedAt(v)
+	return _u
+}
+
+// SetNillableReviewedAt sets the "reviewed_at" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableReviewedAt(v *time.Time) *AccountUpdate {
+	if v != nil {
+		_u.SetReviewedAt(*v)
+	}
+	return _u
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (_u *AccountUpdate) ClearReviewedAt() *AccountUpdate {
+	_u.mutation.ClearReviewedAt()
+	return _u
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (_u *AccountUpdate) SetReviewedBy(v int64) *AccountUpdate {
+	_u.mutation.SetReviewedBy(v)
+	return _u
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableReviewedBy(v *int64) *AccountUpdate {
+	if v != nil {
+		_u.SetReviewedBy(*v)
+	}
+	return _u
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (_u *AccountUpdate) ClearReviewedBy() *AccountUpdate {
+	_u.mutation.ClearReviewedBy()
+	return _u
+}
+
+// SetReviewNote sets the "review_note" field.
+func (_u *AccountUpdate) SetReviewNote(v string) *AccountUpdate {
+	_u.mutation.SetReviewNote(v)
+	return _u
+}
+
+// SetNillableReviewNote sets the "review_note" field if the given value is not nil.
+func (_u *AccountUpdate) SetNillableReviewNote(v *string) *AccountUpdate {
+	if v != nil {
+		_u.SetReviewNote(*v)
+	}
+	return _u
+}
+
+// ClearReviewNote clears the value of the "review_note" field.
+func (_u *AccountUpdate) ClearReviewNote() *AccountUpdate {
+	_u.mutation.ClearReviewNote()
 	return _u
 }
 
@@ -633,6 +749,30 @@ func (_u *AccountUpdate) AddUsageLogs(v ...*UsageLog) *AccountUpdate {
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_u *AccountUpdate) SetSupplier(v *Supplier) *AccountUpdate {
+	return _u.SetSupplierID(v.ID)
+}
+
+// SetReviewerID sets the "reviewer" edge to the User entity by ID.
+func (_u *AccountUpdate) SetReviewerID(id int64) *AccountUpdate {
+	_u.mutation.SetReviewerID(id)
+	return _u
+}
+
+// SetNillableReviewerID sets the "reviewer" edge to the User entity by ID if the given value is not nil.
+func (_u *AccountUpdate) SetNillableReviewerID(id *int64) *AccountUpdate {
+	if id != nil {
+		_u = _u.SetReviewerID(*id)
+	}
+	return _u
+}
+
+// SetReviewer sets the "reviewer" edge to the User entity.
+func (_u *AccountUpdate) SetReviewer(v *User) *AccountUpdate {
+	return _u.SetReviewerID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_u *AccountUpdate) Mutation() *AccountMutation {
 	return _u.mutation
@@ -713,6 +853,18 @@ func (_u *AccountUpdate) RemoveUsageLogs(v ...*UsageLog) *AccountUpdate {
 	return _u.RemoveUsageLogIDs(ids...)
 }
 
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (_u *AccountUpdate) ClearSupplier() *AccountUpdate {
+	_u.mutation.ClearSupplier()
+	return _u
+}
+
+// ClearReviewer clears the "reviewer" edge to the User entity.
+func (_u *AccountUpdate) ClearReviewer() *AccountUpdate {
+	_u.mutation.ClearReviewer()
+	return _u
+}
+
 // Save executes the query and returns the number of nodes affected by the update operation.
 func (_u *AccountUpdate) Save(ctx context.Context) (int, error) {
 	if err := _u.defaults(); err != nil {
@@ -772,6 +924,16 @@ func (_u *AccountUpdate) check() error {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Account.type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SupplierExternalID(); ok {
+		if err := account.SupplierExternalIDValidator(v); err != nil {
+			return &ValidationError{Name: "supplier_external_id", err: fmt.Errorf(`ent: validator failed for field "Account.supplier_external_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReviewStatus(); ok {
+		if err := account.ReviewStatusValidator(v); err != nil {
+			return &ValidationError{Name: "review_status", err: fmt.Errorf(`ent: validator failed for field "Account.review_status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := account.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
@@ -825,6 +987,27 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.GetType(); ok {
 		_spec.SetField(account.FieldType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SupplierExternalID(); ok {
+		_spec.SetField(account.FieldSupplierExternalID, field.TypeString, value)
+	}
+	if _u.mutation.SupplierExternalIDCleared() {
+		_spec.ClearField(account.FieldSupplierExternalID, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReviewStatus(); ok {
+		_spec.SetField(account.FieldReviewStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ReviewedAt(); ok {
+		_spec.SetField(account.FieldReviewedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReviewedAtCleared() {
+		_spec.ClearField(account.FieldReviewedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReviewNote(); ok {
+		_spec.SetField(account.FieldReviewNote, field.TypeString, value)
+	}
+	if _u.mutation.ReviewNoteCleared() {
+		_spec.ClearField(account.FieldReviewNote, field.TypeString)
 	}
 	if value, ok := _u.mutation.Credentials(); ok {
 		_spec.SetField(account.FieldCredentials, field.TypeJSON, value)
@@ -1151,6 +1334,64 @@ func (_u *AccountUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.SupplierCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReviewerCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ReviewerTable,
+			Columns: []string{account.ReviewerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReviewerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ReviewerTable,
+			Columns: []string{account.ReviewerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{account.Label}
@@ -1256,6 +1497,120 @@ func (_u *AccountUpdateOne) SetNillableType(v *string) *AccountUpdateOne {
 	if v != nil {
 		_u.SetType(*v)
 	}
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *AccountUpdateOne) SetSupplierID(v int64) *AccountUpdateOne {
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableSupplierID(v *int64) *AccountUpdateOne {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *AccountUpdateOne) ClearSupplierID() *AccountUpdateOne {
+	_u.mutation.ClearSupplierID()
+	return _u
+}
+
+// SetSupplierExternalID sets the "supplier_external_id" field.
+func (_u *AccountUpdateOne) SetSupplierExternalID(v string) *AccountUpdateOne {
+	_u.mutation.SetSupplierExternalID(v)
+	return _u
+}
+
+// SetNillableSupplierExternalID sets the "supplier_external_id" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableSupplierExternalID(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetSupplierExternalID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierExternalID clears the value of the "supplier_external_id" field.
+func (_u *AccountUpdateOne) ClearSupplierExternalID() *AccountUpdateOne {
+	_u.mutation.ClearSupplierExternalID()
+	return _u
+}
+
+// SetReviewStatus sets the "review_status" field.
+func (_u *AccountUpdateOne) SetReviewStatus(v string) *AccountUpdateOne {
+	_u.mutation.SetReviewStatus(v)
+	return _u
+}
+
+// SetNillableReviewStatus sets the "review_status" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableReviewStatus(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetReviewStatus(*v)
+	}
+	return _u
+}
+
+// SetReviewedAt sets the "reviewed_at" field.
+func (_u *AccountUpdateOne) SetReviewedAt(v time.Time) *AccountUpdateOne {
+	_u.mutation.SetReviewedAt(v)
+	return _u
+}
+
+// SetNillableReviewedAt sets the "reviewed_at" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableReviewedAt(v *time.Time) *AccountUpdateOne {
+	if v != nil {
+		_u.SetReviewedAt(*v)
+	}
+	return _u
+}
+
+// ClearReviewedAt clears the value of the "reviewed_at" field.
+func (_u *AccountUpdateOne) ClearReviewedAt() *AccountUpdateOne {
+	_u.mutation.ClearReviewedAt()
+	return _u
+}
+
+// SetReviewedBy sets the "reviewed_by" field.
+func (_u *AccountUpdateOne) SetReviewedBy(v int64) *AccountUpdateOne {
+	_u.mutation.SetReviewedBy(v)
+	return _u
+}
+
+// SetNillableReviewedBy sets the "reviewed_by" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableReviewedBy(v *int64) *AccountUpdateOne {
+	if v != nil {
+		_u.SetReviewedBy(*v)
+	}
+	return _u
+}
+
+// ClearReviewedBy clears the value of the "reviewed_by" field.
+func (_u *AccountUpdateOne) ClearReviewedBy() *AccountUpdateOne {
+	_u.mutation.ClearReviewedBy()
+	return _u
+}
+
+// SetReviewNote sets the "review_note" field.
+func (_u *AccountUpdateOne) SetReviewNote(v string) *AccountUpdateOne {
+	_u.mutation.SetReviewNote(v)
+	return _u
+}
+
+// SetNillableReviewNote sets the "review_note" field if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableReviewNote(v *string) *AccountUpdateOne {
+	if v != nil {
+		_u.SetReviewNote(*v)
+	}
+	return _u
+}
+
+// ClearReviewNote clears the value of the "review_note" field.
+func (_u *AccountUpdateOne) ClearReviewNote() *AccountUpdateOne {
+	_u.mutation.ClearReviewNote()
 	return _u
 }
 
@@ -1773,6 +2128,30 @@ func (_u *AccountUpdateOne) AddUsageLogs(v ...*UsageLog) *AccountUpdateOne {
 	return _u.AddUsageLogIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_u *AccountUpdateOne) SetSupplier(v *Supplier) *AccountUpdateOne {
+	return _u.SetSupplierID(v.ID)
+}
+
+// SetReviewerID sets the "reviewer" edge to the User entity by ID.
+func (_u *AccountUpdateOne) SetReviewerID(id int64) *AccountUpdateOne {
+	_u.mutation.SetReviewerID(id)
+	return _u
+}
+
+// SetNillableReviewerID sets the "reviewer" edge to the User entity by ID if the given value is not nil.
+func (_u *AccountUpdateOne) SetNillableReviewerID(id *int64) *AccountUpdateOne {
+	if id != nil {
+		_u = _u.SetReviewerID(*id)
+	}
+	return _u
+}
+
+// SetReviewer sets the "reviewer" edge to the User entity.
+func (_u *AccountUpdateOne) SetReviewer(v *User) *AccountUpdateOne {
+	return _u.SetReviewerID(v.ID)
+}
+
 // Mutation returns the AccountMutation object of the builder.
 func (_u *AccountUpdateOne) Mutation() *AccountMutation {
 	return _u.mutation
@@ -1853,6 +2232,18 @@ func (_u *AccountUpdateOne) RemoveUsageLogs(v ...*UsageLog) *AccountUpdateOne {
 	return _u.RemoveUsageLogIDs(ids...)
 }
 
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (_u *AccountUpdateOne) ClearSupplier() *AccountUpdateOne {
+	_u.mutation.ClearSupplier()
+	return _u
+}
+
+// ClearReviewer clears the "reviewer" edge to the User entity.
+func (_u *AccountUpdateOne) ClearReviewer() *AccountUpdateOne {
+	_u.mutation.ClearReviewer()
+	return _u
+}
+
 // Where appends a list predicates to the AccountUpdate builder.
 func (_u *AccountUpdateOne) Where(ps ...predicate.Account) *AccountUpdateOne {
 	_u.mutation.Where(ps...)
@@ -1925,6 +2316,16 @@ func (_u *AccountUpdateOne) check() error {
 			return &ValidationError{Name: "type", err: fmt.Errorf(`ent: validator failed for field "Account.type": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.SupplierExternalID(); ok {
+		if err := account.SupplierExternalIDValidator(v); err != nil {
+			return &ValidationError{Name: "supplier_external_id", err: fmt.Errorf(`ent: validator failed for field "Account.supplier_external_id": %w`, err)}
+		}
+	}
+	if v, ok := _u.mutation.ReviewStatus(); ok {
+		if err := account.ReviewStatusValidator(v); err != nil {
+			return &ValidationError{Name: "review_status", err: fmt.Errorf(`ent: validator failed for field "Account.review_status": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Status(); ok {
 		if err := account.StatusValidator(v); err != nil {
 			return &ValidationError{Name: "status", err: fmt.Errorf(`ent: validator failed for field "Account.status": %w`, err)}
@@ -1995,6 +2396,27 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 	}
 	if value, ok := _u.mutation.GetType(); ok {
 		_spec.SetField(account.FieldType, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.SupplierExternalID(); ok {
+		_spec.SetField(account.FieldSupplierExternalID, field.TypeString, value)
+	}
+	if _u.mutation.SupplierExternalIDCleared() {
+		_spec.ClearField(account.FieldSupplierExternalID, field.TypeString)
+	}
+	if value, ok := _u.mutation.ReviewStatus(); ok {
+		_spec.SetField(account.FieldReviewStatus, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ReviewedAt(); ok {
+		_spec.SetField(account.FieldReviewedAt, field.TypeTime, value)
+	}
+	if _u.mutation.ReviewedAtCleared() {
+		_spec.ClearField(account.FieldReviewedAt, field.TypeTime)
+	}
+	if value, ok := _u.mutation.ReviewNote(); ok {
+		_spec.SetField(account.FieldReviewNote, field.TypeString, value)
+	}
+	if _u.mutation.ReviewNoteCleared() {
+		_spec.ClearField(account.FieldReviewNote, field.TypeString)
 	}
 	if value, ok := _u.mutation.Credentials(); ok {
 		_spec.SetField(account.FieldCredentials, field.TypeJSON, value)
@@ -2314,6 +2736,64 @@ func (_u *AccountUpdateOne) sqlSave(ctx context.Context) (_node *Account, err er
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(usagelog.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SupplierCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.SupplierTable,
+			Columns: []string{account.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReviewerCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ReviewerTable,
+			Columns: []string{account.ReviewerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReviewerIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   account.ReviewerTable,
+			Columns: []string{account.ReviewerColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(user.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

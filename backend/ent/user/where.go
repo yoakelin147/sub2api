@@ -85,6 +85,11 @@ func Role(v string) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldRole, v))
 }
 
+// SupplierID applies equality check predicate on the "supplier_id" field. It's identical to SupplierIDEQ.
+func SupplierID(v int64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldSupplierID, v))
+}
+
 // Balance applies equality check predicate on the "balance" field. It's identical to BalanceEQ.
 func Balance(v float64) predicate.User {
 	return predicate.User(sql.FieldEQ(FieldBalance, v))
@@ -503,6 +508,36 @@ func RoleEqualFold(v string) predicate.User {
 // RoleContainsFold applies the ContainsFold predicate on the "role" field.
 func RoleContainsFold(v string) predicate.User {
 	return predicate.User(sql.FieldContainsFold(FieldRole, v))
+}
+
+// SupplierIDEQ applies the EQ predicate on the "supplier_id" field.
+func SupplierIDEQ(v int64) predicate.User {
+	return predicate.User(sql.FieldEQ(FieldSupplierID, v))
+}
+
+// SupplierIDNEQ applies the NEQ predicate on the "supplier_id" field.
+func SupplierIDNEQ(v int64) predicate.User {
+	return predicate.User(sql.FieldNEQ(FieldSupplierID, v))
+}
+
+// SupplierIDIn applies the In predicate on the "supplier_id" field.
+func SupplierIDIn(vs ...int64) predicate.User {
+	return predicate.User(sql.FieldIn(FieldSupplierID, vs...))
+}
+
+// SupplierIDNotIn applies the NotIn predicate on the "supplier_id" field.
+func SupplierIDNotIn(vs ...int64) predicate.User {
+	return predicate.User(sql.FieldNotIn(FieldSupplierID, vs...))
+}
+
+// SupplierIDIsNil applies the IsNil predicate on the "supplier_id" field.
+func SupplierIDIsNil() predicate.User {
+	return predicate.User(sql.FieldIsNull(FieldSupplierID))
+}
+
+// SupplierIDNotNil applies the NotNil predicate on the "supplier_id" field.
+func SupplierIDNotNil() predicate.User {
+	return predicate.User(sql.FieldNotNull(FieldSupplierID))
 }
 
 // BalanceEQ applies the EQ predicate on the "balance" field.
@@ -1691,6 +1726,52 @@ func HasPlatformQuotas() predicate.User {
 func HasPlatformQuotasWith(preds ...predicate.UserPlatformQuota) predicate.User {
 	return predicate.User(func(s *sql.Selector) {
 		step := newPlatformQuotasStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSupplier applies the HasEdge predicate on the "supplier" edge.
+func HasSupplier() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, SupplierTable, SupplierColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSupplierWith applies the HasEdge predicate on the "supplier" edge with a given conditions (other predicates).
+func HasSupplierWith(preds ...predicate.Supplier) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newSupplierStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasReviewedSupplierAccounts applies the HasEdge predicate on the "reviewed_supplier_accounts" edge.
+func HasReviewedSupplierAccounts() predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, ReviewedSupplierAccountsTable, ReviewedSupplierAccountsColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasReviewedSupplierAccountsWith applies the HasEdge predicate on the "reviewed_supplier_accounts" edge with a given conditions (other predicates).
+func HasReviewedSupplierAccountsWith(preds ...predicate.Account) predicate.User {
+	return predicate.User(func(s *sql.Selector) {
+		step := newReviewedSupplierAccountsStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

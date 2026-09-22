@@ -12,6 +12,8 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/proxy"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
+	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
 // Account is the model entity for the Account schema.
@@ -33,6 +35,18 @@ type Account struct {
 	Platform string `json:"platform,omitempty"`
 	// Type holds the value of the "type" field.
 	Type string `json:"type,omitempty"`
+	// SupplierID holds the value of the "supplier_id" field.
+	SupplierID *int64 `json:"supplier_id,omitempty"`
+	// SupplierExternalID holds the value of the "supplier_external_id" field.
+	SupplierExternalID *string `json:"supplier_external_id,omitempty"`
+	// ReviewStatus holds the value of the "review_status" field.
+	ReviewStatus string `json:"review_status,omitempty"`
+	// ReviewedAt holds the value of the "reviewed_at" field.
+	ReviewedAt *time.Time `json:"reviewed_at,omitempty"`
+	// ReviewedBy holds the value of the "reviewed_by" field.
+	ReviewedBy *int64 `json:"reviewed_by,omitempty"`
+	// ReviewNote holds the value of the "review_note" field.
+	ReviewNote *string `json:"review_note,omitempty"`
 	// Credentials holds the value of the "credentials" field.
 	Credentials map[string]interface{} `json:"credentials,omitempty"`
 	// Extra holds the value of the "extra" field.
@@ -99,11 +113,15 @@ type AccountEdges struct {
 	Children []*Account `json:"children,omitempty"`
 	// UsageLogs holds the value of the usage_logs edge.
 	UsageLogs []*UsageLog `json:"usage_logs,omitempty"`
+	// Supplier holds the value of the supplier edge.
+	Supplier *Supplier `json:"supplier,omitempty"`
+	// Reviewer holds the value of the reviewer edge.
+	Reviewer *User `json:"reviewer,omitempty"`
 	// AccountGroups holds the value of the account_groups edge.
 	AccountGroups []*AccountGroup `json:"account_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [6]bool
+	loadedTypes [8]bool
 }
 
 // GroupsOrErr returns the Groups value or an error if the edge
@@ -155,10 +173,32 @@ func (e AccountEdges) UsageLogsOrErr() ([]*UsageLog, error) {
 	return nil, &NotLoadedError{edge: "usage_logs"}
 }
 
+// SupplierOrErr returns the Supplier value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e AccountEdges) SupplierOrErr() (*Supplier, error) {
+	if e.Supplier != nil {
+		return e.Supplier, nil
+	} else if e.loadedTypes[5] {
+		return nil, &NotFoundError{label: supplier.Label}
+	}
+	return nil, &NotLoadedError{edge: "supplier"}
+}
+
+// ReviewerOrErr returns the Reviewer value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e AccountEdges) ReviewerOrErr() (*User, error) {
+	if e.Reviewer != nil {
+		return e.Reviewer, nil
+	} else if e.loadedTypes[6] {
+		return nil, &NotFoundError{label: user.Label}
+	}
+	return nil, &NotLoadedError{edge: "reviewer"}
+}
+
 // AccountGroupsOrErr returns the AccountGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e AccountEdges) AccountGroupsOrErr() ([]*AccountGroup, error) {
-	if e.loadedTypes[5] {
+	if e.loadedTypes[7] {
 		return e.AccountGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "account_groups"}
@@ -175,11 +215,11 @@ func (*Account) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case account.FieldRateMultiplier:
 			values[i] = new(sql.NullFloat64)
-		case account.FieldID, account.FieldProxyID, account.FieldProxyFallbackOriginID, account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority, account.FieldParentAccountID:
+		case account.FieldID, account.FieldSupplierID, account.FieldReviewedBy, account.FieldProxyID, account.FieldProxyFallbackOriginID, account.FieldConcurrency, account.FieldLoadFactor, account.FieldPriority, account.FieldParentAccountID:
 			values[i] = new(sql.NullInt64)
-		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldStatus, account.FieldErrorMessage, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus, account.FieldQuotaDimension:
+		case account.FieldName, account.FieldNotes, account.FieldPlatform, account.FieldType, account.FieldSupplierExternalID, account.FieldReviewStatus, account.FieldReviewNote, account.FieldStatus, account.FieldErrorMessage, account.FieldTempUnschedulableReason, account.FieldSessionWindowStatus, account.FieldQuotaDimension:
 			values[i] = new(sql.NullString)
-		case account.FieldCreatedAt, account.FieldUpdatedAt, account.FieldDeletedAt, account.FieldLastUsedAt, account.FieldExpiresAt, account.FieldRateLimitedAt, account.FieldRateLimitResetAt, account.FieldOverloadUntil, account.FieldTempUnschedulableUntil, account.FieldSessionWindowStart, account.FieldSessionWindowEnd:
+		case account.FieldCreatedAt, account.FieldUpdatedAt, account.FieldDeletedAt, account.FieldReviewedAt, account.FieldLastUsedAt, account.FieldExpiresAt, account.FieldRateLimitedAt, account.FieldRateLimitResetAt, account.FieldOverloadUntil, account.FieldTempUnschedulableUntil, account.FieldSessionWindowStart, account.FieldSessionWindowEnd:
 			values[i] = new(sql.NullTime)
 		default:
 			values[i] = new(sql.UnknownType)
@@ -245,6 +285,47 @@ func (_m *Account) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field type", values[i])
 			} else if value.Valid {
 				_m.Type = value.String
+			}
+		case account.FieldSupplierID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_id", values[i])
+			} else if value.Valid {
+				_m.SupplierID = new(int64)
+				*_m.SupplierID = value.Int64
+			}
+		case account.FieldSupplierExternalID:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_external_id", values[i])
+			} else if value.Valid {
+				_m.SupplierExternalID = new(string)
+				*_m.SupplierExternalID = value.String
+			}
+		case account.FieldReviewStatus:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field review_status", values[i])
+			} else if value.Valid {
+				_m.ReviewStatus = value.String
+			}
+		case account.FieldReviewedAt:
+			if value, ok := values[i].(*sql.NullTime); !ok {
+				return fmt.Errorf("unexpected type %T for field reviewed_at", values[i])
+			} else if value.Valid {
+				_m.ReviewedAt = new(time.Time)
+				*_m.ReviewedAt = value.Time
+			}
+		case account.FieldReviewedBy:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field reviewed_by", values[i])
+			} else if value.Valid {
+				_m.ReviewedBy = new(int64)
+				*_m.ReviewedBy = value.Int64
+			}
+		case account.FieldReviewNote:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field review_note", values[i])
+			} else if value.Valid {
+				_m.ReviewNote = new(string)
+				*_m.ReviewNote = value.String
 			}
 		case account.FieldCredentials:
 			if value, ok := values[i].(*[]byte); !ok {
@@ -447,6 +528,16 @@ func (_m *Account) QueryUsageLogs() *UsageLogQuery {
 	return NewAccountClient(_m.config).QueryUsageLogs(_m)
 }
 
+// QuerySupplier queries the "supplier" edge of the Account entity.
+func (_m *Account) QuerySupplier() *SupplierQuery {
+	return NewAccountClient(_m.config).QuerySupplier(_m)
+}
+
+// QueryReviewer queries the "reviewer" edge of the Account entity.
+func (_m *Account) QueryReviewer() *UserQuery {
+	return NewAccountClient(_m.config).QueryReviewer(_m)
+}
+
 // QueryAccountGroups queries the "account_groups" edge of the Account entity.
 func (_m *Account) QueryAccountGroups() *AccountGroupQuery {
 	return NewAccountClient(_m.config).QueryAccountGroups(_m)
@@ -499,6 +590,34 @@ func (_m *Account) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("type=")
 	builder.WriteString(_m.Type)
+	builder.WriteString(", ")
+	if v := _m.SupplierID; v != nil {
+		builder.WriteString("supplier_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.SupplierExternalID; v != nil {
+		builder.WriteString("supplier_external_id=")
+		builder.WriteString(*v)
+	}
+	builder.WriteString(", ")
+	builder.WriteString("review_status=")
+	builder.WriteString(_m.ReviewStatus)
+	builder.WriteString(", ")
+	if v := _m.ReviewedAt; v != nil {
+		builder.WriteString("reviewed_at=")
+		builder.WriteString(v.Format(time.ANSIC))
+	}
+	builder.WriteString(", ")
+	if v := _m.ReviewedBy; v != nil {
+		builder.WriteString("reviewed_by=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
+	builder.WriteString(", ")
+	if v := _m.ReviewNote; v != nil {
+		builder.WriteString("review_note=")
+		builder.WriteString(*v)
+	}
 	builder.WriteString(", ")
 	builder.WriteString("credentials=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Credentials))

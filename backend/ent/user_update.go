@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
@@ -20,6 +21,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -105,6 +107,26 @@ func (_u *UserUpdate) SetNillableRole(v *string) *UserUpdate {
 	if v != nil {
 		_u.SetRole(*v)
 	}
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *UserUpdate) SetSupplierID(v int64) *UserUpdate {
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *UserUpdate) SetNillableSupplierID(v *int64) *UserUpdate {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *UserUpdate) ClearSupplierID() *UserUpdate {
+	_u.mutation.ClearSupplierID()
 	return _u
 }
 
@@ -641,6 +663,26 @@ func (_u *UserUpdate) AddPlatformQuotas(v ...*UserPlatformQuota) *UserUpdate {
 	return _u.AddPlatformQuotaIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_u *UserUpdate) SetSupplier(v *Supplier) *UserUpdate {
+	return _u.SetSupplierID(v.ID)
+}
+
+// AddReviewedSupplierAccountIDs adds the "reviewed_supplier_accounts" edge to the Account entity by IDs.
+func (_u *UserUpdate) AddReviewedSupplierAccountIDs(ids ...int64) *UserUpdate {
+	_u.mutation.AddReviewedSupplierAccountIDs(ids...)
+	return _u
+}
+
+// AddReviewedSupplierAccounts adds the "reviewed_supplier_accounts" edges to the Account entity.
+func (_u *UserUpdate) AddReviewedSupplierAccounts(v ...*Account) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReviewedSupplierAccountIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdate) Mutation() *UserMutation {
 	return _u.mutation
@@ -917,6 +959,33 @@ func (_u *UserUpdate) RemovePlatformQuotas(v ...*UserPlatformQuota) *UserUpdate 
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePlatformQuotaIDs(ids...)
+}
+
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (_u *UserUpdate) ClearSupplier() *UserUpdate {
+	_u.mutation.ClearSupplier()
+	return _u
+}
+
+// ClearReviewedSupplierAccounts clears all "reviewed_supplier_accounts" edges to the Account entity.
+func (_u *UserUpdate) ClearReviewedSupplierAccounts() *UserUpdate {
+	_u.mutation.ClearReviewedSupplierAccounts()
+	return _u
+}
+
+// RemoveReviewedSupplierAccountIDs removes the "reviewed_supplier_accounts" edge to Account entities by IDs.
+func (_u *UserUpdate) RemoveReviewedSupplierAccountIDs(ids ...int64) *UserUpdate {
+	_u.mutation.RemoveReviewedSupplierAccountIDs(ids...)
+	return _u
+}
+
+// RemoveReviewedSupplierAccounts removes "reviewed_supplier_accounts" edges to Account entities.
+func (_u *UserUpdate) RemoveReviewedSupplierAccounts(v ...*Account) *UserUpdate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReviewedSupplierAccountIDs(ids...)
 }
 
 // Save executes the query and returns the number of nodes affected by the update operation.
@@ -1713,6 +1782,80 @@ func (_u *UserUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 		}
 		_spec.Edges.Add = append(_spec.Edges.Add, edge)
 	}
+	if _u.mutation.SupplierCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.SupplierTable,
+			Columns: []string{user.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.SupplierTable,
+			Columns: []string{user.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReviewedSupplierAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ReviewedSupplierAccountsTable,
+			Columns: []string{user.ReviewedSupplierAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReviewedSupplierAccountsIDs(); len(nodes) > 0 && !_u.mutation.ReviewedSupplierAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ReviewedSupplierAccountsTable,
+			Columns: []string{user.ReviewedSupplierAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReviewedSupplierAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ReviewedSupplierAccountsTable,
+			Columns: []string{user.ReviewedSupplierAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
 	if _node, err = sqlgraph.UpdateNodes(ctx, _u.driver, _spec); err != nil {
 		if _, ok := err.(*sqlgraph.NotFoundError); ok {
 			err = &NotFoundError{user.Label}
@@ -1798,6 +1941,26 @@ func (_u *UserUpdateOne) SetNillableRole(v *string) *UserUpdateOne {
 	if v != nil {
 		_u.SetRole(*v)
 	}
+	return _u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_u *UserUpdateOne) SetSupplierID(v int64) *UserUpdateOne {
+	_u.mutation.SetSupplierID(v)
+	return _u
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_u *UserUpdateOne) SetNillableSupplierID(v *int64) *UserUpdateOne {
+	if v != nil {
+		_u.SetSupplierID(*v)
+	}
+	return _u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (_u *UserUpdateOne) ClearSupplierID() *UserUpdateOne {
+	_u.mutation.ClearSupplierID()
 	return _u
 }
 
@@ -2334,6 +2497,26 @@ func (_u *UserUpdateOne) AddPlatformQuotas(v ...*UserPlatformQuota) *UserUpdateO
 	return _u.AddPlatformQuotaIDs(ids...)
 }
 
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_u *UserUpdateOne) SetSupplier(v *Supplier) *UserUpdateOne {
+	return _u.SetSupplierID(v.ID)
+}
+
+// AddReviewedSupplierAccountIDs adds the "reviewed_supplier_accounts" edge to the Account entity by IDs.
+func (_u *UserUpdateOne) AddReviewedSupplierAccountIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.AddReviewedSupplierAccountIDs(ids...)
+	return _u
+}
+
+// AddReviewedSupplierAccounts adds the "reviewed_supplier_accounts" edges to the Account entity.
+func (_u *UserUpdateOne) AddReviewedSupplierAccounts(v ...*Account) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.AddReviewedSupplierAccountIDs(ids...)
+}
+
 // Mutation returns the UserMutation object of the builder.
 func (_u *UserUpdateOne) Mutation() *UserMutation {
 	return _u.mutation
@@ -2610,6 +2793,33 @@ func (_u *UserUpdateOne) RemovePlatformQuotas(v ...*UserPlatformQuota) *UserUpda
 		ids[i] = v[i].ID
 	}
 	return _u.RemovePlatformQuotaIDs(ids...)
+}
+
+// ClearSupplier clears the "supplier" edge to the Supplier entity.
+func (_u *UserUpdateOne) ClearSupplier() *UserUpdateOne {
+	_u.mutation.ClearSupplier()
+	return _u
+}
+
+// ClearReviewedSupplierAccounts clears all "reviewed_supplier_accounts" edges to the Account entity.
+func (_u *UserUpdateOne) ClearReviewedSupplierAccounts() *UserUpdateOne {
+	_u.mutation.ClearReviewedSupplierAccounts()
+	return _u
+}
+
+// RemoveReviewedSupplierAccountIDs removes the "reviewed_supplier_accounts" edge to Account entities by IDs.
+func (_u *UserUpdateOne) RemoveReviewedSupplierAccountIDs(ids ...int64) *UserUpdateOne {
+	_u.mutation.RemoveReviewedSupplierAccountIDs(ids...)
+	return _u
+}
+
+// RemoveReviewedSupplierAccounts removes "reviewed_supplier_accounts" edges to Account entities.
+func (_u *UserUpdateOne) RemoveReviewedSupplierAccounts(v ...*Account) *UserUpdateOne {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _u.RemoveReviewedSupplierAccountIDs(ids...)
 }
 
 // Where appends a list predicates to the UserUpdate builder.
@@ -3429,6 +3639,80 @@ func (_u *UserUpdateOne) sqlSave(ctx context.Context) (_node *User, err error) {
 			Bidi:    false,
 			Target: &sqlgraph.EdgeTarget{
 				IDSpec: sqlgraph.NewFieldSpec(userplatformquota.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.SupplierCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.SupplierTable,
+			Columns: []string{user.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.SupplierTable,
+			Columns: []string{user.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Add = append(_spec.Edges.Add, edge)
+	}
+	if _u.mutation.ReviewedSupplierAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ReviewedSupplierAccountsTable,
+			Columns: []string{user.ReviewedSupplierAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeInt64),
+			},
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.RemovedReviewedSupplierAccountsIDs(); len(nodes) > 0 && !_u.mutation.ReviewedSupplierAccountsCleared() {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ReviewedSupplierAccountsTable,
+			Columns: []string{user.ReviewedSupplierAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges.Clear = append(_spec.Edges.Clear, edge)
+	}
+	if nodes := _u.mutation.ReviewedSupplierAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ReviewedSupplierAccountsTable,
+			Columns: []string{user.ReviewedSupplierAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeInt64),
 			},
 		}
 		for _, k := range nodes {

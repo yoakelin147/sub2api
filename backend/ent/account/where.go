@@ -90,6 +90,36 @@ func Type(v string) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldType, v))
 }
 
+// SupplierID applies equality check predicate on the "supplier_id" field. It's identical to SupplierIDEQ.
+func SupplierID(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSupplierID, v))
+}
+
+// SupplierExternalID applies equality check predicate on the "supplier_external_id" field. It's identical to SupplierExternalIDEQ.
+func SupplierExternalID(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSupplierExternalID, v))
+}
+
+// ReviewStatus applies equality check predicate on the "review_status" field. It's identical to ReviewStatusEQ.
+func ReviewStatus(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewStatus, v))
+}
+
+// ReviewedAt applies equality check predicate on the "reviewed_at" field. It's identical to ReviewedAtEQ.
+func ReviewedAt(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewedAt, v))
+}
+
+// ReviewedBy applies equality check predicate on the "reviewed_by" field. It's identical to ReviewedByEQ.
+func ReviewedBy(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewedBy, v))
+}
+
+// ReviewNote applies equality check predicate on the "review_note" field. It's identical to ReviewNoteEQ.
+func ReviewNote(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewNote, v))
+}
+
 // ProxyID applies equality check predicate on the "proxy_id" field. It's identical to ProxyIDEQ.
 func ProxyID(v int64) predicate.Account {
 	return predicate.Account(sql.FieldEQ(FieldProxyID, v))
@@ -593,6 +623,331 @@ func TypeEqualFold(v string) predicate.Account {
 // TypeContainsFold applies the ContainsFold predicate on the "type" field.
 func TypeContainsFold(v string) predicate.Account {
 	return predicate.Account(sql.FieldContainsFold(FieldType, v))
+}
+
+// SupplierIDEQ applies the EQ predicate on the "supplier_id" field.
+func SupplierIDEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSupplierID, v))
+}
+
+// SupplierIDNEQ applies the NEQ predicate on the "supplier_id" field.
+func SupplierIDNEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldSupplierID, v))
+}
+
+// SupplierIDIn applies the In predicate on the "supplier_id" field.
+func SupplierIDIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldSupplierID, vs...))
+}
+
+// SupplierIDNotIn applies the NotIn predicate on the "supplier_id" field.
+func SupplierIDNotIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldSupplierID, vs...))
+}
+
+// SupplierIDIsNil applies the IsNil predicate on the "supplier_id" field.
+func SupplierIDIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldSupplierID))
+}
+
+// SupplierIDNotNil applies the NotNil predicate on the "supplier_id" field.
+func SupplierIDNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldSupplierID))
+}
+
+// SupplierExternalIDEQ applies the EQ predicate on the "supplier_external_id" field.
+func SupplierExternalIDEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDNEQ applies the NEQ predicate on the "supplier_external_id" field.
+func SupplierExternalIDNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDIn applies the In predicate on the "supplier_external_id" field.
+func SupplierExternalIDIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldSupplierExternalID, vs...))
+}
+
+// SupplierExternalIDNotIn applies the NotIn predicate on the "supplier_external_id" field.
+func SupplierExternalIDNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldSupplierExternalID, vs...))
+}
+
+// SupplierExternalIDGT applies the GT predicate on the "supplier_external_id" field.
+func SupplierExternalIDGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDGTE applies the GTE predicate on the "supplier_external_id" field.
+func SupplierExternalIDGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDLT applies the LT predicate on the "supplier_external_id" field.
+func SupplierExternalIDLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDLTE applies the LTE predicate on the "supplier_external_id" field.
+func SupplierExternalIDLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDContains applies the Contains predicate on the "supplier_external_id" field.
+func SupplierExternalIDContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDHasPrefix applies the HasPrefix predicate on the "supplier_external_id" field.
+func SupplierExternalIDHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDHasSuffix applies the HasSuffix predicate on the "supplier_external_id" field.
+func SupplierExternalIDHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDIsNil applies the IsNil predicate on the "supplier_external_id" field.
+func SupplierExternalIDIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldSupplierExternalID))
+}
+
+// SupplierExternalIDNotNil applies the NotNil predicate on the "supplier_external_id" field.
+func SupplierExternalIDNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldSupplierExternalID))
+}
+
+// SupplierExternalIDEqualFold applies the EqualFold predicate on the "supplier_external_id" field.
+func SupplierExternalIDEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldSupplierExternalID, v))
+}
+
+// SupplierExternalIDContainsFold applies the ContainsFold predicate on the "supplier_external_id" field.
+func SupplierExternalIDContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldSupplierExternalID, v))
+}
+
+// ReviewStatusEQ applies the EQ predicate on the "review_status" field.
+func ReviewStatusEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewStatus, v))
+}
+
+// ReviewStatusNEQ applies the NEQ predicate on the "review_status" field.
+func ReviewStatusNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldReviewStatus, v))
+}
+
+// ReviewStatusIn applies the In predicate on the "review_status" field.
+func ReviewStatusIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldReviewStatus, vs...))
+}
+
+// ReviewStatusNotIn applies the NotIn predicate on the "review_status" field.
+func ReviewStatusNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldReviewStatus, vs...))
+}
+
+// ReviewStatusGT applies the GT predicate on the "review_status" field.
+func ReviewStatusGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldReviewStatus, v))
+}
+
+// ReviewStatusGTE applies the GTE predicate on the "review_status" field.
+func ReviewStatusGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldReviewStatus, v))
+}
+
+// ReviewStatusLT applies the LT predicate on the "review_status" field.
+func ReviewStatusLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldReviewStatus, v))
+}
+
+// ReviewStatusLTE applies the LTE predicate on the "review_status" field.
+func ReviewStatusLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldReviewStatus, v))
+}
+
+// ReviewStatusContains applies the Contains predicate on the "review_status" field.
+func ReviewStatusContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldReviewStatus, v))
+}
+
+// ReviewStatusHasPrefix applies the HasPrefix predicate on the "review_status" field.
+func ReviewStatusHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldReviewStatus, v))
+}
+
+// ReviewStatusHasSuffix applies the HasSuffix predicate on the "review_status" field.
+func ReviewStatusHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldReviewStatus, v))
+}
+
+// ReviewStatusEqualFold applies the EqualFold predicate on the "review_status" field.
+func ReviewStatusEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldReviewStatus, v))
+}
+
+// ReviewStatusContainsFold applies the ContainsFold predicate on the "review_status" field.
+func ReviewStatusContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldReviewStatus, v))
+}
+
+// ReviewedAtEQ applies the EQ predicate on the "reviewed_at" field.
+func ReviewedAtEQ(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewedAt, v))
+}
+
+// ReviewedAtNEQ applies the NEQ predicate on the "reviewed_at" field.
+func ReviewedAtNEQ(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldReviewedAt, v))
+}
+
+// ReviewedAtIn applies the In predicate on the "reviewed_at" field.
+func ReviewedAtIn(vs ...time.Time) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldReviewedAt, vs...))
+}
+
+// ReviewedAtNotIn applies the NotIn predicate on the "reviewed_at" field.
+func ReviewedAtNotIn(vs ...time.Time) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldReviewedAt, vs...))
+}
+
+// ReviewedAtGT applies the GT predicate on the "reviewed_at" field.
+func ReviewedAtGT(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldReviewedAt, v))
+}
+
+// ReviewedAtGTE applies the GTE predicate on the "reviewed_at" field.
+func ReviewedAtGTE(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldReviewedAt, v))
+}
+
+// ReviewedAtLT applies the LT predicate on the "reviewed_at" field.
+func ReviewedAtLT(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldReviewedAt, v))
+}
+
+// ReviewedAtLTE applies the LTE predicate on the "reviewed_at" field.
+func ReviewedAtLTE(v time.Time) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldReviewedAt, v))
+}
+
+// ReviewedAtIsNil applies the IsNil predicate on the "reviewed_at" field.
+func ReviewedAtIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldReviewedAt))
+}
+
+// ReviewedAtNotNil applies the NotNil predicate on the "reviewed_at" field.
+func ReviewedAtNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldReviewedAt))
+}
+
+// ReviewedByEQ applies the EQ predicate on the "reviewed_by" field.
+func ReviewedByEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewedBy, v))
+}
+
+// ReviewedByNEQ applies the NEQ predicate on the "reviewed_by" field.
+func ReviewedByNEQ(v int64) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldReviewedBy, v))
+}
+
+// ReviewedByIn applies the In predicate on the "reviewed_by" field.
+func ReviewedByIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldReviewedBy, vs...))
+}
+
+// ReviewedByNotIn applies the NotIn predicate on the "reviewed_by" field.
+func ReviewedByNotIn(vs ...int64) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldReviewedBy, vs...))
+}
+
+// ReviewedByIsNil applies the IsNil predicate on the "reviewed_by" field.
+func ReviewedByIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldReviewedBy))
+}
+
+// ReviewedByNotNil applies the NotNil predicate on the "reviewed_by" field.
+func ReviewedByNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldReviewedBy))
+}
+
+// ReviewNoteEQ applies the EQ predicate on the "review_note" field.
+func ReviewNoteEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldEQ(FieldReviewNote, v))
+}
+
+// ReviewNoteNEQ applies the NEQ predicate on the "review_note" field.
+func ReviewNoteNEQ(v string) predicate.Account {
+	return predicate.Account(sql.FieldNEQ(FieldReviewNote, v))
+}
+
+// ReviewNoteIn applies the In predicate on the "review_note" field.
+func ReviewNoteIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldIn(FieldReviewNote, vs...))
+}
+
+// ReviewNoteNotIn applies the NotIn predicate on the "review_note" field.
+func ReviewNoteNotIn(vs ...string) predicate.Account {
+	return predicate.Account(sql.FieldNotIn(FieldReviewNote, vs...))
+}
+
+// ReviewNoteGT applies the GT predicate on the "review_note" field.
+func ReviewNoteGT(v string) predicate.Account {
+	return predicate.Account(sql.FieldGT(FieldReviewNote, v))
+}
+
+// ReviewNoteGTE applies the GTE predicate on the "review_note" field.
+func ReviewNoteGTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldGTE(FieldReviewNote, v))
+}
+
+// ReviewNoteLT applies the LT predicate on the "review_note" field.
+func ReviewNoteLT(v string) predicate.Account {
+	return predicate.Account(sql.FieldLT(FieldReviewNote, v))
+}
+
+// ReviewNoteLTE applies the LTE predicate on the "review_note" field.
+func ReviewNoteLTE(v string) predicate.Account {
+	return predicate.Account(sql.FieldLTE(FieldReviewNote, v))
+}
+
+// ReviewNoteContains applies the Contains predicate on the "review_note" field.
+func ReviewNoteContains(v string) predicate.Account {
+	return predicate.Account(sql.FieldContains(FieldReviewNote, v))
+}
+
+// ReviewNoteHasPrefix applies the HasPrefix predicate on the "review_note" field.
+func ReviewNoteHasPrefix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasPrefix(FieldReviewNote, v))
+}
+
+// ReviewNoteHasSuffix applies the HasSuffix predicate on the "review_note" field.
+func ReviewNoteHasSuffix(v string) predicate.Account {
+	return predicate.Account(sql.FieldHasSuffix(FieldReviewNote, v))
+}
+
+// ReviewNoteIsNil applies the IsNil predicate on the "review_note" field.
+func ReviewNoteIsNil() predicate.Account {
+	return predicate.Account(sql.FieldIsNull(FieldReviewNote))
+}
+
+// ReviewNoteNotNil applies the NotNil predicate on the "review_note" field.
+func ReviewNoteNotNil() predicate.Account {
+	return predicate.Account(sql.FieldNotNull(FieldReviewNote))
+}
+
+// ReviewNoteEqualFold applies the EqualFold predicate on the "review_note" field.
+func ReviewNoteEqualFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldEqualFold(FieldReviewNote, v))
+}
+
+// ReviewNoteContainsFold applies the ContainsFold predicate on the "review_note" field.
+func ReviewNoteContainsFold(v string) predicate.Account {
+	return predicate.Account(sql.FieldContainsFold(FieldReviewNote, v))
 }
 
 // ProxyIDEQ applies the EQ predicate on the "proxy_id" field.
@@ -1712,6 +2067,52 @@ func HasUsageLogs() predicate.Account {
 func HasUsageLogsWith(preds ...predicate.UsageLog) predicate.Account {
 	return predicate.Account(func(s *sql.Selector) {
 		step := newUsageLogsStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasSupplier applies the HasEdge predicate on the "supplier" edge.
+func HasSupplier() predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, SupplierTable, SupplierColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasSupplierWith applies the HasEdge predicate on the "supplier" edge with a given conditions (other predicates).
+func HasSupplierWith(preds ...predicate.Supplier) predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := newSupplierStep()
+		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
+			for _, p := range preds {
+				p(s)
+			}
+		})
+	})
+}
+
+// HasReviewer applies the HasEdge predicate on the "reviewer" edge.
+func HasReviewer() predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := sqlgraph.NewStep(
+			sqlgraph.From(Table, FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, ReviewerTable, ReviewerColumn),
+		)
+		sqlgraph.HasNeighbors(s, step)
+	})
+}
+
+// HasReviewerWith applies the HasEdge predicate on the "reviewer" edge with a given conditions (other predicates).
+func HasReviewerWith(preds ...predicate.User) predicate.Account {
+	return predicate.Account(func(s *sql.Selector) {
+		step := newReviewerStep()
 		sqlgraph.HasNeighborsWith(s, step, func(s *sql.Selector) {
 			for _, p := range preds {
 				p(s)

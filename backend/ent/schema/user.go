@@ -46,6 +46,9 @@ func (User) Fields() []ent.Field {
 		field.String("role").
 			MaxLen(20).
 			Default(domain.RoleUser),
+		field.Int64("supplier_id").
+			Optional().
+			Nillable(),
 		field.Float("balance").
 			SchemaType(map[string]string{dialect.Postgres: "decimal(20,8)"}).
 			Default(0),
@@ -140,6 +143,11 @@ func (User) Edges() []ent.Edge {
 			Annotations(entsql.OnDelete(entsql.Cascade)),
 		edge.To("pending_auth_sessions", PendingAuthSession.Type),
 		edge.To("platform_quotas", UserPlatformQuota.Type),
+		edge.To("supplier", Supplier.Type).
+			Field("supplier_id").
+			Unique(),
+		edge.From("reviewed_supplier_accounts", Account.Type).
+			Ref("reviewer"),
 	}
 }
 
@@ -147,6 +155,7 @@ func (User) Indexes() []ent.Index {
 	return []ent.Index{
 		// email 字段已在 Fields() 中声明 Unique()，无需重复索引
 		index.Fields("status"),
+		index.Fields("supplier_id"),
 		index.Fields("deleted_at"),
 	}
 }

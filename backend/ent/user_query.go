@@ -13,6 +13,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
@@ -22,6 +23,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/predicate"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userallowedgroup"
@@ -33,25 +35,27 @@ import (
 // UserQuery is the builder for querying User entities.
 type UserQuery struct {
 	config
-	ctx                       *QueryContext
-	order                     []user.OrderOption
-	inters                    []Interceptor
-	predicates                []predicate.User
-	withAPIKeys               *APIKeyQuery
-	withRedeemCodes           *RedeemCodeQuery
-	withSubscriptions         *UserSubscriptionQuery
-	withAssignedSubscriptions *UserSubscriptionQuery
-	withAnnouncementReads     *AnnouncementReadQuery
-	withAllowedGroups         *GroupQuery
-	withUsageLogs             *UsageLogQuery
-	withAttributeValues       *UserAttributeValueQuery
-	withPromoCodeUsages       *PromoCodeUsageQuery
-	withPaymentOrders         *PaymentOrderQuery
-	withAuthIdentities        *AuthIdentityQuery
-	withPendingAuthSessions   *PendingAuthSessionQuery
-	withPlatformQuotas        *UserPlatformQuotaQuery
-	withUserAllowedGroups     *UserAllowedGroupQuery
-	modifiers                 []func(*sql.Selector)
+	ctx                          *QueryContext
+	order                        []user.OrderOption
+	inters                       []Interceptor
+	predicates                   []predicate.User
+	withAPIKeys                  *APIKeyQuery
+	withRedeemCodes              *RedeemCodeQuery
+	withSubscriptions            *UserSubscriptionQuery
+	withAssignedSubscriptions    *UserSubscriptionQuery
+	withAnnouncementReads        *AnnouncementReadQuery
+	withAllowedGroups            *GroupQuery
+	withUsageLogs                *UsageLogQuery
+	withAttributeValues          *UserAttributeValueQuery
+	withPromoCodeUsages          *PromoCodeUsageQuery
+	withPaymentOrders            *PaymentOrderQuery
+	withAuthIdentities           *AuthIdentityQuery
+	withPendingAuthSessions      *PendingAuthSessionQuery
+	withPlatformQuotas           *UserPlatformQuotaQuery
+	withSupplier                 *SupplierQuery
+	withReviewedSupplierAccounts *AccountQuery
+	withUserAllowedGroups        *UserAllowedGroupQuery
+	modifiers                    []func(*sql.Selector)
 	// intermediate query (i.e. traversal path).
 	sql  *sql.Selector
 	path func(context.Context) (*sql.Selector, error)
@@ -374,6 +378,50 @@ func (_q *UserQuery) QueryPlatformQuotas() *UserPlatformQuotaQuery {
 	return query
 }
 
+// QuerySupplier chains the current query on the "supplier" edge.
+func (_q *UserQuery) QuerySupplier() *SupplierQuery {
+	query := (&SupplierClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(supplier.Table, supplier.FieldID),
+			sqlgraph.Edge(sqlgraph.M2O, false, user.SupplierTable, user.SupplierColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
+// QueryReviewedSupplierAccounts chains the current query on the "reviewed_supplier_accounts" edge.
+func (_q *UserQuery) QueryReviewedSupplierAccounts() *AccountQuery {
+	query := (&AccountClient{config: _q.config}).Query()
+	query.path = func(ctx context.Context) (fromU *sql.Selector, err error) {
+		if err := _q.prepareQuery(ctx); err != nil {
+			return nil, err
+		}
+		selector := _q.sqlQuery(ctx)
+		if err := selector.Err(); err != nil {
+			return nil, err
+		}
+		step := sqlgraph.NewStep(
+			sqlgraph.From(user.Table, user.FieldID, selector),
+			sqlgraph.To(account.Table, account.FieldID),
+			sqlgraph.Edge(sqlgraph.O2M, true, user.ReviewedSupplierAccountsTable, user.ReviewedSupplierAccountsColumn),
+		)
+		fromU = sqlgraph.SetNeighbors(_q.driver.Dialect(), step)
+		return fromU, nil
+	}
+	return query
+}
+
 // QueryUserAllowedGroups chains the current query on the "user_allowed_groups" edge.
 func (_q *UserQuery) QueryUserAllowedGroups() *UserAllowedGroupQuery {
 	query := (&UserAllowedGroupClient{config: _q.config}).Query()
@@ -583,25 +631,27 @@ func (_q *UserQuery) Clone() *UserQuery {
 		return nil
 	}
 	return &UserQuery{
-		config:                    _q.config,
-		ctx:                       _q.ctx.Clone(),
-		order:                     append([]user.OrderOption{}, _q.order...),
-		inters:                    append([]Interceptor{}, _q.inters...),
-		predicates:                append([]predicate.User{}, _q.predicates...),
-		withAPIKeys:               _q.withAPIKeys.Clone(),
-		withRedeemCodes:           _q.withRedeemCodes.Clone(),
-		withSubscriptions:         _q.withSubscriptions.Clone(),
-		withAssignedSubscriptions: _q.withAssignedSubscriptions.Clone(),
-		withAnnouncementReads:     _q.withAnnouncementReads.Clone(),
-		withAllowedGroups:         _q.withAllowedGroups.Clone(),
-		withUsageLogs:             _q.withUsageLogs.Clone(),
-		withAttributeValues:       _q.withAttributeValues.Clone(),
-		withPromoCodeUsages:       _q.withPromoCodeUsages.Clone(),
-		withPaymentOrders:         _q.withPaymentOrders.Clone(),
-		withAuthIdentities:        _q.withAuthIdentities.Clone(),
-		withPendingAuthSessions:   _q.withPendingAuthSessions.Clone(),
-		withPlatformQuotas:        _q.withPlatformQuotas.Clone(),
-		withUserAllowedGroups:     _q.withUserAllowedGroups.Clone(),
+		config:                       _q.config,
+		ctx:                          _q.ctx.Clone(),
+		order:                        append([]user.OrderOption{}, _q.order...),
+		inters:                       append([]Interceptor{}, _q.inters...),
+		predicates:                   append([]predicate.User{}, _q.predicates...),
+		withAPIKeys:                  _q.withAPIKeys.Clone(),
+		withRedeemCodes:              _q.withRedeemCodes.Clone(),
+		withSubscriptions:            _q.withSubscriptions.Clone(),
+		withAssignedSubscriptions:    _q.withAssignedSubscriptions.Clone(),
+		withAnnouncementReads:        _q.withAnnouncementReads.Clone(),
+		withAllowedGroups:            _q.withAllowedGroups.Clone(),
+		withUsageLogs:                _q.withUsageLogs.Clone(),
+		withAttributeValues:          _q.withAttributeValues.Clone(),
+		withPromoCodeUsages:          _q.withPromoCodeUsages.Clone(),
+		withPaymentOrders:            _q.withPaymentOrders.Clone(),
+		withAuthIdentities:           _q.withAuthIdentities.Clone(),
+		withPendingAuthSessions:      _q.withPendingAuthSessions.Clone(),
+		withPlatformQuotas:           _q.withPlatformQuotas.Clone(),
+		withSupplier:                 _q.withSupplier.Clone(),
+		withReviewedSupplierAccounts: _q.withReviewedSupplierAccounts.Clone(),
+		withUserAllowedGroups:        _q.withUserAllowedGroups.Clone(),
 		// clone intermediate query.
 		sql:  _q.sql.Clone(),
 		path: _q.path,
@@ -751,6 +801,28 @@ func (_q *UserQuery) WithPlatformQuotas(opts ...func(*UserPlatformQuotaQuery)) *
 	return _q
 }
 
+// WithSupplier tells the query-builder to eager-load the nodes that are connected to
+// the "supplier" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithSupplier(opts ...func(*SupplierQuery)) *UserQuery {
+	query := (&SupplierClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withSupplier = query
+	return _q
+}
+
+// WithReviewedSupplierAccounts tells the query-builder to eager-load the nodes that are connected to
+// the "reviewed_supplier_accounts" edge. The optional arguments are used to configure the query builder of the edge.
+func (_q *UserQuery) WithReviewedSupplierAccounts(opts ...func(*AccountQuery)) *UserQuery {
+	query := (&AccountClient{config: _q.config}).Query()
+	for _, opt := range opts {
+		opt(query)
+	}
+	_q.withReviewedSupplierAccounts = query
+	return _q
+}
+
 // WithUserAllowedGroups tells the query-builder to eager-load the nodes that are connected to
 // the "user_allowed_groups" edge. The optional arguments are used to configure the query builder of the edge.
 func (_q *UserQuery) WithUserAllowedGroups(opts ...func(*UserAllowedGroupQuery)) *UserQuery {
@@ -840,7 +912,7 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 	var (
 		nodes       = []*User{}
 		_spec       = _q.querySpec()
-		loadedTypes = [14]bool{
+		loadedTypes = [16]bool{
 			_q.withAPIKeys != nil,
 			_q.withRedeemCodes != nil,
 			_q.withSubscriptions != nil,
@@ -854,6 +926,8 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 			_q.withAuthIdentities != nil,
 			_q.withPendingAuthSessions != nil,
 			_q.withPlatformQuotas != nil,
+			_q.withSupplier != nil,
+			_q.withReviewedSupplierAccounts != nil,
 			_q.withUserAllowedGroups != nil,
 		}
 	)
@@ -970,6 +1044,21 @@ func (_q *UserQuery) sqlAll(ctx context.Context, hooks ...queryHook) ([]*User, e
 		if err := _q.loadPlatformQuotas(ctx, query, nodes,
 			func(n *User) { n.Edges.PlatformQuotas = []*UserPlatformQuota{} },
 			func(n *User, e *UserPlatformQuota) { n.Edges.PlatformQuotas = append(n.Edges.PlatformQuotas, e) }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withSupplier; query != nil {
+		if err := _q.loadSupplier(ctx, query, nodes, nil,
+			func(n *User, e *Supplier) { n.Edges.Supplier = e }); err != nil {
+			return nil, err
+		}
+	}
+	if query := _q.withReviewedSupplierAccounts; query != nil {
+		if err := _q.loadReviewedSupplierAccounts(ctx, query, nodes,
+			func(n *User) { n.Edges.ReviewedSupplierAccounts = []*Account{} },
+			func(n *User, e *Account) {
+				n.Edges.ReviewedSupplierAccounts = append(n.Edges.ReviewedSupplierAccounts, e)
+			}); err != nil {
 			return nil, err
 		}
 	}
@@ -1413,6 +1502,71 @@ func (_q *UserQuery) loadPlatformQuotas(ctx context.Context, query *UserPlatform
 	}
 	return nil
 }
+func (_q *UserQuery) loadSupplier(ctx context.Context, query *SupplierQuery, nodes []*User, init func(*User), assign func(*User, *Supplier)) error {
+	ids := make([]int64, 0, len(nodes))
+	nodeids := make(map[int64][]*User)
+	for i := range nodes {
+		if nodes[i].SupplierID == nil {
+			continue
+		}
+		fk := *nodes[i].SupplierID
+		if _, ok := nodeids[fk]; !ok {
+			ids = append(ids, fk)
+		}
+		nodeids[fk] = append(nodeids[fk], nodes[i])
+	}
+	if len(ids) == 0 {
+		return nil
+	}
+	query.Where(supplier.IDIn(ids...))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		nodes, ok := nodeids[n.ID]
+		if !ok {
+			return fmt.Errorf(`unexpected foreign-key "supplier_id" returned %v`, n.ID)
+		}
+		for i := range nodes {
+			assign(nodes[i], n)
+		}
+	}
+	return nil
+}
+func (_q *UserQuery) loadReviewedSupplierAccounts(ctx context.Context, query *AccountQuery, nodes []*User, init func(*User), assign func(*User, *Account)) error {
+	fks := make([]driver.Value, 0, len(nodes))
+	nodeids := make(map[int64]*User)
+	for i := range nodes {
+		fks = append(fks, nodes[i].ID)
+		nodeids[nodes[i].ID] = nodes[i]
+		if init != nil {
+			init(nodes[i])
+		}
+	}
+	if len(query.ctx.Fields) > 0 {
+		query.ctx.AppendFieldOnce(account.FieldReviewedBy)
+	}
+	query.Where(predicate.Account(func(s *sql.Selector) {
+		s.Where(sql.InValues(s.C(user.ReviewedSupplierAccountsColumn), fks...))
+	}))
+	neighbors, err := query.All(ctx)
+	if err != nil {
+		return err
+	}
+	for _, n := range neighbors {
+		fk := n.ReviewedBy
+		if fk == nil {
+			return fmt.Errorf(`foreign-key "reviewed_by" is nil for node %v`, n.ID)
+		}
+		node, ok := nodeids[*fk]
+		if !ok {
+			return fmt.Errorf(`unexpected referenced foreign-key "reviewed_by" returned %v for node %v`, *fk, n.ID)
+		}
+		assign(node, n)
+	}
+	return nil
+}
 func (_q *UserQuery) loadUserAllowedGroups(ctx context.Context, query *UserAllowedGroupQuery, nodes []*User, init func(*User), assign func(*User, *UserAllowedGroup)) error {
 	fks := make([]driver.Value, 0, len(nodes))
 	nodeids := make(map[int64]*User)
@@ -1471,6 +1625,9 @@ func (_q *UserQuery) querySpec() *sqlgraph.QuerySpec {
 			if fields[i] != user.FieldID {
 				_spec.Node.Columns = append(_spec.Node.Columns, fields[i])
 			}
+		}
+		if _q.withSupplier != nil {
+			_spec.Node.AddColumnOnce(user.FieldSupplierID)
 		}
 	}
 	if ps := _q.predicates; len(ps) > 0 {

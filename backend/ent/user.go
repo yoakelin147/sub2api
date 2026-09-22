@@ -9,6 +9,7 @@ import (
 
 	"entgo.io/ent"
 	"entgo.io/ent/dialect/sql"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 )
 
@@ -29,6 +30,8 @@ type User struct {
 	PasswordHash string `json:"password_hash,omitempty"`
 	// Role holds the value of the "role" field.
 	Role string `json:"role,omitempty"`
+	// SupplierID holds the value of the "supplier_id" field.
+	SupplierID *int64 `json:"supplier_id,omitempty"`
 	// Balance holds the value of the "balance" field.
 	Balance float64 `json:"balance,omitempty"`
 	// FrozenBalance holds the value of the "frozen_balance" field.
@@ -101,11 +104,15 @@ type UserEdges struct {
 	PendingAuthSessions []*PendingAuthSession `json:"pending_auth_sessions,omitempty"`
 	// PlatformQuotas holds the value of the platform_quotas edge.
 	PlatformQuotas []*UserPlatformQuota `json:"platform_quotas,omitempty"`
+	// Supplier holds the value of the supplier edge.
+	Supplier *Supplier `json:"supplier,omitempty"`
+	// ReviewedSupplierAccounts holds the value of the reviewed_supplier_accounts edge.
+	ReviewedSupplierAccounts []*Account `json:"reviewed_supplier_accounts,omitempty"`
 	// UserAllowedGroups holds the value of the user_allowed_groups edge.
 	UserAllowedGroups []*UserAllowedGroup `json:"user_allowed_groups,omitempty"`
 	// loadedTypes holds the information for reporting if a
 	// type was loaded (or requested) in eager-loading or not.
-	loadedTypes [14]bool
+	loadedTypes [16]bool
 }
 
 // APIKeysOrErr returns the APIKeys value or an error if the edge
@@ -225,10 +232,30 @@ func (e UserEdges) PlatformQuotasOrErr() ([]*UserPlatformQuota, error) {
 	return nil, &NotLoadedError{edge: "platform_quotas"}
 }
 
+// SupplierOrErr returns the Supplier value or an error if the edge
+// was not loaded in eager-loading, or loaded but was not found.
+func (e UserEdges) SupplierOrErr() (*Supplier, error) {
+	if e.Supplier != nil {
+		return e.Supplier, nil
+	} else if e.loadedTypes[13] {
+		return nil, &NotFoundError{label: supplier.Label}
+	}
+	return nil, &NotLoadedError{edge: "supplier"}
+}
+
+// ReviewedSupplierAccountsOrErr returns the ReviewedSupplierAccounts value or an error if the edge
+// was not loaded in eager-loading.
+func (e UserEdges) ReviewedSupplierAccountsOrErr() ([]*Account, error) {
+	if e.loadedTypes[14] {
+		return e.ReviewedSupplierAccounts, nil
+	}
+	return nil, &NotLoadedError{edge: "reviewed_supplier_accounts"}
+}
+
 // UserAllowedGroupsOrErr returns the UserAllowedGroups value or an error if the edge
 // was not loaded in eager-loading.
 func (e UserEdges) UserAllowedGroupsOrErr() ([]*UserAllowedGroup, error) {
-	if e.loadedTypes[13] {
+	if e.loadedTypes[15] {
 		return e.UserAllowedGroups, nil
 	}
 	return nil, &NotLoadedError{edge: "user_allowed_groups"}
@@ -243,7 +270,7 @@ func (*User) scanValues(columns []string) ([]any, error) {
 			values[i] = new(sql.NullBool)
 		case user.FieldBalance, user.FieldFrozenBalance, user.FieldBalanceNotifyThreshold, user.FieldTotalRecharged:
 			values[i] = new(sql.NullFloat64)
-		case user.FieldID, user.FieldConcurrency, user.FieldRpmLimit:
+		case user.FieldID, user.FieldSupplierID, user.FieldConcurrency, user.FieldRpmLimit:
 			values[i] = new(sql.NullInt64)
 		case user.FieldEmail, user.FieldPasswordHash, user.FieldRole, user.FieldStatus, user.FieldUsername, user.FieldNotes, user.FieldTotpSecretEncrypted, user.FieldSignupSource, user.FieldBalanceNotifyThresholdType, user.FieldBalanceNotifyExtraEmails:
 			values[i] = new(sql.NullString)
@@ -306,6 +333,13 @@ func (_m *User) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field role", values[i])
 			} else if value.Valid {
 				_m.Role = value.String
+			}
+		case user.FieldSupplierID:
+			if value, ok := values[i].(*sql.NullInt64); !ok {
+				return fmt.Errorf("unexpected type %T for field supplier_id", values[i])
+			} else if value.Valid {
+				_m.SupplierID = new(int64)
+				*_m.SupplierID = value.Int64
 			}
 		case user.FieldBalance:
 			if value, ok := values[i].(*sql.NullFloat64); !ok {
@@ -504,6 +538,16 @@ func (_m *User) QueryPlatformQuotas() *UserPlatformQuotaQuery {
 	return NewUserClient(_m.config).QueryPlatformQuotas(_m)
 }
 
+// QuerySupplier queries the "supplier" edge of the User entity.
+func (_m *User) QuerySupplier() *SupplierQuery {
+	return NewUserClient(_m.config).QuerySupplier(_m)
+}
+
+// QueryReviewedSupplierAccounts queries the "reviewed_supplier_accounts" edge of the User entity.
+func (_m *User) QueryReviewedSupplierAccounts() *AccountQuery {
+	return NewUserClient(_m.config).QueryReviewedSupplierAccounts(_m)
+}
+
 // QueryUserAllowedGroups queries the "user_allowed_groups" edge of the User entity.
 func (_m *User) QueryUserAllowedGroups() *UserAllowedGroupQuery {
 	return NewUserClient(_m.config).QueryUserAllowedGroups(_m)
@@ -551,6 +595,11 @@ func (_m *User) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("role=")
 	builder.WriteString(_m.Role)
+	builder.WriteString(", ")
+	if v := _m.SupplierID; v != nil {
+		builder.WriteString("supplier_id=")
+		builder.WriteString(fmt.Sprintf("%v", *v))
+	}
 	builder.WriteString(", ")
 	builder.WriteString("balance=")
 	builder.WriteString(fmt.Sprintf("%v", _m.Balance))

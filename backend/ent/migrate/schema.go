@@ -103,6 +103,10 @@ var (
 		{Name: "notes", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "platform", Type: field.TypeString, Size: 50},
 		{Name: "type", Type: field.TypeString, Size: 20},
+		{Name: "supplier_external_id", Type: field.TypeString, Nullable: true, Size: 191},
+		{Name: "review_status", Type: field.TypeString, Size: 20, Default: "approved"},
+		{Name: "reviewed_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "review_note", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "credentials", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "extra", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "proxy_fallback_origin_id", Type: field.TypeInt64, Nullable: true},
@@ -127,6 +131,8 @@ var (
 		{Name: "quota_dimension", Type: field.TypeEnum, Enums: []string{"global", "spark"}, Default: "global"},
 		{Name: "proxy_id", Type: field.TypeInt64, Nullable: true},
 		{Name: "parent_account_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "supplier_id", Type: field.TypeInt64, Nullable: true},
+		{Name: "reviewed_by", Type: field.TypeInt64, Nullable: true},
 	}
 	// AccountsTable holds the schema information for the "accounts" table.
 	AccountsTable = &schema.Table{
@@ -136,15 +142,27 @@ var (
 		ForeignKeys: []*schema.ForeignKey{
 			{
 				Symbol:     "accounts_proxies_proxy",
-				Columns:    []*schema.Column{AccountsColumns[30]},
+				Columns:    []*schema.Column{AccountsColumns[34]},
 				RefColumns: []*schema.Column{ProxiesColumns[0]},
 				OnDelete:   schema.SetNull,
 			},
 			{
 				Symbol:     "accounts_accounts_children",
-				Columns:    []*schema.Column{AccountsColumns[31]},
+				Columns:    []*schema.Column{AccountsColumns[35]},
 				RefColumns: []*schema.Column{AccountsColumns[0]},
 				OnDelete:   schema.Restrict,
+			},
+			{
+				Symbol:     "accounts_suppliers_supplier",
+				Columns:    []*schema.Column{AccountsColumns[36]},
+				RefColumns: []*schema.Column{SuppliersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+			{
+				Symbol:     "accounts_users_reviewer",
+				Columns:    []*schema.Column{AccountsColumns[37]},
+				RefColumns: []*schema.Column{UsersColumns[0]},
+				OnDelete:   schema.SetNull,
 			},
 		},
 		Indexes: []*schema.Index{
@@ -161,52 +179,52 @@ var (
 			{
 				Name:    "account_status",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[15]},
+				Columns: []*schema.Column{AccountsColumns[19]},
 			},
 			{
 				Name:    "account_proxy_id",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[30]},
+				Columns: []*schema.Column{AccountsColumns[34]},
 			},
 			{
 				Name:    "account_priority",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[13]},
+				Columns: []*schema.Column{AccountsColumns[17]},
 			},
 			{
 				Name:    "account_last_used_at",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[17]},
+				Columns: []*schema.Column{AccountsColumns[21]},
 			},
 			{
 				Name:    "account_schedulable",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[20]},
+				Columns: []*schema.Column{AccountsColumns[24]},
 			},
 			{
 				Name:    "account_rate_limited_at",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[21]},
+				Columns: []*schema.Column{AccountsColumns[25]},
 			},
 			{
 				Name:    "account_rate_limit_reset_at",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[22]},
+				Columns: []*schema.Column{AccountsColumns[26]},
 			},
 			{
 				Name:    "account_overload_until",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[23]},
+				Columns: []*schema.Column{AccountsColumns[27]},
 			},
 			{
 				Name:    "account_platform_priority",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[6], AccountsColumns[13]},
+				Columns: []*schema.Column{AccountsColumns[6], AccountsColumns[17]},
 			},
 			{
 				Name:    "account_priority_status",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[13], AccountsColumns[15]},
+				Columns: []*schema.Column{AccountsColumns[17], AccountsColumns[19]},
 			},
 			{
 				Name:    "account_deleted_at",
@@ -216,7 +234,17 @@ var (
 			{
 				Name:    "account_parent_account_id",
 				Unique:  false,
-				Columns: []*schema.Column{AccountsColumns[31]},
+				Columns: []*schema.Column{AccountsColumns[35]},
+			},
+			{
+				Name:    "account_supplier_id_status",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[36], AccountsColumns[19]},
+			},
+			{
+				Name:    "account_supplier_id_review_status",
+				Unique:  false,
+				Columns: []*schema.Column{AccountsColumns[36], AccountsColumns[9]},
 			},
 		},
 	}
@@ -1571,6 +1599,51 @@ var (
 			},
 		},
 	}
+	// SuppliersColumns holds the columns for the "suppliers" table.
+	SuppliersColumns = []*schema.Column{
+		{Name: "id", Type: field.TypeInt64, Increment: true},
+		{Name: "created_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "updated_at", Type: field.TypeTime, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "deleted_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "code", Type: field.TypeString, Size: 64},
+		{Name: "name", Type: field.TypeString, Size: 120},
+		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
+		{Name: "notes", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
+		{Name: "allowed_account_kinds", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "token_selector", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "token_hash", Type: field.TypeString, Nullable: true, Size: 64},
+		{Name: "token_prefix", Type: field.TypeString, Nullable: true, Size: 32},
+		{Name: "token_created_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+		{Name: "token_last_used_at", Type: field.TypeTime, Nullable: true, SchemaType: map[string]string{"postgres": "timestamptz"}},
+	}
+	// SuppliersTable holds the schema information for the "suppliers" table.
+	SuppliersTable = &schema.Table{
+		Name:       "suppliers",
+		Columns:    SuppliersColumns,
+		PrimaryKey: []*schema.Column{SuppliersColumns[0]},
+		Indexes: []*schema.Index{
+			{
+				Name:    "supplier_code",
+				Unique:  false,
+				Columns: []*schema.Column{SuppliersColumns[4]},
+			},
+			{
+				Name:    "supplier_status",
+				Unique:  false,
+				Columns: []*schema.Column{SuppliersColumns[6]},
+			},
+			{
+				Name:    "supplier_token_selector",
+				Unique:  false,
+				Columns: []*schema.Column{SuppliersColumns[9]},
+			},
+			{
+				Name:    "supplier_deleted_at",
+				Unique:  false,
+				Columns: []*schema.Column{SuppliersColumns[3]},
+			},
+		},
+	}
 	// TLSFingerprintProfilesColumns holds the columns for the "tls_fingerprint_profiles" table.
 	TLSFingerprintProfilesColumns = []*schema.Column{
 		{Name: "id", Type: field.TypeInt64, Increment: true},
@@ -1812,17 +1885,31 @@ var (
 		{Name: "balance_notify_extra_emails", Type: field.TypeString, Default: "[]", SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "total_recharged", Type: field.TypeFloat64, Default: 0, SchemaType: map[string]string{"postgres": "decimal(20,8)"}},
 		{Name: "rpm_limit", Type: field.TypeInt, Default: 0},
+		{Name: "supplier_id", Type: field.TypeInt64, Nullable: true},
 	}
 	// UsersTable holds the schema information for the "users" table.
 	UsersTable = &schema.Table{
 		Name:       "users",
 		Columns:    UsersColumns,
 		PrimaryKey: []*schema.Column{UsersColumns[0]},
+		ForeignKeys: []*schema.ForeignKey{
+			{
+				Symbol:     "users_suppliers_supplier",
+				Columns:    []*schema.Column{UsersColumns[26]},
+				RefColumns: []*schema.Column{SuppliersColumns[0]},
+				OnDelete:   schema.SetNull,
+			},
+		},
 		Indexes: []*schema.Index{
 			{
 				Name:    "user_status",
 				Unique:  false,
 				Columns: []*schema.Column{UsersColumns[10]},
+			},
+			{
+				Name:    "user_supplier_id",
+				Unique:  false,
+				Columns: []*schema.Column{UsersColumns[26]},
 			},
 			{
 				Name:    "user_deleted_at",
@@ -2118,6 +2205,7 @@ var (
 		SecuritySecretsTable,
 		SettingsTable,
 		SubscriptionPlansTable,
+		SuppliersTable,
 		TLSFingerprintProfilesTable,
 		UsageCleanupTasksTable,
 		UsageLogsTable,
@@ -2138,6 +2226,8 @@ func init() {
 	}
 	AccountsTable.ForeignKeys[0].RefTable = ProxiesTable
 	AccountsTable.ForeignKeys[1].RefTable = AccountsTable
+	AccountsTable.ForeignKeys[2].RefTable = SuppliersTable
+	AccountsTable.ForeignKeys[3].RefTable = UsersTable
 	AccountsTable.Annotation = &entsql.Annotation{
 		Table: "accounts",
 	}
@@ -2244,6 +2334,9 @@ func init() {
 	SubscriptionPlansTable.Annotation = &entsql.Annotation{
 		Table: "subscription_plans",
 	}
+	SuppliersTable.Annotation = &entsql.Annotation{
+		Table: "suppliers",
+	}
 	TLSFingerprintProfilesTable.Annotation = &entsql.Annotation{
 		Table: "tls_fingerprint_profiles",
 	}
@@ -2258,6 +2351,7 @@ func init() {
 	UsageLogsTable.Annotation = &entsql.Annotation{
 		Table: "usage_logs",
 	}
+	UsersTable.ForeignKeys[0].RefTable = SuppliersTable
 	UsersTable.Annotation = &entsql.Annotation{
 		Table: "users",
 	}

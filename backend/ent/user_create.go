@@ -11,6 +11,7 @@ import (
 	"entgo.io/ent/dialect/sql"
 	"entgo.io/ent/dialect/sql/sqlgraph"
 	"entgo.io/ent/schema/field"
+	"github.com/Wei-Shaw/sub2api/ent/account"
 	"github.com/Wei-Shaw/sub2api/ent/announcementread"
 	"github.com/Wei-Shaw/sub2api/ent/apikey"
 	"github.com/Wei-Shaw/sub2api/ent/authidentity"
@@ -19,6 +20,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/pendingauthsession"
 	"github.com/Wei-Shaw/sub2api/ent/promocodeusage"
 	"github.com/Wei-Shaw/sub2api/ent/redeemcode"
+	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/ent/usagelog"
 	"github.com/Wei-Shaw/sub2api/ent/user"
 	"github.com/Wei-Shaw/sub2api/ent/userattributevalue"
@@ -98,6 +100,20 @@ func (_c *UserCreate) SetRole(v string) *UserCreate {
 func (_c *UserCreate) SetNillableRole(v *string) *UserCreate {
 	if v != nil {
 		_c.SetRole(*v)
+	}
+	return _c
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (_c *UserCreate) SetSupplierID(v int64) *UserCreate {
+	_c.mutation.SetSupplierID(v)
+	return _c
+}
+
+// SetNillableSupplierID sets the "supplier_id" field if the given value is not nil.
+func (_c *UserCreate) SetNillableSupplierID(v *int64) *UserCreate {
+	if v != nil {
+		_c.SetSupplierID(*v)
 	}
 	return _c
 }
@@ -561,6 +577,26 @@ func (_c *UserCreate) AddPlatformQuotas(v ...*UserPlatformQuota) *UserCreate {
 		ids[i] = v[i].ID
 	}
 	return _c.AddPlatformQuotaIDs(ids...)
+}
+
+// SetSupplier sets the "supplier" edge to the Supplier entity.
+func (_c *UserCreate) SetSupplier(v *Supplier) *UserCreate {
+	return _c.SetSupplierID(v.ID)
+}
+
+// AddReviewedSupplierAccountIDs adds the "reviewed_supplier_accounts" edge to the Account entity by IDs.
+func (_c *UserCreate) AddReviewedSupplierAccountIDs(ids ...int64) *UserCreate {
+	_c.mutation.AddReviewedSupplierAccountIDs(ids...)
+	return _c
+}
+
+// AddReviewedSupplierAccounts adds the "reviewed_supplier_accounts" edges to the Account entity.
+func (_c *UserCreate) AddReviewedSupplierAccounts(v ...*Account) *UserCreate {
+	ids := make([]int64, len(v))
+	for i := range v {
+		ids[i] = v[i].ID
+	}
+	return _c.AddReviewedSupplierAccountIDs(ids...)
 }
 
 // Mutation returns the UserMutation object of the builder.
@@ -1105,6 +1141,39 @@ func (_c *UserCreate) createSpec() (*User, *sqlgraph.CreateSpec) {
 		}
 		_spec.Edges = append(_spec.Edges, edge)
 	}
+	if nodes := _c.mutation.SupplierIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.M2O,
+			Inverse: false,
+			Table:   user.SupplierTable,
+			Columns: []string{user.SupplierColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(supplier.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_node.SupplierID = &nodes[0]
+		_spec.Edges = append(_spec.Edges, edge)
+	}
+	if nodes := _c.mutation.ReviewedSupplierAccountsIDs(); len(nodes) > 0 {
+		edge := &sqlgraph.EdgeSpec{
+			Rel:     sqlgraph.O2M,
+			Inverse: true,
+			Table:   user.ReviewedSupplierAccountsTable,
+			Columns: []string{user.ReviewedSupplierAccountsColumn},
+			Bidi:    false,
+			Target: &sqlgraph.EdgeTarget{
+				IDSpec: sqlgraph.NewFieldSpec(account.FieldID, field.TypeInt64),
+			},
+		}
+		for _, k := range nodes {
+			edge.Target.Nodes = append(edge.Target.Nodes, k)
+		}
+		_spec.Edges = append(_spec.Edges, edge)
+	}
 	return _node, _spec
 }
 
@@ -1220,6 +1289,24 @@ func (u *UserUpsert) SetRole(v string) *UserUpsert {
 // UpdateRole sets the "role" field to the value that was provided on create.
 func (u *UserUpsert) UpdateRole() *UserUpsert {
 	u.SetExcluded(user.FieldRole)
+	return u
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *UserUpsert) SetSupplierID(v int64) *UserUpsert {
+	u.Set(user.FieldSupplierID, v)
+	return u
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *UserUpsert) UpdateSupplierID() *UserUpsert {
+	u.SetExcluded(user.FieldSupplierID)
+	return u
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *UserUpsert) ClearSupplierID() *UserUpsert {
+	u.SetNull(user.FieldSupplierID)
 	return u
 }
 
@@ -1636,6 +1723,27 @@ func (u *UserUpsertOne) SetRole(v string) *UserUpsertOne {
 func (u *UserUpsertOne) UpdateRole() *UserUpsertOne {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateRole()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *UserUpsertOne) SetSupplierID(v int64) *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *UserUpsertOne) UpdateSupplierID() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *UserUpsertOne) ClearSupplierID() *UserUpsertOne {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearSupplierID()
 	})
 }
 
@@ -2267,6 +2375,27 @@ func (u *UserUpsertBulk) SetRole(v string) *UserUpsertBulk {
 func (u *UserUpsertBulk) UpdateRole() *UserUpsertBulk {
 	return u.Update(func(s *UserUpsert) {
 		s.UpdateRole()
+	})
+}
+
+// SetSupplierID sets the "supplier_id" field.
+func (u *UserUpsertBulk) SetSupplierID(v int64) *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.SetSupplierID(v)
+	})
+}
+
+// UpdateSupplierID sets the "supplier_id" field to the value that was provided on create.
+func (u *UserUpsertBulk) UpdateSupplierID() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.UpdateSupplierID()
+	})
+}
+
+// ClearSupplierID clears the value of the "supplier_id" field.
+func (u *UserUpsertBulk) ClearSupplierID() *UserUpsertBulk {
+	return u.Update(func(s *UserUpsert) {
+		s.ClearSupplierID()
 	})
 }
 

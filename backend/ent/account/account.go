@@ -30,6 +30,18 @@ const (
 	FieldPlatform = "platform"
 	// FieldType holds the string denoting the type field in the database.
 	FieldType = "type"
+	// FieldSupplierID holds the string denoting the supplier_id field in the database.
+	FieldSupplierID = "supplier_id"
+	// FieldSupplierExternalID holds the string denoting the supplier_external_id field in the database.
+	FieldSupplierExternalID = "supplier_external_id"
+	// FieldReviewStatus holds the string denoting the review_status field in the database.
+	FieldReviewStatus = "review_status"
+	// FieldReviewedAt holds the string denoting the reviewed_at field in the database.
+	FieldReviewedAt = "reviewed_at"
+	// FieldReviewedBy holds the string denoting the reviewed_by field in the database.
+	FieldReviewedBy = "reviewed_by"
+	// FieldReviewNote holds the string denoting the review_note field in the database.
+	FieldReviewNote = "review_note"
 	// FieldCredentials holds the string denoting the credentials field in the database.
 	FieldCredentials = "credentials"
 	// FieldExtra holds the string denoting the extra field in the database.
@@ -88,6 +100,10 @@ const (
 	EdgeChildren = "children"
 	// EdgeUsageLogs holds the string denoting the usage_logs edge name in mutations.
 	EdgeUsageLogs = "usage_logs"
+	// EdgeSupplier holds the string denoting the supplier edge name in mutations.
+	EdgeSupplier = "supplier"
+	// EdgeReviewer holds the string denoting the reviewer edge name in mutations.
+	EdgeReviewer = "reviewer"
 	// EdgeAccountGroups holds the string denoting the account_groups edge name in mutations.
 	EdgeAccountGroups = "account_groups"
 	// Table holds the table name of the account in the database.
@@ -119,6 +135,20 @@ const (
 	UsageLogsInverseTable = "usage_logs"
 	// UsageLogsColumn is the table column denoting the usage_logs relation/edge.
 	UsageLogsColumn = "account_id"
+	// SupplierTable is the table that holds the supplier relation/edge.
+	SupplierTable = "accounts"
+	// SupplierInverseTable is the table name for the Supplier entity.
+	// It exists in this package in order to avoid circular dependency with the "supplier" package.
+	SupplierInverseTable = "suppliers"
+	// SupplierColumn is the table column denoting the supplier relation/edge.
+	SupplierColumn = "supplier_id"
+	// ReviewerTable is the table that holds the reviewer relation/edge.
+	ReviewerTable = "accounts"
+	// ReviewerInverseTable is the table name for the User entity.
+	// It exists in this package in order to avoid circular dependency with the "user" package.
+	ReviewerInverseTable = "users"
+	// ReviewerColumn is the table column denoting the reviewer relation/edge.
+	ReviewerColumn = "reviewed_by"
 	// AccountGroupsTable is the table that holds the account_groups relation/edge.
 	AccountGroupsTable = "account_groups"
 	// AccountGroupsInverseTable is the table name for the AccountGroup entity.
@@ -138,6 +168,12 @@ var Columns = []string{
 	FieldNotes,
 	FieldPlatform,
 	FieldType,
+	FieldSupplierID,
+	FieldSupplierExternalID,
+	FieldReviewStatus,
+	FieldReviewedAt,
+	FieldReviewedBy,
+	FieldReviewNote,
 	FieldCredentials,
 	FieldExtra,
 	FieldProxyID,
@@ -200,6 +236,12 @@ var (
 	PlatformValidator func(string) error
 	// TypeValidator is a validator for the "type" field. It is called by the builders before save.
 	TypeValidator func(string) error
+	// SupplierExternalIDValidator is a validator for the "supplier_external_id" field. It is called by the builders before save.
+	SupplierExternalIDValidator func(string) error
+	// DefaultReviewStatus holds the default value on creation for the "review_status" field.
+	DefaultReviewStatus string
+	// ReviewStatusValidator is a validator for the "review_status" field. It is called by the builders before save.
+	ReviewStatusValidator func(string) error
 	// DefaultCredentials holds the default value on creation for the "credentials" field.
 	DefaultCredentials func() map[string]interface{}
 	// DefaultExtra holds the default value on creation for the "extra" field.
@@ -289,6 +331,36 @@ func ByPlatform(opts ...sql.OrderTermOption) OrderOption {
 // ByType orders the results by the type field.
 func ByType(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldType, opts...).ToFunc()
+}
+
+// BySupplierID orders the results by the supplier_id field.
+func BySupplierID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierID, opts...).ToFunc()
+}
+
+// BySupplierExternalID orders the results by the supplier_external_id field.
+func BySupplierExternalID(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldSupplierExternalID, opts...).ToFunc()
+}
+
+// ByReviewStatus orders the results by the review_status field.
+func ByReviewStatus(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewStatus, opts...).ToFunc()
+}
+
+// ByReviewedAt orders the results by the reviewed_at field.
+func ByReviewedAt(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewedAt, opts...).ToFunc()
+}
+
+// ByReviewedBy orders the results by the reviewed_by field.
+func ByReviewedBy(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewedBy, opts...).ToFunc()
+}
+
+// ByReviewNote orders the results by the review_note field.
+func ByReviewNote(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewNote, opts...).ToFunc()
 }
 
 // ByProxyID orders the results by the proxy_id field.
@@ -457,6 +529,20 @@ func ByUsageLogs(term sql.OrderTerm, terms ...sql.OrderTerm) OrderOption {
 	}
 }
 
+// BySupplierField orders the results by supplier field.
+func BySupplierField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newSupplierStep(), sql.OrderByField(field, opts...))
+	}
+}
+
+// ByReviewerField orders the results by reviewer field.
+func ByReviewerField(field string, opts ...sql.OrderTermOption) OrderOption {
+	return func(s *sql.Selector) {
+		sqlgraph.OrderByNeighborTerms(s, newReviewerStep(), sql.OrderByField(field, opts...))
+	}
+}
+
 // ByAccountGroupsCount orders the results by account_groups count.
 func ByAccountGroupsCount(opts ...sql.OrderTermOption) OrderOption {
 	return func(s *sql.Selector) {
@@ -503,6 +589,20 @@ func newUsageLogsStep() *sqlgraph.Step {
 		sqlgraph.From(Table, FieldID),
 		sqlgraph.To(UsageLogsInverseTable, FieldID),
 		sqlgraph.Edge(sqlgraph.O2M, false, UsageLogsTable, UsageLogsColumn),
+	)
+}
+func newSupplierStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(SupplierInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, false, SupplierTable, SupplierColumn),
+	)
+}
+func newReviewerStep() *sqlgraph.Step {
+	return sqlgraph.NewStep(
+		sqlgraph.From(Table, FieldID),
+		sqlgraph.To(ReviewerInverseTable, FieldID),
+		sqlgraph.Edge(sqlgraph.M2O, false, ReviewerTable, ReviewerColumn),
 	)
 }
 func newAccountGroupsStep() *sqlgraph.Step {
