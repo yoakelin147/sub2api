@@ -572,6 +572,18 @@ const routes: RouteRecordRaw[] = [
     }
   },
   {
+    path: '/admin/suppliers',
+    name: 'AdminSuppliers',
+    component: () => import('@/views/admin/SuppliersView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresAdmin: true,
+      title: 'Supplier Management',
+      titleKey: 'supplier.admin.title',
+      descriptionKey: 'supplier.admin.description'
+    }
+  },
+  {
     path: '/admin/plugins',
     name: 'AdminPlugins',
     component: () => import('@/views/admin/PluginsView.vue'),

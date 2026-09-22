@@ -1,11 +1,31 @@
 import { apiClient } from '../client'
 import type { AdminUser, PaginatedResponse } from '@/types'
 import type {
-  SupplierAccount,
   SupplierAccountFilters,
   SupplierAccountKind,
   SupplierTokenStatus,
 } from '@/api/supplier'
+
+export interface AdminSupplierAccount {
+  id: number
+  name: string
+  notes: string | null
+  platform: string
+  type: string
+  supplier_id: number
+  supplier_external_id?: string | null
+  review_status: 'pending' | 'approved' | 'rejected'
+  reviewed_at?: string | null
+  reviewed_by?: number | null
+  review_note?: string | null
+  credentials_status?: Record<string, boolean>
+  status: 'active' | 'disabled'
+  schedulable: boolean
+  error_message?: string
+  expires_at?: number | null
+  created_at: string
+  updated_at: string
+}
 
 export interface AdminSupplier {
   id: number
@@ -102,8 +122,8 @@ export async function listAccounts(
   page = 1,
   pageSize = 20,
   filters: SupplierAccountFilters = {},
-): Promise<PaginatedResponse<SupplierAccount>> {
-  const { data } = await apiClient.get<PaginatedResponse<SupplierAccount>>(`/admin/suppliers/${id}/accounts`, {
+): Promise<PaginatedResponse<AdminSupplierAccount>> {
+  const { data } = await apiClient.get<PaginatedResponse<AdminSupplierAccount>>(`/admin/suppliers/${id}/accounts`, {
     params: { page, page_size: pageSize, ...filters },
   })
   return data

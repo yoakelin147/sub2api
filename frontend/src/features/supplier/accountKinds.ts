@@ -1,0 +1,26 @@
+import type { SupplierAccountKind } from '@/api/supplier'
+
+export const SUPPLIER_ACCOUNT_KINDS: SupplierAccountKind[] = [
+  { platform: 'openai', type: 'apikey' },
+  { platform: 'openai', type: 'upstream' },
+  { platform: 'openai', type: 'oauth' },
+  { platform: 'openai', type: 'setup-token' },
+  { platform: 'anthropic', type: 'apikey' },
+  { platform: 'anthropic', type: 'upstream' },
+  { platform: 'anthropic', type: 'oauth' },
+  { platform: 'anthropic', type: 'setup-token' },
+  { platform: 'anthropic', type: 'bedrock' },
+  { platform: 'anthropic', type: 'service_account' },
+  { platform: 'gemini', type: 'apikey' },
+  { platform: 'gemini', type: 'oauth' },
+  { platform: 'gemini', type: 'service_account' },
+  { platform: 'antigravity', type: 'oauth' },
+  { platform: 'antigravity', type: 'apikey' },
+  { platform: 'grok', type: 'apikey' },
+  { platform: 'grok', type: 'oauth' },
+  { platform: 'kimi', type: 'apikey' },
+  { platform: 'zhipu', type: 'apikey' },
+  { platform: 'deepseek', type: 'apikey' },
+  { platform: 'minimax', type: 'apikey' },
+  { platform: 'opencode_go', type: 'apikey' },
+]
