@@ -88,27 +88,27 @@ func (h *SupplierHandler) GetAccount(c *gin.Context) {
 }
 
 func (h *SupplierHandler) CreateAccount(c *gin.Context) {
-	supplierID, ok := middleware.GetSupplierIDFromContext(c)
-	if !ok {
-		middleware.AbortWithError(c, http.StatusUnauthorized, "SUPPLIER_AUTH_REQUIRED", "Supplier authentication required")
-		return
-	}
 	var request supplierAccountRequest
 	if err := decodeStrictSupplierJSON(c, &request); err != nil {
 		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
 		return
 	}
-	account, err := h.accounts.Create(c.Request.Context(), supplierID, service.CreateSupplierAccountInput{
-		ExternalID: request.ExternalID, Name: request.Name, Notes: request.Notes,
-		Platform: request.Platform, Type: request.Type, Credentials: request.Credentials,
-		ExpiresAt: unixTime(request.ExpiresAt),
+	executeSupplierIdempotentJSON(c, "supplier.accounts.create", request, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
+		supplierID, ok := middleware.GetSupplierIDFromContext(c)
+		if !ok {
+			return nil, service.ErrSupplierTokenInvalid
+		}
+		account, err := h.accounts.Create(ctx, supplierID, service.CreateSupplierAccountInput{
+			ExternalID: request.ExternalID, Name: request.Name, Notes: request.Notes,
+			Platform: request.Platform, Type: request.Type, Credentials: request.Credentials,
+			ExpiresAt: unixTime(request.ExpiresAt),
+		})
+		if err != nil {
+			return nil, err
+		}
+		middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": account.ID})
+		return supplierAccountResponse(account), nil
 	})
-	if err != nil {
-		response.ErrorFrom(c, err)
-		return
-	}
-	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": account.ID})
-	response.Success(c, supplierAccountResponse(account))
 }
 
 func (h *SupplierHandler) BatchCreateAccounts(c *gin.Context) {

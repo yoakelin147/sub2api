@@ -3,13 +3,35 @@ package handler
 import (
 	"bytes"
 	"encoding/json"
+	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+func TestSupplierCreateAccountRequiresIdempotencyKey(t *testing.T) {
+	previous := service.DefaultIdempotencyCoordinator()
+	service.SetDefaultIdempotencyCoordinator(service.NewIdempotencyCoordinator(newUserMemoryIdempotencyRepoStub(), service.DefaultIdempotencyConfig()))
+	t.Cleanup(func() { service.SetDefaultIdempotencyCoordinator(previous) })
+
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	ctx.Set(string(middleware.ContextKeySupplierID), int64(7))
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/supplier/accounts", bytes.NewBufferString(`{
+		"external_id":"vendor-1","name":"account","platform":"openai","type":"apikey",
+		"credentials":{"api_key":"secret"}
+	}`))
+	ctx.Request.Header.Set("Content-Type", "application/json")
+
+	(&SupplierHandler{}).CreateAccount(ctx)
+
+	require.Equal(t, http.StatusBadRequest, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "IDEMPOTENCY_KEY_REQUIRED")
+}
 
 func TestSupplierAccountResponseNeverExposesCredentialsOrExtra(t *testing.T) {
 	supplierID := int64(7)

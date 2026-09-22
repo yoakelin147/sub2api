@@ -71,6 +71,15 @@ func executeSupplierIdempotentJSON(
 	ttl time.Duration,
 	execute func(context.Context) (any, error),
 ) {
+	key, err := service.NormalizeIdempotencyKey(c.GetHeader("Idempotency-Key"))
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if key == "" {
+		response.ErrorFrom(c, service.ErrIdempotencyKeyRequired)
+		return
+	}
 	coordinator := service.DefaultIdempotencyCoordinator()
 	if coordinator == nil {
 		response.ErrorFrom(c, service.ErrIdempotencyStoreUnavail)
