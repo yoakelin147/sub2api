@@ -200,6 +200,29 @@ func TestPanelRateLimiterHeavyUsesHeavyRPM(t *testing.T) {
 	require.Contains(t, allower.counts, "panel:heavy:user:7")
 }
 
+func TestPanelRateLimiterSupplierUsesTenantScopeForJWTAndMachineToken(t *testing.T) {
+	allower := &fakePanelAllower{}
+	p := &PanelRateLimiter{
+		limiter:        allower,
+		settingService: newPanelRateLimitTestService(t, `{"enabled":true,"user_rpm":2,"heavy_rpm":1,"exempt_admin":true,"public_ip_rpm":0}`),
+	}
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set(string(ContextKeySupplierID), int64(7))
+		c.Next()
+	})
+	router.Use(p.Supplier())
+	router.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	require.Equal(t, http.StatusOK, performPanelRequest(router, "127.0.0.1:1000").Code)
+	require.Equal(t, http.StatusOK, performPanelRequest(router, "127.0.0.1:1000").Code)
+	require.Equal(t, http.StatusTooManyRequests, performPanelRequest(router, "127.0.0.1:1000").Code)
+
+	allower.mu.Lock()
+	defer allower.mu.Unlock()
+	require.Equal(t, int64(3), allower.counts["panel:supplier:7"])
+}
+
 func TestPanelRateLimiterAdminExemption(t *testing.T) {
 	// 豁免开启：管理员不计数
 	p := &PanelRateLimiter{

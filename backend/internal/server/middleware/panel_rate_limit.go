@@ -56,6 +56,43 @@ func (p *PanelRateLimiter) Heavy() gin.HandlerFunc {
 	return p.userScoped("heavy", func(s service.PanelRateLimitSettings) int { return s.HeavyRPM })
 }
 
+// Supplier limits both member JWTs and machine tokens by tenant so machine
+// tokens cannot bypass the user-scoped panel limiter by lacking a user ID.
+func (p *PanelRateLimiter) Supplier() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if p == nil || p.limiter == nil || p.settingService == nil {
+			c.Next()
+			return
+		}
+		settings := p.settingService.GetPanelRateLimitSettingsCached(c.Request.Context())
+		if !settings.Enabled || settings.UserRPM <= 0 {
+			c.Next()
+			return
+		}
+		supplierID, ok := GetSupplierIDFromContext(c)
+		if !ok || supplierID <= 0 {
+			c.Next()
+			return
+		}
+		result, err := p.limiter.Allow(
+			c.Request.Context(),
+			"panel:supplier:"+strconv.FormatInt(supplierID, 10),
+			settings.UserRPM,
+			panelRateLimitWindow,
+		)
+		if err != nil {
+			slog.Warn("supplier panel rate limit check failed, allowing request", "error", err)
+			c.Next()
+			return
+		}
+		if !result.Allowed {
+			abortPanelRateLimited(c, result.RetryAfter)
+			return
+		}
+		c.Next()
+	}
+}
+
 func (p *PanelRateLimiter) userScoped(scope string, limitOf func(service.PanelRateLimitSettings) int) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if p == nil || p.limiter == nil || p.settingService == nil {

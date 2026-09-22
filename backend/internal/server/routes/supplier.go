@@ -12,10 +12,12 @@ func RegisterSupplierRoutes(
 	optionalJWT middleware.OptionalJWTAuthMiddleware,
 	supplierAuth middleware.SupplierAuthMiddleware,
 	auditLog middleware.AuditLogMiddleware,
+	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
 	supplier := v1.Group("/supplier")
 	supplier.Use(gin.HandlerFunc(optionalJWT))
 	supplier.Use(gin.HandlerFunc(supplierAuth))
+	supplier.Use(panelRateLimiter.Supplier())
 	supplier.Use(gin.HandlerFunc(auditLog))
 	supplier.GET("/me", h.Me)
 	accounts := supplier.Group("/accounts")
