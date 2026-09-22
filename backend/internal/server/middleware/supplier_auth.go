@@ -10,8 +10,6 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-type SupplierAuthMiddleware gin.HandlerFunc
-
 type supplierTokenAuthenticator interface {
 	Authenticate(context.Context, string) (*service.Supplier, error)
 }
@@ -70,4 +68,15 @@ func supplierAuth(tokens supplierTokenAuthenticator, suppliers supplierReader) g
 func setSupplierContext(c *gin.Context, supplierID int64, authMethod string) {
 	c.Set(string(ContextKeySupplierID), supplierID)
 	c.Set("auth_method", authMethod)
+}
+
+// SupplierJWTOnly prevents a machine token from changing or revoking itself.
+func SupplierJWTOnly() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.GetString("auth_method") != service.AuditAuthMethodSupplierJWT {
+			AbortWithError(c, 403, "SUPPLIER_JWT_REQUIRED", "Supplier member session required")
+			return
+		}
+		c.Next()
+	}
 }

@@ -61,6 +61,31 @@ func TestSupplierAuthAcceptsSupplierTokenAndRejectsOtherRoles(t *testing.T) {
 	require.Equal(t, http.StatusForbidden, recorder.Code)
 }
 
+func TestSupplierJWTOnlyRejectsMachineToken(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	for _, tt := range []struct {
+		name       string
+		authMethod string
+		want       int
+	}{
+		{name: "member jwt", authMethod: service.AuditAuthMethodSupplierJWT, want: http.StatusOK},
+		{name: "machine token", authMethod: service.AuditAuthMethodSupplierAPIKey, want: http.StatusForbidden},
+	} {
+		t.Run(tt.name, func(t *testing.T) {
+			router := gin.New()
+			router.Use(func(c *gin.Context) {
+				c.Set("auth_method", tt.authMethod)
+				c.Next()
+			})
+			router.Use(SupplierJWTOnly())
+			router.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+			recorder := httptest.NewRecorder()
+			router.ServeHTTP(recorder, httptest.NewRequest(http.MethodGet, "/test", nil))
+			require.Equal(t, tt.want, recorder.Code)
+		})
+	}
+}
+
 type supplierTokenAuthenticatorStub struct {
 	supplier *service.Supplier
 	err      error

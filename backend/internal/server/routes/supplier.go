@@ -1,0 +1,27 @@
+package routes
+
+import (
+	"github.com/Wei-Shaw/sub2api/internal/handler"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
+	"github.com/gin-gonic/gin"
+)
+
+func RegisterSupplierRoutes(
+	v1 *gin.RouterGroup,
+	h *handler.SupplierHandler,
+	optionalJWT middleware.OptionalJWTAuthMiddleware,
+	supplierAuth middleware.SupplierAuthMiddleware,
+	auditLog middleware.AuditLogMiddleware,
+) {
+	supplier := v1.Group("/supplier")
+	supplier.Use(gin.HandlerFunc(optionalJWT))
+	supplier.Use(gin.HandlerFunc(supplierAuth))
+	supplier.Use(gin.HandlerFunc(auditLog))
+	supplier.GET("/me", h.Me)
+
+	accessToken := supplier.Group("/access-token")
+	accessToken.Use(middleware.SupplierJWTOnly())
+	accessToken.GET("", h.AccessTokenStatus)
+	accessToken.POST("/regenerate", h.RegenerateAccessToken)
+	accessToken.DELETE("", h.RevokeAccessToken)
+}

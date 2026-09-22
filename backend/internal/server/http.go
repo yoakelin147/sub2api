@@ -34,6 +34,7 @@ func ProvideRouter(
 	optionalJWTAuth middleware2.OptionalJWTAuthMiddleware,
 	adminAuth middleware2.AdminAuthMiddleware,
 	apiKeyAuth middleware2.APIKeyAuthMiddleware,
+	supplierAuth middleware2.SupplierAuthMiddleware,
 	auditLog middleware2.AuditLogMiddleware,
 	stepUpAuth middleware2.StepUpAuthMiddleware,
 	apiKeyService *service.APIKeyService,
@@ -87,7 +88,7 @@ func ProvideRouter(
 		service.SetWebSearchManager(websearch.NewManager(configs, redisClient))
 	})
 
-	return SetupRouter(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient)
+	return SetupRouter(r, handlers, jwtAuth, optionalJWTAuth, adminAuth, apiKeyAuth, supplierAuth, auditLog, stepUpAuth, apiKeyService, subscriptionService, opsService, settingService, compositeResolver, cfg, redisClient)
 }
 
 func configureTrustedProxies(r *gin.Engine, cfg config.ServerConfig) {
