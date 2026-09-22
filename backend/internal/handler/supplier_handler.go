@@ -12,13 +12,15 @@ import (
 type SupplierHandler struct {
 	suppliers *service.SupplierService
 	tokens    *service.SupplierTokenService
+	accounts  *service.SupplierAccountService
 }
 
 func NewSupplierHandler(
 	suppliers *service.SupplierService,
 	tokens *service.SupplierTokenService,
+	accounts *service.SupplierAccountService,
 ) *SupplierHandler {
-	return &SupplierHandler{suppliers: suppliers, tokens: tokens}
+	return &SupplierHandler{suppliers: suppliers, tokens: tokens, accounts: accounts}
 }
 
 func (h *SupplierHandler) Me(c *gin.Context) {

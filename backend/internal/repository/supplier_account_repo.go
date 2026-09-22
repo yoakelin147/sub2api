@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"database/sql"
 	"errors"
 	"strings"
 
@@ -13,10 +14,10 @@ import (
 
 func NewSupplierAccountRepository(
 	client *dbent.Client,
-	sqlq sqlExecutor,
+	sqlDB *sql.DB,
 	schedulerCache service.SchedulerCache,
 ) service.SupplierAccountRepository {
-	return newAccountRepositoryWithSQL(client, sqlq, schedulerCache)
+	return newAccountRepositoryWithSQL(client, sqlDB, schedulerCache)
 }
 
 func (r *accountRepository) CreateOwned(ctx context.Context, supplierID int64, account *service.Account) error {

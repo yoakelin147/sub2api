@@ -18,6 +18,12 @@ func RegisterSupplierRoutes(
 	supplier.Use(gin.HandlerFunc(supplierAuth))
 	supplier.Use(gin.HandlerFunc(auditLog))
 	supplier.GET("/me", h.Me)
+	accounts := supplier.Group("/accounts")
+	accounts.GET("", h.ListAccounts)
+	accounts.POST("", h.CreateAccount)
+	accounts.GET("/:id", h.GetAccount)
+	accounts.PUT("/:id", h.UpdateAccount)
+	accounts.DELETE("/:id", h.DeleteAccount)
 
 	accessToken := supplier.Group("/access-token")
 	accessToken.Use(middleware.SupplierJWTOnly())
