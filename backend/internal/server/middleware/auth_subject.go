@@ -7,6 +7,7 @@ import "github.com/gin-gonic/gin"
 type AuthSubject struct {
 	UserID      int64
 	Concurrency int
+	SupplierID  *int64
 }
 
 func GetAuthSubjectFromContext(c *gin.Context) (AuthSubject, bool) {
@@ -16,6 +17,15 @@ func GetAuthSubjectFromContext(c *gin.Context) (AuthSubject, bool) {
 	}
 	subject, ok := value.(AuthSubject)
 	return subject, ok
+}
+
+func GetSupplierIDFromContext(c *gin.Context) (int64, bool) {
+	value, exists := c.Get(string(ContextKeySupplierID))
+	if !exists {
+		return 0, false
+	}
+	supplierID, ok := value.(int64)
+	return supplierID, ok && supplierID > 0
 }
 
 func GetUserRoleFromContext(c *gin.Context) (string, bool) {

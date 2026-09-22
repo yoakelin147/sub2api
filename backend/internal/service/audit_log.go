@@ -17,9 +17,11 @@ var ErrAuditLogNotFound = infraerrors.NotFound("AUDIT_LOG_NOT_FOUND", "audit log
 // 审计日志相关常量。
 const (
 	// AuditAuthMethodJWT / AuditAuthMethodAdminAPIKey 与 auth 中间件写入的 auth_method 对齐。
-	AuditAuthMethodJWT         = "jwt"
-	AuditAuthMethodAdminAPIKey = "admin_api_key"
-	AuditAuthMethodPasskey     = "passkey"
+	AuditAuthMethodJWT            = "jwt"
+	AuditAuthMethodAdminAPIKey    = "admin_api_key"
+	AuditAuthMethodPasskey        = "passkey"
+	AuditAuthMethodSupplierJWT    = "supplier_jwt"
+	AuditAuthMethodSupplierAPIKey = "supplier_api_key"
 
 	// auditRequestBodyMaxBytes 请求体脱敏后入库的最大长度（字节），超出截断。
 	auditRequestBodyMaxBytes = 16 * 1024
