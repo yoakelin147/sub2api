@@ -1,7 +1,8 @@
 # 供应商账号管理与系统令牌二开需求
 
-状态：需求与实施计划草案  
-日期：2026-09-22  
+状态：需求与实施计划草案
+
+日期：2026-09-22
 变更标识：`add-supplier-account-management`
 
 ## 1. 背景
@@ -126,6 +127,7 @@
 - [变更提案](./proposal.md)
 - [技术设计](./design.md)
 - [实施任务](./tasks.md)
+- [供应商凭据契约](./credential-contract.md)
 - [供应商租户规格](./specs/supplier-tenant/spec.md)
 - [账号归属规格](./specs/supplier-account-ownership/spec.md)
 - [系统令牌规格](./specs/supplier-access-token/spec.md)

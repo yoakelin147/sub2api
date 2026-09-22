@@ -7,7 +7,7 @@
   - 验收：明确完整交付范围、非目标、默认决策和完成定义
   - 验证：逐项检查 README、proposal、design 与 specs 之间无冲突
 
-- [ ] 0.2 从现有账号实现冻结完整供应商凭据契约
+- [x] 0.2 从现有账号实现冻结完整供应商凭据契约
   - 验收：覆盖 `apikey`、`upstream`、`setup-token`、`oauth`、`bedrock` 和 `service_account` 的有效 platform/type 组合
   - 验收：从现有表单、服务校验和测试夹具整理每种类型的必填字段、可选字段、Base URL 和敏感字段
   - 验收：Composite、影子账号和交互式 OAuth/SSO/密码/Cookie 换票接口保持管理员专属
