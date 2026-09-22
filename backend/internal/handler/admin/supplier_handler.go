@@ -8,6 +8,7 @@ import (
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
+	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 )
@@ -16,10 +17,11 @@ type SupplierHandler struct {
 	suppliers *service.SupplierService
 	tokens    *service.SupplierTokenService
 	admin     service.AdminService
+	accounts  *service.SupplierAccountService
 }
 
-func NewSupplierHandler(suppliers *service.SupplierService, tokens *service.SupplierTokenService, adminService service.AdminService) *SupplierHandler {
-	return &SupplierHandler{suppliers: suppliers, tokens: tokens, admin: adminService}
+func NewSupplierHandler(suppliers *service.SupplierService, tokens *service.SupplierTokenService, adminService service.AdminService, accounts *service.SupplierAccountService) *SupplierHandler {
+	return &SupplierHandler{suppliers: suppliers, tokens: tokens, admin: adminService, accounts: accounts}
 }
 
 type supplierWriteRequest struct {
@@ -36,6 +38,12 @@ type supplierMemberRequest struct {
 	Password    string `json:"password"`
 	Username    string `json:"username"`
 	Concurrency int    `json:"concurrency"`
+}
+
+type supplierAccountReviewRequest struct {
+	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
+	GroupIDs   []int64 `json:"group_ids"`
+	Note       *string `json:"note"`
 }
 
 func (h *SupplierHandler) List(c *gin.Context) {
@@ -256,6 +264,63 @@ func (h *SupplierHandler) RemoveMember(c *gin.Context) {
 		return
 	}
 	response.Success(c, user)
+}
+
+func (h *SupplierHandler) ListAccounts(c *gin.Context) {
+	supplierID, ok := adminSupplierID(c)
+	if !ok {
+		return
+	}
+	page, pageSize := response.ParsePagination(c)
+	items, result, err := h.accounts.ListForAdmin(c.Request.Context(), supplierID, pagination.PaginationParams{Page: page, PageSize: pageSize}, service.SupplierAccountFilters{
+		Platform: c.Query("platform"), Type: c.Query("type"), Status: c.Query("status"),
+		ReviewStatus: c.Query("review_status"), Search: c.Query("search"),
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	out := make([]dto.Account, 0, len(items))
+	for i := range items {
+		out = append(out, *dto.AccountFromServiceShallow(&items[i]))
+	}
+	response.Paginated(c, out, result.Total, result.Page, result.PageSize)
+}
+
+func (h *SupplierHandler) ApproveAccounts(c *gin.Context) {
+	h.reviewAccounts(c, service.SupplierAccountReviewApprove)
+}
+func (h *SupplierHandler) RejectAccounts(c *gin.Context) {
+	h.reviewAccounts(c, service.SupplierAccountReviewReject)
+}
+func (h *SupplierHandler) PauseAccounts(c *gin.Context) {
+	h.reviewAccounts(c, service.SupplierAccountReviewPause)
+}
+
+func (h *SupplierHandler) reviewAccounts(c *gin.Context, action string) {
+	supplierID, ok := adminSupplierID(c)
+	if !ok {
+		return
+	}
+	var request supplierAccountReviewRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		response.BadRequest(c, "Invalid request: "+err.Error())
+		return
+	}
+	subject, ok := middleware.GetAuthSubjectFromContext(c)
+	if !ok {
+		response.Unauthorized(c, "Admin not authenticated")
+		return
+	}
+	err := h.accounts.Review(c.Request.Context(), supplierID, service.SupplierAccountReviewInput{
+		AccountIDs: request.AccountIDs, Action: action, GroupIDs: request.GroupIDs,
+		ReviewerID: subject.UserID, Note: request.Note,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, gin.H{"updated": len(request.AccountIDs), "action": action})
 }
 
 func adminSupplierID(c *gin.Context) (int64, bool) {

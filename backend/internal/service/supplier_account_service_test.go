@@ -16,7 +16,7 @@ func TestSupplierAccountServiceCreateUsesSafePendingDefaults(t *testing.T) {
 		AllowedAccountKinds: []SupplierAccountKind{{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}},
 	}}
 	accountRepo := &supplierAccountRepositoryStub{}
-	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), &config.Config{})
+	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), nil, &config.Config{})
 
 	account, err := svc.Create(context.Background(), 7, CreateSupplierAccountInput{
 		ExternalID: " vendor-1 ", Name: " Primary ", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
@@ -33,7 +33,7 @@ func TestSupplierAccountServiceCreateUsesSafePendingDefaults(t *testing.T) {
 
 func TestSupplierAccountServiceCreateRejectsKindNotAllowedForSupplier(t *testing.T) {
 	supplierRepo := &supplierTokenRepositoryStub{supplier: &Supplier{ID: 7, Status: domain.SupplierStatusActive}}
-	svc := NewSupplierAccountService(&supplierAccountRepositoryStub{}, NewSupplierService(supplierRepo), &config.Config{})
+	svc := NewSupplierAccountService(&supplierAccountRepositoryStub{}, NewSupplierService(supplierRepo), nil, &config.Config{})
 
 	_, err := svc.Create(context.Background(), 7, CreateSupplierAccountInput{
 		Name: "Primary", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
@@ -50,7 +50,7 @@ func TestSupplierAccountServiceCredentialChangeRequiresReview(t *testing.T) {
 		Credentials: map[string]any{"api_key": "old"}, Status: StatusActive, Schedulable: true,
 		ReviewStatus: AccountReviewStatusApproved,
 	}}
-	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), &config.Config{})
+	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), nil, &config.Config{})
 	credentials := map[string]any{"api_key": "new"}
 
 	updated, err := svc.Update(context.Background(), 7, 3, UpdateSupplierAccountInput{Credentials: &credentials})
@@ -61,9 +61,35 @@ func TestSupplierAccountServiceCredentialChangeRequiresReview(t *testing.T) {
 	require.False(t, updated.Schedulable)
 }
 
+func TestSupplierAccountServiceRejectsOwnedAccountsAsOneBatch(t *testing.T) {
+	repo := &supplierAccountRepositoryStub{accounts: []*Account{{ID: 3}, {ID: 4}}}
+	svc := NewSupplierAccountService(repo, nil, nil, &config.Config{})
+	note := "invalid credential source"
+
+	err := svc.Review(context.Background(), 7, SupplierAccountReviewInput{
+		AccountIDs: []int64{3, 4, 4}, Action: SupplierAccountReviewReject, ReviewerID: 9, Note: &note,
+	})
+	require.NoError(t, err)
+	require.Equal(t, []int64{3, 4}, repo.reviewed.AccountIDs)
+	require.Equal(t, SupplierAccountReviewReject, repo.reviewed.Action)
+}
+
+func TestSupplierAccountServiceReviewRejectsMixedOwnership(t *testing.T) {
+	repo := &supplierAccountRepositoryStub{accounts: []*Account{{ID: 3}}}
+	svc := NewSupplierAccountService(repo, nil, nil, &config.Config{})
+
+	err := svc.Review(context.Background(), 7, SupplierAccountReviewInput{
+		AccountIDs: []int64{3, 4}, Action: SupplierAccountReviewReject, ReviewerID: 9,
+	})
+	require.ErrorIs(t, err, ErrSupplierAccountNotFound)
+	require.Nil(t, repo.reviewed)
+}
+
 type supplierAccountRepositoryStub struct {
-	created *Account
-	account *Account
+	created  *Account
+	account  *Account
+	accounts []*Account
+	reviewed *SupplierAccountReviewInput
 }
 
 func (r *supplierAccountRepositoryStub) CreateOwned(_ context.Context, supplierID int64, account *Account) error {
@@ -80,7 +106,7 @@ func (r *supplierAccountRepositoryStub) GetOwnedByID(context.Context, int64, int
 	return &clone, nil
 }
 func (r *supplierAccountRepositoryStub) GetOwnedByIDs(context.Context, int64, []int64) ([]*Account, error) {
-	return nil, nil
+	return r.accounts, nil
 }
 func (r *supplierAccountRepositoryStub) ListOwned(context.Context, int64, pagination.PaginationParams, SupplierAccountFilters) ([]Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
@@ -92,3 +118,8 @@ func (r *supplierAccountRepositoryStub) UpdateOwned(_ context.Context, _ int64, 
 	return nil
 }
 func (r *supplierAccountRepositoryStub) DeleteOwned(context.Context, int64, int64) error { return nil }
+
+func (r *supplierAccountRepositoryStub) ReviewOwned(_ context.Context, _ int64, input SupplierAccountReviewInput) error {
+	r.reviewed = &input
+	return nil
+}

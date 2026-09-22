@@ -51,6 +51,7 @@ type UpdateSupplierAccountInput struct {
 type SupplierAccountService struct {
 	repo      SupplierAccountRepository
 	suppliers *SupplierService
+	groups    GroupRepository
 	cfg       *config.Config
 }
 
@@ -75,9 +76,10 @@ type SupplierAccountBatchResult struct {
 func NewSupplierAccountService(
 	repo SupplierAccountRepository,
 	suppliers *SupplierService,
+	groups GroupRepository,
 	cfg *config.Config,
 ) *SupplierAccountService {
-	return &SupplierAccountService{repo: repo, suppliers: suppliers, cfg: cfg}
+	return &SupplierAccountService{repo: repo, suppliers: suppliers, groups: groups, cfg: cfg}
 }
 
 func (s *SupplierAccountService) Create(ctx context.Context, supplierID int64, input CreateSupplierAccountInput) (*Account, error) {
@@ -175,6 +177,13 @@ func (s *SupplierAccountService) List(ctx context.Context, supplierID int64, par
 	return s.repo.ListOwned(ctx, supplierID, params, filters)
 }
 
+func (s *SupplierAccountService) ListForAdmin(ctx context.Context, supplierID int64, params pagination.PaginationParams, filters SupplierAccountFilters) ([]Account, *pagination.PaginationResult, error) {
+	if _, err := s.suppliers.GetByID(ctx, supplierID); err != nil {
+		return nil, nil, err
+	}
+	return s.repo.ListOwned(ctx, supplierID, params, filters)
+}
+
 func (s *SupplierAccountService) Delete(ctx context.Context, supplierID, accountID int64) error {
 	if _, err := s.activeSupplier(ctx, supplierID); err != nil {
 		return err
@@ -265,4 +274,52 @@ func supplierAllowsAccountKind(supplier *Supplier, platform, accountType string)
 		}
 	}
 	return false
+}
+
+func (s *SupplierAccountService) Review(ctx context.Context, supplierID int64, input SupplierAccountReviewInput) error {
+	ids := uniquePositiveInt64s(input.AccountIDs)
+	if supplierID <= 0 || len(ids) == 0 {
+		return ErrSupplierAccountInputInvalid
+	}
+	input.AccountIDs = ids
+	switch input.Action {
+	case SupplierAccountReviewApprove:
+		if len(input.GroupIDs) == 0 || s.groups == nil {
+			return ErrSupplierAccountInputInvalid
+		}
+		for _, groupID := range uniquePositiveInt64s(input.GroupIDs) {
+			if _, err := s.groups.GetByID(ctx, groupID); err != nil {
+				return err
+			}
+		}
+		input.GroupIDs = uniquePositiveInt64s(input.GroupIDs)
+	case SupplierAccountReviewReject, SupplierAccountReviewPause:
+		input.GroupIDs = nil
+	default:
+		return ErrSupplierAccountInputInvalid
+	}
+	accounts, err := s.repo.GetOwnedByIDs(ctx, supplierID, ids)
+	if err != nil {
+		return err
+	}
+	if len(accounts) != len(ids) {
+		return ErrSupplierAccountNotFound
+	}
+	return s.repo.ReviewOwned(ctx, supplierID, input)
+}
+
+func uniquePositiveInt64s(values []int64) []int64 {
+	result := make([]int64, 0, len(values))
+	seen := make(map[int64]struct{}, len(values))
+	for _, value := range values {
+		if value <= 0 {
+			continue
+		}
+		if _, ok := seen[value]; ok {
+			continue
+		}
+		seen[value] = struct{}{}
+		result = append(result, value)
+	}
+	return result
 }

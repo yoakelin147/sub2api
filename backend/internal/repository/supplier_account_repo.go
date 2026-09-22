@@ -5,9 +5,11 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 
 	dbent "github.com/Wei-Shaw/sub2api/ent"
 	dbaccount "github.com/Wei-Shaw/sub2api/ent/account"
+	dbaccountgroup "github.com/Wei-Shaw/sub2api/ent/accountgroup"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 )
@@ -202,5 +204,92 @@ func (r *accountRepository) DeleteOwned(ctx context.Context, supplierID, account
 	if dbent.TxFromContext(baseCtx) == nil {
 		r.syncSchedulerAccountSnapshot(baseCtx, accountID)
 	}
+	return nil
+}
+
+func (r *accountRepository) ReviewOwned(ctx context.Context, supplierID int64, input service.SupplierAccountReviewInput) error {
+	baseCtx := ctx
+	tx, err := r.client.Tx(ctx)
+	if err != nil {
+		return err
+	}
+	defer func() { _ = tx.Rollback() }()
+	ctx = dbent.NewTxContext(ctx, tx)
+	client := tx.Client()
+
+	rows, err := client.Account.Query().
+		Where(dbaccount.IDIn(input.AccountIDs...), dbaccount.SupplierIDEQ(supplierID)).
+		Select(dbaccount.FieldID).
+		All(ctx)
+	if err != nil {
+		return err
+	}
+	if len(rows) != len(input.AccountIDs) {
+		return service.ErrSupplierAccountNotFound
+	}
+
+	update := client.Account.Update().Where(
+		dbaccount.IDIn(input.AccountIDs...),
+		dbaccount.SupplierIDEQ(supplierID),
+	)
+	now := time.Now().UTC()
+	switch input.Action {
+	case service.SupplierAccountReviewApprove:
+		if err := lockLiveGroups(ctx, client, input.GroupIDs); err != nil {
+			return err
+		}
+		if _, err := client.AccountGroup.Delete().Where(dbaccountgroup.AccountIDIn(input.AccountIDs...)).Exec(ctx); err != nil {
+			return err
+		}
+		builders := make([]*dbent.AccountGroupCreate, 0, len(input.AccountIDs)*len(input.GroupIDs))
+		for _, accountID := range input.AccountIDs {
+			for priority, groupID := range input.GroupIDs {
+				builders = append(builders, client.AccountGroup.Create().SetAccountID(accountID).SetGroupID(groupID).SetPriority(priority+1))
+			}
+		}
+		if len(builders) > 0 {
+			if _, err := client.AccountGroup.CreateBulk(builders...).Save(ctx); err != nil {
+				return err
+			}
+		}
+		update.SetReviewStatus(service.AccountReviewStatusApproved).
+			SetStatus(service.StatusActive).
+			SetSchedulable(true).
+			SetReviewedAt(now).
+			SetReviewedBy(input.ReviewerID).
+			SetNillableReviewNote(input.Note)
+		if input.Note == nil {
+			update.ClearReviewNote()
+		}
+	case service.SupplierAccountReviewReject:
+		update.SetReviewStatus(service.AccountReviewStatusRejected).
+			SetStatus(service.StatusDisabled).
+			SetSchedulable(false).
+			SetReviewedAt(now).
+			SetReviewedBy(input.ReviewerID).
+			SetNillableReviewNote(input.Note)
+		if input.Note == nil {
+			update.ClearReviewNote()
+		}
+	case service.SupplierAccountReviewPause:
+		update.SetStatus(service.StatusDisabled).SetSchedulable(false)
+	default:
+		return service.ErrSupplierAccountInputInvalid
+	}
+	count, err := update.Save(ctx)
+	if err != nil {
+		return err
+	}
+	if count != len(input.AccountIDs) {
+		return service.ErrSupplierAccountNotFound
+	}
+	payload := map[string]any{"account_ids": input.AccountIDs}
+	if err := enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountBulkChanged, nil, nil, payload); err != nil {
+		return err
+	}
+	if err := tx.Commit(); err != nil {
+		return err
+	}
+	r.syncSchedulerAccountSnapshots(baseCtx, input.AccountIDs)
 	return nil
 }

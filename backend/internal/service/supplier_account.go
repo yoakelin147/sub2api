@@ -28,4 +28,19 @@ type SupplierAccountRepository interface {
 	ListOwned(ctx context.Context, supplierID int64, params pagination.PaginationParams, filters SupplierAccountFilters) ([]Account, *pagination.PaginationResult, error)
 	UpdateOwned(ctx context.Context, supplierID int64, account *Account) error
 	DeleteOwned(ctx context.Context, supplierID, accountID int64) error
+	ReviewOwned(ctx context.Context, supplierID int64, input SupplierAccountReviewInput) error
+}
+
+const (
+	SupplierAccountReviewApprove = "approve"
+	SupplierAccountReviewReject  = "reject"
+	SupplierAccountReviewPause   = "pause"
+)
+
+type SupplierAccountReviewInput struct {
+	AccountIDs []int64
+	Action     string
+	GroupIDs   []int64
+	ReviewerID int64
+	Note       *string
 }

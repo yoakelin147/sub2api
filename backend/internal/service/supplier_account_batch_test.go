@@ -16,7 +16,7 @@ func TestSupplierAccountServiceBatchCreateReturnsPerItemResults(t *testing.T) {
 		AllowedAccountKinds: []SupplierAccountKind{{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}},
 	}}
 	accountRepo := &supplierAccountRepositoryStub{}
-	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), &config.Config{})
+	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), nil, &config.Config{})
 
 	result, err := svc.BatchCreate(context.Background(), 7, []CreateSupplierAccountInput{
 		{ExternalID: "good", Name: "Good", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "secret"}},
@@ -31,7 +31,7 @@ func TestSupplierAccountServiceBatchCreateReturnsPerItemResults(t *testing.T) {
 }
 
 func TestSupplierAccountServiceBatchCreateRejectsMoreThanLimit(t *testing.T) {
-	svc := NewSupplierAccountService(&supplierAccountRepositoryStub{}, NewSupplierService(&supplierTokenRepositoryStub{}), &config.Config{})
+	svc := NewSupplierAccountService(&supplierAccountRepositoryStub{}, NewSupplierService(&supplierTokenRepositoryStub{}), nil, &config.Config{})
 	items := make([]CreateSupplierAccountInput, MaxSupplierAccountBatchSize+1)
 	for i := range items {
 		items[i].ExternalID = fmt.Sprintf("item-%d", i)

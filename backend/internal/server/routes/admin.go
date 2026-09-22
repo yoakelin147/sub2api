@@ -148,6 +148,10 @@ func registerSupplierAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	suppliers.GET("/:id/members", h.Admin.Supplier.ListMembers)
 	suppliers.POST("/:id/members", h.Admin.Supplier.AddMember)
 	suppliers.DELETE("/:id/members/:user_id", h.Admin.Supplier.RemoveMember)
+	suppliers.GET("/:id/accounts", h.Admin.Supplier.ListAccounts)
+	suppliers.POST("/:id/accounts/approve", h.Admin.Supplier.ApproveAccounts)
+	suppliers.POST("/:id/accounts/reject", h.Admin.Supplier.RejectAccounts)
+	suppliers.POST("/:id/accounts/pause", h.Admin.Supplier.PauseAccounts)
 }
 
 func registerPromptAuditRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
