@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -20,6 +21,8 @@ import (
 
 const maxSupplierAccountRequestBytes = 1 << 20
 const maxSupplierAccountBatchRequestBytes = 2 << 20
+
+var errSupplierRequestTooLarge = errors.New("supplier request body is too large")
 
 type supplierAccountRequest struct {
 	ExternalID  string         `json:"external_id"`
@@ -114,6 +117,10 @@ func (h *SupplierHandler) CreateAccount(c *gin.Context) {
 func (h *SupplierHandler) BatchCreateAccounts(c *gin.Context) {
 	var request supplierAccountBatchRequest
 	if err := decodeStrictSupplierJSONLimit(c, &request, maxSupplierAccountBatchRequestBytes); err != nil {
+		if errors.Is(err, errSupplierRequestTooLarge) {
+			response.ErrorFrom(c, service.ErrSupplierAccountBatchTooLarge)
+			return
+		}
 		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
 		return
 	}
@@ -220,7 +227,14 @@ func decodeStrictSupplierJSON(c *gin.Context, target any) error {
 }
 
 func decodeStrictSupplierJSONLimit(c *gin.Context, target any, limit int64) error {
-	decoder := json.NewDecoder(io.LimitReader(c.Request.Body, limit+1))
+	raw, err := io.ReadAll(io.LimitReader(c.Request.Body, limit+1))
+	if err != nil || int64(len(raw)) > limit {
+		if err == nil && int64(len(raw)) > limit {
+			return errSupplierRequestTooLarge
+		}
+		return service.ErrSupplierAccountInputInvalid
+	}
+	decoder := json.NewDecoder(bytes.NewReader(raw))
 	decoder.DisallowUnknownFields()
 	if err := decoder.Decode(target); err != nil {
 		return err

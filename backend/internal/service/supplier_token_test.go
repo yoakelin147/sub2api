@@ -51,6 +51,18 @@ func TestSupplierTokenRejectsDisabledSupplier(t *testing.T) {
 	require.ErrorIs(t, err, ErrSupplierDisabled)
 }
 
+func TestSupplierTokenRejectsAdminAndModelCredentials(t *testing.T) {
+	for _, credential := range []string{
+		"admin_0123456789abcdef",
+		"sk-user-model-key",
+		"Bearer eyJhbGciOiJIUzI1NiJ9.payload.signature",
+		"supplier_not-a-selector_not-a-secret",
+	} {
+		_, _, ok := parseSupplierToken(credential)
+		require.False(t, ok, credential)
+	}
+}
+
 type supplierTokenRepositoryStub struct {
 	supplier *Supplier
 }

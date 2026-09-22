@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
@@ -60,4 +61,27 @@ func TestDecodeStrictSupplierJSONRejectsAdminFields(t *testing.T) {
 	}`))
 	var request supplierAccountRequest
 	require.Error(t, decodeStrictSupplierJSON(ctx, &request))
+}
+
+func TestSupplierBatchCreateReturns413ForOversizedBody(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	body := `{"accounts":[]}` + strings.Repeat(" ", maxSupplierAccountBatchRequestBytes)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/supplier/accounts/batch", strings.NewReader(body))
+
+	(&SupplierHandler{}).BatchCreateAccounts(ctx)
+
+	require.Equal(t, http.StatusRequestEntityTooLarge, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "BATCH_TOO_LARGE")
+}
+
+func TestDecodeStrictSupplierJSONRejectsBodyOverLimitAfterValidJSON(t *testing.T) {
+	recorder := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(recorder)
+	body := `{"name":"account","platform":"openai","type":"apikey","credentials":{"api_key":"secret"}}` +
+		strings.Repeat(" ", maxSupplierAccountRequestBytes)
+	ctx.Request = httptest.NewRequest(http.MethodPost, "/api/v1/supplier/accounts", strings.NewReader(body))
+
+	var request supplierAccountRequest
+	require.ErrorIs(t, decodeStrictSupplierJSON(ctx, &request), errSupplierRequestTooLarge)
 }
