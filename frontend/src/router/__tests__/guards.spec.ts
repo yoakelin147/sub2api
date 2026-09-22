@@ -69,7 +69,10 @@ function simulateGuard(
   const requiresAdmin = toMeta.requiresAdmin === true
 
   if (toPath === '/setup' && authState.setupNeedsSetup === false) {
-    return resolveCompletedSetupRedirectPath(authState.isAuthenticated, authState.isAdmin)
+    return resolveCompletedSetupRedirectPath(
+      authState.isAuthenticated,
+      authState.isAdmin ? 'admin' : 'user',
+    )
   }
 
   // 不需要认证的路由

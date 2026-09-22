@@ -43,6 +43,15 @@ const fakeAdminUser = {
   role: 'admin' as const,
 }
 
+const fakeSupplierUser = {
+  ...fakeUser,
+  id: 3,
+  username: 'supplier',
+  email: 'supplier@example.com',
+  role: 'supplier' as const,
+  supplier_id: 17,
+}
+
 const fakeAuthResponse = {
   access_token: 'test-token-123',
   refresh_token: 'refresh-token-456',
@@ -339,6 +348,27 @@ describe('useAuthStore', () => {
     it('未登录时返回 false', () => {
       const store = useAuthStore()
       expect(store.isAdmin).toBe(false)
+    })
+  })
+
+  describe('isSupplier', () => {
+    it('供应商成员返回 true', async () => {
+      mockLogin.mockResolvedValue({ ...fakeAuthResponse, user: { ...fakeSupplierUser } })
+      const store = useAuthStore()
+
+      await store.login({ email: 'supplier@example.com', password: '123456' })
+
+      expect(store.isSupplier).toBe(true)
+      expect(store.isAdmin).toBe(false)
+    })
+
+    it('普通用户和未登录状态返回 false', async () => {
+      const store = useAuthStore()
+      expect(store.isSupplier).toBe(false)
+
+      mockLogin.mockResolvedValue(fakeAuthResponse)
+      await store.login({ email: 'test@example.com', password: '123456' })
+      expect(store.isSupplier).toBe(false)
     })
   })
 

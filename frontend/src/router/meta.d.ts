@@ -19,6 +19,12 @@ declare module 'vue-router' {
      */
     requiresAdmin?: boolean
 
+    /** Whether this route is exclusive to supplier members. */
+    requiresSupplier?: boolean
+
+    /** Whether a supplier member may open this otherwise user-facing route. */
+    allowsSupplier?: boolean
+
     /**
      * Page title for this route
      */
