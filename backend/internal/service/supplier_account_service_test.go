@@ -42,8 +42,28 @@ func TestSupplierAccountServiceCreateRejectsKindNotAllowedForSupplier(t *testing
 	require.ErrorIs(t, err, ErrSupplierAccountKindNotAllowed)
 }
 
+func TestSupplierAccountServiceCredentialChangeRequiresReview(t *testing.T) {
+	supplierRepo := &supplierTokenRepositoryStub{supplier: &Supplier{ID: 7, Status: domain.SupplierStatusActive}}
+	supplierID := int64(7)
+	accountRepo := &supplierAccountRepositoryStub{account: &Account{
+		ID: 3, SupplierID: &supplierID, Name: "Account", Platform: PlatformOpenAI, Type: AccountTypeAPIKey,
+		Credentials: map[string]any{"api_key": "old"}, Status: StatusActive, Schedulable: true,
+		ReviewStatus: AccountReviewStatusApproved,
+	}}
+	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), &config.Config{})
+	credentials := map[string]any{"api_key": "new"}
+
+	updated, err := svc.Update(context.Background(), 7, 3, UpdateSupplierAccountInput{Credentials: &credentials})
+	require.NoError(t, err)
+	require.Equal(t, "new", updated.Credentials["api_key"])
+	require.Equal(t, AccountReviewStatusPending, updated.ReviewStatus)
+	require.Equal(t, StatusDisabled, updated.Status)
+	require.False(t, updated.Schedulable)
+}
+
 type supplierAccountRepositoryStub struct {
 	created *Account
+	account *Account
 }
 
 func (r *supplierAccountRepositoryStub) CreateOwned(_ context.Context, supplierID int64, account *Account) error {
@@ -53,7 +73,11 @@ func (r *supplierAccountRepositoryStub) CreateOwned(_ context.Context, supplierI
 	return nil
 }
 func (r *supplierAccountRepositoryStub) GetOwnedByID(context.Context, int64, int64) (*Account, error) {
-	return nil, ErrSupplierAccountNotFound
+	if r.account == nil {
+		return nil, ErrSupplierAccountNotFound
+	}
+	clone := *r.account
+	return &clone, nil
 }
 func (r *supplierAccountRepositoryStub) GetOwnedByIDs(context.Context, int64, []int64) ([]*Account, error) {
 	return nil, nil
@@ -61,7 +85,10 @@ func (r *supplierAccountRepositoryStub) GetOwnedByIDs(context.Context, int64, []
 func (r *supplierAccountRepositoryStub) ListOwned(context.Context, int64, pagination.PaginationParams, SupplierAccountFilters) ([]Account, *pagination.PaginationResult, error) {
 	return nil, nil, nil
 }
-func (r *supplierAccountRepositoryStub) UpdateOwned(context.Context, int64, *Account) error {
+
+func (r *supplierAccountRepositoryStub) UpdateOwned(_ context.Context, _ int64, account *Account) error {
+	clone := *account
+	r.account = &clone
 	return nil
 }
 func (r *supplierAccountRepositoryStub) DeleteOwned(context.Context, int64, int64) error { return nil }
