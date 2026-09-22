@@ -14,6 +14,7 @@ type User struct {
 	Email         string     `json:"email"`
 	Username      string     `json:"username"`
 	Role          string     `json:"role"`
+	SupplierID    *int64     `json:"supplier_id"`
 	Balance       float64    `json:"balance"`
 	FrozenBalance float64    `json:"frozen_balance"`
 	Concurrency   int        `json:"concurrency"`

@@ -24,7 +24,7 @@
   - 依赖：0.2
   - 预计：1–1.5 天
 
-- [ ] 1.2 增加 users.supplier_id 与 supplier 角色
+- [x] 1.2 增加 users.supplier_id 与 supplier 角色
   - 描述：扩展领域常量、User schema、service/DTO 映射和角色校验
   - 验收：supplier 必须绑定供应商；admin/user 不能绑定供应商；管理员不能把自己改成 supplier
   - 验证：用户创建/更新、角色约束和现有 admin/user 回归测试

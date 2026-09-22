@@ -111,10 +111,28 @@ func normalizeUserRole(role, fallback string) (string, error) {
 	if role == "" {
 		return fallback, nil
 	}
-	if role != RoleAdmin && role != RoleUser {
-		return "", fmt.Errorf("invalid role: %q (must be %s or %s)", role, RoleAdmin, RoleUser)
+	if role != RoleAdmin && role != RoleUser && role != RoleSupplier {
+		return "", fmt.Errorf("invalid role: %q (must be %s, %s, or %s)", role, RoleAdmin, RoleUser, RoleSupplier)
 	}
 	return role, nil
+}
+
+var ErrUserSupplierRoleMismatch = infraerrors.BadRequest(
+	"USER_SUPPLIER_ROLE_MISMATCH",
+	"supplier users must have a supplier_id and other roles must not",
+)
+
+func validateUserSupplierRole(role string, supplierID *int64) error {
+	if role == RoleSupplier {
+		if supplierID == nil || *supplierID <= 0 {
+			return ErrUserSupplierRoleMismatch
+		}
+		return nil
+	}
+	if supplierID != nil {
+		return ErrUserSupplierRoleMismatch
+	}
+	return nil
 }
 
 func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInput) (*User, error) {
@@ -130,12 +148,16 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 	if err != nil {
 		return nil, err
 	}
+	if err := validateUserSupplierRole(role, input.SupplierID); err != nil {
+		return nil, err
+	}
 
 	user := &User{
 		Email:         input.Email,
 		Username:      input.Username,
 		Notes:         input.Notes,
 		Role:          role,
+		SupplierID:    input.SupplierID,
 		Balance:       balance,
 		Concurrency:   input.Concurrency,
 		RPMLimit:      input.RPMLimit,
@@ -155,7 +177,9 @@ func (s *adminServiceImpl) CreateUser(ctx context.Context, input *CreateUserInpu
 		logger.LegacyPrintf("service.admin", "audit: admin user created actor_admin_id=%d target_user_id=%d",
 			input.ActorAdminID, user.ID)
 	}
-	s.assignDefaultSubscriptions(ctx, user.ID)
+	if user.Role == RoleUser {
+		s.assignDefaultSubscriptions(ctx, user.ID)
+	}
 	return user, nil
 }
 
@@ -217,6 +241,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	oldConcurrency := user.Concurrency
 	oldStatus := user.Status
 	oldRole := user.Role
+	oldSupplierID := user.SupplierID
 	oldRPMLimit := user.RPMLimit
 	oldAllowedGroups := append([]int64(nil), user.AllowedGroups...)
 
@@ -265,6 +290,20 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 		user.Role = role
 		fields.Role = true
 	}
+	targetSupplierID := user.SupplierID
+	if input.SupplierID != nil {
+		targetSupplierID = input.SupplierID
+	}
+	if user.Role != RoleSupplier {
+		targetSupplierID = nil
+	}
+	if err := validateUserSupplierRole(user.Role, targetSupplierID); err != nil {
+		return nil, err
+	}
+	if input.SupplierID != nil || user.Role != oldRole {
+		user.SupplierID = targetSupplierID
+		fields.SupplierID = true
+	}
 
 	if input.Concurrency != nil {
 		user.Concurrency = *input.Concurrency
@@ -307,7 +346,7 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	if s.authCacheInvalidator != nil {
 		// RPMLimit 直接参与 billing_cache_service.checkRPM 的三级级联，
 		// allowed_groups 参与 API Key 专属分组授权判断；不失效缓存会让修改在一个 L2 TTL 内失去效果。
-		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || user.RPMLimit != oldRPMLimit || user.RestrictPublicGroups != oldRestrictPublicGroups || !sameInt64Set(user.AllowedGroups, oldAllowedGroups) {
+		if user.Concurrency != oldConcurrency || user.Status != oldStatus || user.Role != oldRole || !sameOptionalInt64(user.SupplierID, oldSupplierID) || user.RPMLimit != oldRPMLimit || user.RestrictPublicGroups != oldRestrictPublicGroups || !sameInt64Set(user.AllowedGroups, oldAllowedGroups) {
 			s.authCacheInvalidator.InvalidateAuthCacheByUserID(ctx, user.ID)
 		}
 	}
@@ -334,6 +373,10 @@ func (s *adminServiceImpl) UpdateUser(ctx context.Context, id int64, input *Upda
 	}
 
 	return user, nil
+}
+
+func sameOptionalInt64(a, b *int64) bool {
+	return a == nil && b == nil || a != nil && b != nil && *a == *b
 }
 
 func sameInt64Set(a, b []int64) bool {

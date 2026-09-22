@@ -146,3 +146,31 @@ func TestAdminService_CreateUser_AssignsDefaultSubscriptions(t *testing.T) {
 	require.Equal(t, int64(5), assigner.calls[0].GroupID)
 	require.Equal(t, 30, assigner.calls[0].ValidityDays)
 }
+
+func TestAdminService_CreateSupplierUserRequiresSupplierID(t *testing.T) {
+	repo := &userRepoStub{nextID: 31}
+	svc := &adminServiceImpl{userRepo: repo}
+	supplierID := int64(7)
+
+	user, err := svc.CreateUser(context.Background(), &CreateUserInput{
+		Email: "supplier@test.com", Password: "strong-pass", Role: RoleSupplier, SupplierID: &supplierID,
+	})
+	require.NoError(t, err)
+	require.Equal(t, RoleSupplier, user.Role)
+	require.Equal(t, &supplierID, user.SupplierID)
+
+	_, err = svc.CreateUser(context.Background(), &CreateUserInput{
+		Email: "missing@test.com", Password: "strong-pass", Role: RoleSupplier,
+	})
+	require.ErrorIs(t, err, ErrUserSupplierRoleMismatch)
+}
+
+func TestAdminService_CreateRegularUserRejectsSupplierID(t *testing.T) {
+	svc := &adminServiceImpl{userRepo: &userRepoStub{nextID: 32}}
+	supplierID := int64(7)
+
+	_, err := svc.CreateUser(context.Background(), &CreateUserInput{
+		Email: "user@test.com", Password: "strong-pass", Role: RoleUser, SupplierID: &supplierID,
+	})
+	require.ErrorIs(t, err, ErrUserSupplierRoleMismatch)
+}
