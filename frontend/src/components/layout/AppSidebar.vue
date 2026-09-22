@@ -126,6 +126,24 @@
         </div>
       </template>
 
+      <!-- Supplier View -->
+      <template v-else-if="isSupplier">
+        <div class="sidebar-section">
+          <router-link
+            v-for="item in supplierNavItems"
+            :key="item.path"
+            :to="item.path"
+            class="sidebar-link mb-1"
+            :class="{ 'sidebar-link-active': isActive(item.path), 'sidebar-link-collapsed': sidebarCollapsed }"
+            :title="sidebarCollapsed ? item.label : undefined"
+            @click="handleMenuItemClick(item.path)"
+          >
+            <component :is="item.icon" class="h-5 w-5 flex-shrink-0" />
+            <span class="sidebar-label" :class="{ 'sidebar-label-collapsed': sidebarCollapsed }" :aria-hidden="sidebarCollapsed ? 'true' : 'false'">{{ item.label }}</span>
+          </router-link>
+        </div>
+      </template>
+
       <!-- Regular User View -->
       <template v-else-if="!appStore.backendModeEnabled">
         <div class="sidebar-section">
@@ -249,10 +267,11 @@ const { canUseBatchImage, refreshBatchImageAccess } = useBatchImageAccess()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const mobileOpen = computed(() => appStore.mobileOpen)
 const isAdmin = computed(() => authStore.isAdmin)
+const isSupplier = computed(() => authStore.isSupplier)
 const sidebarNavRef = ref<HTMLElement | null>(null)
 const isDark = ref(document.documentElement.classList.contains('dark'))
 
-const homePath = computed(() => (isAdmin.value ? '/admin/dashboard' : '/dashboard'))
+const homePath = computed(() => isAdmin.value ? '/admin/dashboard' : isSupplier.value ? '/supplier/accounts' : '/dashboard')
 
 // Per-group expand/collapse overrides. A group with no entry follows the
 // automatic behavior (expanded while the active route is one of its children);
@@ -757,6 +776,12 @@ const userNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavItems(tru
 // Admins access 可用渠道 from this section just like regular users — there is no
 // separate admin entry, since the page is purely a user-facing view.
 const personalNavItems = computed((): NavItem[] => finalizeNav(buildSelfNavItems(false)))
+
+const supplierNavItems = computed((): NavItem[] => [
+  { path: '/supplier/accounts', label: t('supplier.nav.accounts'), icon: GlobeIcon },
+  { path: '/supplier/access-token', label: t('supplier.nav.accessToken'), icon: KeyIcon },
+  { path: '/supplier/security', label: t('supplier.nav.security'), icon: ShieldIcon },
+])
 
 // Custom menu items filtered by visibility
 const customMenuItemsForUser = computed(() => {

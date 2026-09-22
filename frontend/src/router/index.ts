@@ -287,7 +287,6 @@ const routes: RouteRecordRaw[] = [
     meta: {
       requiresAuth: true,
       requiresAdmin: false,
-      allowsSupplier: true,
       title: 'Profile',
       titleKey: 'profile.title',
       descriptionKey: 'profile.description'
@@ -399,6 +398,48 @@ const routes: RouteRecordRaw[] = [
       requiresAdmin: false,
       title: 'Custom Page',
       titleKey: 'customPage.title',
+    }
+  },
+
+  // ==================== Supplier Routes ====================
+  {
+    path: '/supplier',
+    redirect: '/supplier/accounts'
+  },
+  {
+    path: '/supplier/accounts',
+    name: 'SupplierAccounts',
+    component: () => import('@/views/supplier/SupplierAccountsView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresSupplier: true,
+      title: 'Supplied Accounts',
+      titleKey: 'supplier.accounts.title',
+      descriptionKey: 'supplier.accounts.description'
+    }
+  },
+  {
+    path: '/supplier/access-token',
+    name: 'SupplierAccessToken',
+    component: () => import('@/views/supplier/SupplierAccessTokenView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresSupplier: true,
+      title: 'Supplier System Token',
+      titleKey: 'supplier.token.title',
+      descriptionKey: 'supplier.token.description'
+    }
+  },
+  {
+    path: '/supplier/security',
+    name: 'SupplierSecurity',
+    component: () => import('@/views/supplier/SupplierSecurityView.vue'),
+    meta: {
+      requiresAuth: true,
+      requiresSupplier: true,
+      title: 'Account Security',
+      titleKey: 'supplier.security.title',
+      descriptionKey: 'supplier.security.description'
     }
   },
 

@@ -80,3 +80,12 @@ describe('AppSidebar subscription feature flag', () => {
     expect(componentSource).toMatch(/path: '\/purchase'[^\n]*label: purchaseNavLabel\.value/)
   })
 })
+
+describe('AppSidebar supplier isolation', () => {
+  it('defines a supplier-only menu without user business routes', () => {
+    expect(componentSource).toContain('v-else-if="isSupplier"')
+    expect(componentSource).toContain("path: '/supplier/accounts'")
+    expect(componentSource).toContain("path: '/supplier/access-token'")
+    expect(componentSource).toContain("path: '/supplier/security'")
+  })
+})

@@ -36,10 +36,11 @@ const appStore = useAppStore()
 const authStore = useAuthStore()
 const sidebarCollapsed = computed(() => appStore.sidebarCollapsed)
 const isAdmin = computed(() => authStore.user?.role === 'admin')
+const isSupplier = computed(() => authStore.user?.role === 'supplier')
 
 const { replayTour } = useOnboardingTour({
-  storageKey: isAdmin.value ? 'admin_guide' : 'user_guide',
-  autoStart: true
+  storageKey: isAdmin.value ? 'admin_guide' : isSupplier.value ? 'supplier_guide' : 'user_guide',
+  autoStart: !isSupplier.value
 })
 
 const onboardingStore = useOnboardingStore()

@@ -60,7 +60,7 @@ watch(
 
 // Watch for authentication state and manage subscription data + announcements
 function onVisibilityChange() {
-  if (document.visibilityState === 'visible' && authStore.isAuthenticated) {
+  if (document.visibilityState === 'visible' && authStore.isAuthenticated && !authStore.isSupplier) {
     announcementStore.fetchAnnouncements()
   }
 }
@@ -81,7 +81,7 @@ function startSubscriptionSync() {
 }
 
 watch(subscriptionFeatureEnabled, (enabled) => {
-  if (!authStore.isAuthenticated) return
+  if (!authStore.isAuthenticated || authStore.isSupplier) return
   if (enabled) {
     startSubscriptionSync()
   } else {
@@ -101,15 +101,15 @@ watch(
 
       // User logged in: preload subscriptions and start polling (skipped when the
       // subscription feature is switched off; see the flag watcher below)
-      if (subscriptionFeatureEnabled.value) {
+      if (!authStore.isSupplier && subscriptionFeatureEnabled.value) {
         startSubscriptionSync()
       }
 
       // Announcements: new login vs page refresh restore
-      if (oldValue === false) {
+      if (!authStore.isSupplier && oldValue === false) {
         // New login: delay 3s then force fetch
         setTimeout(() => announcementStore.fetchAnnouncements(true), 3000)
-      } else {
+      } else if (!authStore.isSupplier) {
         // Page refresh restore (oldValue was undefined)
         announcementStore.fetchAnnouncements()
       }
@@ -129,7 +129,7 @@ watch(
 
 // Route change trigger (throttled by store)
 router.afterEach(() => {
-  if (authStore.isAuthenticated) {
+  if (authStore.isAuthenticated && !authStore.isSupplier) {
     announcementStore.fetchAnnouncements()
   }
 })
