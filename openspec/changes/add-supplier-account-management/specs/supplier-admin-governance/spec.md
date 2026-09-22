@@ -1,0 +1,79 @@
+## Purpose
+
+为管理员提供供应商准入、成员、令牌和供应账号审核能力，保持所有调度和运营参数由平台控制。
+
+## ADDED Requirements
+
+### Requirement: 管理员可管理供应商生命周期
+
+管理员 SHALL 能创建、查询、编辑、禁用和软删除供应商，并配置允许提交的 platform/type 组合。
+
+#### Scenario: 新供应商默认无提交权限
+- **WHEN** 管理员创建供应商但未配置 allowed_account_kinds
+- **THEN** 供应商 MUST 无法提交任何账号
+
+#### Scenario: 修改允许类型
+- **WHEN** 管理员从允许列表移除一种 platform/type
+- **THEN** 后续该类型提交 MUST 被拒绝
+- **THEN** 已存在账号 MUST 保持原状态，不能隐式删除或暂停
+
+### Requirement: 管理员可管理供应商成员
+
+管理员 SHALL 能创建、绑定、禁用和解绑供应商成员。成员邮箱继续遵循现有用户唯一约束。
+
+#### Scenario: 绑定已有普通用户
+- **WHEN** 管理员把已有 user 转为 supplier 并指定 supplier_id
+- **THEN** 系统 MUST 在一个事务中同时更新 role 和 supplier_id
+- **THEN** 该用户后续普通用户权限 MUST 失效
+
+#### Scenario: 解绑最后一个成员
+- **WHEN** 管理员解绑供应商最后一个成员
+- **THEN** 系统 MAY 允许该操作
+- **THEN** 供应商系统令牌和历史账号 MUST 不受隐式影响
+
+### Requirement: 管理员可批量审核供应商账号
+
+管理员 SHALL 能按供应商查看 pending/rejected/approved 账号，并批量通过、拒绝或暂停。
+
+#### Scenario: 批量审核通过
+- **WHEN** 管理员选择同一供应商的待审核账号并提交合法分组和调度设置
+- **THEN** 系统 MUST 原子写入审核状态、分组和运行状态
+- **THEN** 系统 MUST 发布调度更新
+
+#### Scenario: 批次包含其他供应商账号
+- **WHEN** 审核批次包含不属于 URL 中供应商的账号
+- **THEN** 系统 MUST 整批返回 422 或 404
+- **THEN** 不得部分审核
+
+#### Scenario: 批量拒绝
+- **WHEN** 管理员拒绝待审核账号并填写原因
+- **THEN** 账号 MUST 保持不可调度
+- **THEN** 供应商 MUST 能看到安全处理后的拒绝原因
+
+### Requirement: 管理员拥有供应商令牌紧急撤销能力
+
+管理员 SHALL 能查询脱敏令牌状态、重新生成和撤销供应商令牌。
+
+#### Scenario: 管理员紧急撤销
+- **WHEN** 管理员撤销疑似泄漏的供应商令牌
+- **THEN** 旧令牌 MUST 立即失效
+- **THEN** 供应商网页登录 MUST 保持可用，除非供应商也被禁用
+
+### Requirement: 所有供应商管理写操作进入审计日志
+
+供应商创建、状态变化、成员变化、令牌变化、账号审核和批量暂停 SHALL 记录管理员、供应商、资源、请求 ID 和结果，不记录完整凭据。
+
+#### Scenario: 管理员审核账号
+- **WHEN** 管理员通过或拒绝供应商账号
+- **THEN** 审计日志 MUST 包含管理员用户 ID、供应商 ID、账号 ID 列表和审核结果
+- **THEN** 审计正文 MUST 对 credentials 和 token 递归脱敏
+
+### Requirement: 管理页面提供供应商运营视图
+
+管理员供应商列表 SHALL 显示状态、成员数、账号总数、待审核数、可调度数、异常数和令牌最后使用时间，并可进入供应商详情完成治理操作。
+
+#### Scenario: 查看供应商详情
+- **WHEN** 管理员打开供应商详情
+- **THEN** 页面 MUST 提供基本信息、成员与令牌、供应账号三个功能区
+- **THEN** 页面 MUST 支持按平台、类型、审核状态和运行状态筛选账号
+
