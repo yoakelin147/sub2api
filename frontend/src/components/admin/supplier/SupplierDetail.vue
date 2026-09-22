@@ -1,280 +1,145 @@
 <template>
-  <div class="space-y-6">
-    <section class="card p-5">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <div class="flex items-center gap-2">
-            <h3 class="text-xl font-semibold text-gray-900 dark:text-white">{{ supplier.name }}</h3>
-            <span :class="supplier.status === 'active' ? 'badge badge-success' : 'badge badge-danger'">{{ supplier.status }}</span>
+  <div class="min-w-0 space-y-4">
+    <section class="card p-4 sm:p-5">
+      <div class="flex flex-wrap items-start justify-between gap-3">
+        <div class="min-w-0 flex-1">
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="break-all text-xl font-semibold text-gray-900 dark:text-white">{{ supplier.name }}</h2>
+            <span :class="supplier.status === 'active' ? 'badge badge-success' : 'badge badge-danger'">{{ supplier.status === 'active' ? t('common.active') : t('common.disabled') }}</span>
           </div>
-          <p class="mt-1 font-mono text-sm text-gray-500">{{ supplier.code }} · #{{ supplier.id }}</p>
-          <p v-if="supplier.notes" class="mt-2 text-sm text-gray-600 dark:text-gray-300">{{ supplier.notes }}</p>
+          <p class="mt-1 break-all font-mono text-xs text-gray-500">{{ supplier.code }} · #{{ supplier.id }}</p>
         </div>
         <div class="flex gap-2">
-          <button class="btn btn-secondary" @click="emit('edit')"><Icon name="edit" size="sm" />{{ t('common.edit') }}</button>
-          <button class="btn btn-danger" @click="emit('delete')"><Icon name="trash" size="sm" />{{ t('common.delete') }}</button>
+          <button class="btn btn-secondary btn-sm" @click="emit('edit')"><Icon name="edit" size="sm" />{{ t('common.edit') }}</button>
+          <button class="btn btn-ghost btn-sm text-red-600" @click="emit('delete')"><Icon name="trash" size="sm" />{{ t('common.delete') }}</button>
         </div>
       </div>
-      <div class="mt-4 flex flex-wrap gap-2">
-        <span v-for="kind in supplier.allowed_account_kinds" :key="`${kind.platform}:${kind.type}`" class="badge badge-gray">{{ kind.platform }}/{{ kind.type }}</span>
-        <span v-if="supplier.allowed_account_kinds.length === 0" class="text-sm text-amber-600">{{ t('supplier.admin.noPermission') }}</span>
-      </div>
+      <dl class="mt-4 grid grid-cols-2 gap-4 border-t border-gray-100 pt-4 dark:border-dark-700 sm:grid-cols-4">
+        <div v-for="item in stats" :key="item.label">
+          <dt class="text-xs text-gray-500 dark:text-gray-400">{{ item.label }}</dt>
+          <dd class="mt-1 text-xl font-semibold tabular-nums text-gray-900 dark:text-white">{{ item.value }}</dd>
+        </div>
+      </dl>
     </section>
-
-    <section class="card p-5">
-      <div class="flex flex-wrap items-start justify-between gap-4">
-        <div>
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('supplier.admin.token') }}</h3>
-          <p class="mt-1 text-sm text-gray-500">{{ tokenStatus.exists ? tokenStatus.masked_key : t('supplier.token.missing') }}</p>
-          <p v-if="tokenStatus.last_used_at" class="mt-1 text-xs text-gray-500">{{ t('supplier.token.lastUsedAt') }}: {{ formatDate(tokenStatus.last_used_at) }}</p>
-        </div>
-        <div class="flex gap-2">
-          <button class="btn btn-secondary" :disabled="working" @click="generateToken">{{ tokenStatus.exists ? t('supplier.token.rotate') : t('supplier.token.generate') }}</button>
-          <button v-if="tokenStatus.exists" class="btn btn-danger" :disabled="working" @click="revokeToken">{{ t('supplier.token.revoke') }}</button>
-        </div>
-      </div>
-      <div v-if="plaintextToken" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-4 dark:border-amber-700 dark:bg-amber-900/20">
-        <p class="font-medium text-amber-900 dark:text-amber-200">{{ t('supplier.token.oneTimeTitle') }}</p>
-        <div class="mt-2 flex flex-col gap-2 sm:flex-row">
-          <code class="min-w-0 flex-1 break-all rounded bg-white p-3 text-sm dark:bg-dark-900">{{ plaintextToken }}</code>
-          <button class="btn btn-secondary" @click="copyToken"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button>
-        </div>
-      </div>
-    </section>
-
-    <section class="card p-5">
-      <div class="mb-4 flex items-center justify-between">
-        <div>
-          <div class="flex items-center gap-2">
-            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('supplier.admin.members') }}</h3>
-            <span class="badge badge-gray">{{ members.length }}</span>
-          </div>
-          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('supplier.admin.membersDescription') }}</p>
-        </div>
-        <button class="btn btn-primary" :disabled="working" @click="showMemberDialog = true">
-          <Icon name="userPlus" size="sm" />{{ t('supplier.admin.addMember') }}
+    <section class="card min-w-0 overflow-hidden">
+      <div role="tablist" :aria-label="t('supplier.admin.details')" class="flex overflow-x-auto border-b border-gray-200 px-4 dark:border-dark-700">
+        <button v-for="(tab, index) in tabs" :id="'supplier-tab-' + tab.value" :key="tab.value"
+          type="button" role="tab" :aria-selected="activeTab === tab.value" :aria-controls="'supplier-panel-' + tab.value"
+          :tabindex="activeTab === tab.value ? 0 : -1"
+          class="flex shrink-0 items-center gap-2 whitespace-nowrap border-b-2 px-4 py-3 text-sm font-medium focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-primary-500"
+          :class="activeTab === tab.value ? 'border-primary-500 text-primary-600 dark:text-primary-400' : 'border-transparent text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-white'"
+          @click="activeTab = tab.value" @keydown="navigateTab($event, index)">
+          {{ tab.label }}<span v-if="tab.count !== undefined" class="badge badge-gray">{{ tab.count }}</span>
         </button>
       </div>
-      <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-700">
-        <table class="w-full min-w-[680px] divide-y divide-gray-200 dark:divide-dark-700">
-          <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-gray-400">
-            <tr>
-              <th class="px-4 py-3">{{ t('common.email') }}</th>
-              <th class="px-4 py-3">{{ t('admin.users.username') }}</th>
-              <th class="px-4 py-3">{{ t('admin.users.form.roleLabel') }}</th>
-              <th class="px-4 py-3">{{ t('common.status') }}</th>
-              <th class="px-4 py-3 text-right">{{ t('common.actions') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100 bg-white dark:divide-dark-800 dark:bg-dark-900">
-            <tr v-for="member in members" :key="member.id">
-              <td class="px-4 py-3">
-                <p class="font-medium text-gray-900 dark:text-white">{{ member.email }}</p>
-                <p class="text-xs text-gray-500">#{{ member.id }}</p>
-              </td>
-              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{{ member.username || '-' }}</td>
-              <td class="px-4 py-3"><span class="badge badge-gray">{{ t('admin.users.roles.supplier') }}</span></td>
-              <td class="px-4 py-3">
-                <span :class="member.status === 'active' ? 'badge badge-success' : 'badge badge-danger'">
-                  {{ member.status === 'active' ? t('common.active') : t('common.disabled') }}
-                </span>
-              </td>
-              <td class="px-4 py-3 text-right">
-                <button class="btn btn-ghost btn-sm text-red-600" :disabled="working" @click="removeMemberById(member.id)">{{ t('supplier.admin.removeMember') }}</button>
-              </td>
-            </tr>
-            <tr v-if="members.length === 0">
-              <td colspan="5" class="px-4 py-10 text-center text-sm text-gray-500">{{ t('common.noData') }}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-    </section>
-
-    <section class="card overflow-hidden">
-      <div class="space-y-4 border-b border-gray-200 p-5 dark:border-dark-700">
-        <div class="flex flex-wrap items-center justify-between gap-3">
-          <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('supplier.admin.accounts') }}</h3>
-          <div class="flex flex-wrap gap-2">
-            <select v-model="accountFilters.review_status" class="input w-36" @change="loadAccounts">
-              <option value="">{{ t('supplier.accounts.allReviews') }}</option>
-              <option value="pending">{{ t('supplier.accounts.pending') }}</option>
-              <option value="approved">{{ t('supplier.accounts.approved') }}</option>
-              <option value="rejected">{{ t('supplier.accounts.rejected') }}</option>
-            </select>
-            <button class="btn btn-secondary" :disabled="selectedIds.length === 0 || working" @click="review('pause')">{{ t('supplier.admin.pause') }}</button>
-            <button class="btn btn-secondary" :disabled="selectedIds.length === 0 || working" @click="review('reject')">{{ t('supplier.admin.reject') }}</button>
-            <button class="btn btn-primary" :disabled="selectedIds.length === 0 || selectedGroupIds.length === 0 || working" @click="review('approve')">{{ t('supplier.admin.approve') }}</button>
-          </div>
-        </div>
-        <div class="grid gap-3 md:grid-cols-2">
-          <label>
-            <span class="input-label">{{ t('supplier.admin.groupIds') }}</span>
-            <div class="flex max-h-28 flex-wrap gap-2 overflow-y-auto rounded-lg border border-gray-200 p-3 dark:border-dark-700">
-              <label v-for="group in eligibleGroups" :key="group.id" class="inline-flex items-center gap-2 text-sm">
-                <input v-model="selectedGroupIds" type="checkbox" :value="group.id" class="h-4 w-4 rounded border-gray-300 text-primary-600" />
-                {{ group.name }} (#{{ group.id }})
-              </label>
-              <span v-if="eligibleGroups.length === 0" class="text-sm text-gray-500">{{ t('common.noData') }}</span>
+      <div v-for="tab in tabs" v-show="activeTab === tab.value" :id="'supplier-panel-' + tab.value" :key="tab.value" role="tabpanel" :aria-labelledby="'supplier-tab-' + tab.value" tabindex="0">
+        <SupplierAccountsPanel v-if="tab.value === 'accounts' && activeTab === 'accounts'" :supplier-id="supplier.id" @changed="emit('changed')" />
+        <SupplierMembersPanel v-if="tab.value === 'members' && activeTab === 'members'" :supplier-id="supplier.id" @changed="emit('changed')" />
+        <div v-if="tab.value === 'settings'" class="grid gap-6 p-4 sm:p-5 lg:grid-cols-2">
+          <section class="min-w-0">
+            <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('supplier.admin.basic') }}</h3>
+            <p v-if="supplier.notes" class="mt-2 max-h-24 overflow-auto break-words text-sm text-gray-600 dark:text-gray-300">{{ supplier.notes }}</p>
+            <p class="mb-2 mt-4 text-sm text-gray-500">{{ t('supplier.admin.allowedKinds') }}</p>
+            <div class="flex max-h-48 flex-wrap gap-2 overflow-auto">
+              <span v-for="kind in supplier.allowed_account_kinds" :key="kind.platform + ':' + kind.type" class="badge badge-gray">{{ t('monitorCommon.providers.' + kind.platform) }} / {{ t('supplier.admin.kindTypes.' + kind.type) }}</span>
+              <p v-if="supplier.allowed_account_kinds.length === 0" class="text-sm text-amber-600">{{ t('supplier.admin.noPermission') }}</p>
             </div>
-            <span class="input-hint">{{ t('supplier.admin.groupIdsHint') }}</span>
-          </label>
-          <label>
-            <span class="input-label">{{ t('supplier.admin.reviewNote') }}</span>
-            <textarea v-model="reviewNote" class="input" rows="3"></textarea>
-          </label>
+          </section>
+          <section class="min-w-0 border-t border-gray-100 pt-4 dark:border-dark-700 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">
+            <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('supplier.admin.token') }}</h3>
+            <p class="mt-2 text-sm text-gray-500">{{ t('supplier.token.description') }}</p>
+            <p class="mt-3 break-all font-mono text-sm text-gray-700 dark:text-gray-300">{{ tokenStatus.exists ? tokenStatus.masked_key : t('supplier.token.missing') }}</p>
+            <p v-if="tokenStatus.last_used_at" class="mt-1 text-xs text-gray-500">{{ t('supplier.token.lastUsedAt') }}: {{ new Date(tokenStatus.last_used_at).toLocaleString() }}</p>
+            <div class="mt-4 flex flex-wrap gap-2">
+              <button class="btn btn-secondary btn-sm" :disabled="working" @click="generateToken">{{ tokenStatus.exists ? t('supplier.token.rotate') : t('supplier.token.generate') }}</button>
+              <button v-if="tokenStatus.exists" class="btn btn-danger btn-sm" :disabled="working" @click="revokeToken">{{ t('supplier.token.revoke') }}</button>
+            </div>
+            <div v-if="plaintextToken" class="mt-4 rounded-lg border border-amber-300 bg-amber-50 p-3 dark:border-amber-700 dark:bg-amber-900/20">
+              <p class="text-sm font-medium text-amber-900 dark:text-amber-200">{{ t('supplier.token.oneTimeTitle') }}</p>
+              <p class="mt-1 text-xs text-gray-500">{{ t('supplier.token.oneTimeHint') }}</p>
+              <code class="mt-2 block break-all text-sm">{{ plaintextToken }}</code>
+              <button class="btn btn-secondary btn-sm mt-3" @click="copyToken"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button>
+            </div>
+          </section>
         </div>
       </div>
-
-      <div class="overflow-x-auto">
-        <table class="w-full min-w-[850px] divide-y divide-gray-200 dark:divide-dark-700">
-          <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-dark-800">
-            <tr>
-              <th class="w-12 px-4 py-3"><input type="checkbox" :checked="allSelected" :aria-label="t('common.selectAll')" @change="toggleAll(($event.target as HTMLInputElement).checked)" /></th>
-              <th class="px-4 py-3">{{ t('common.name') }}</th>
-              <th class="px-4 py-3">{{ t('supplier.accounts.platform') }}</th>
-              <th class="px-4 py-3">{{ t('supplier.accounts.reviewStatus') }}</th>
-              <th class="px-4 py-3">{{ t('supplier.accounts.runtimeStatus') }}</th>
-            </tr>
-          </thead>
-          <tbody class="divide-y divide-gray-100 dark:divide-dark-800">
-            <tr v-for="account in accounts" :key="account.id">
-              <td class="px-4 py-3"><input v-model="selectedIds" type="checkbox" :value="account.id" :aria-label="account.name" /></td>
-              <td class="px-4 py-3"><p class="font-medium text-gray-900 dark:text-white">{{ account.name }}</p><p class="text-xs text-gray-500">{{ account.supplier_external_id || `#${account.id}` }}</p></td>
-              <td class="px-4 py-3 text-sm">{{ account.platform }} / {{ account.type }}</td>
-              <td class="px-4 py-3"><span :class="reviewBadge(account.review_status)">{{ t(`supplier.accounts.${account.review_status}`) }}</span><p v-if="account.review_note" class="mt-1 max-w-xs text-xs text-gray-500">{{ account.review_note }}</p></td>
-              <td class="px-4 py-3"><span :class="account.status === 'active' ? 'badge badge-success' : 'badge badge-gray'">{{ account.status }}</span></td>
-            </tr>
-            <tr v-if="accounts.length === 0"><td colspan="5" class="px-4 py-10 text-center text-sm text-gray-500">{{ t('common.noData') }}</td></tr>
-          </tbody>
-        </table>
-      </div>
-      <Pagination v-if="accountTotal > 0" :total="accountTotal" :page="accountPage" :page-size="20" :show-page-size-selector="false" @update:page="setAccountPage" />
     </section>
-
-    <SupplierMemberDialog
-      :show="showMemberDialog"
-      :saving="working"
-      @close="showMemberDialog = false"
-      @submit="addMember"
-    />
   </div>
 </template>
 
 <script setup lang="ts">
-import { computed, onMounted, reactive, ref, watch } from 'vue'
+import { computed, nextTick, onBeforeUnmount, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
-import Pagination from '@/components/common/Pagination.vue'
-import SupplierMemberDialog from './SupplierMemberDialog.vue'
+import SupplierAccountsPanel from './SupplierAccountsPanel.vue'
+import SupplierMembersPanel from './SupplierMembersPanel.vue'
 import { useAppStore } from '@/stores/app'
-import groupsAPI from '@/api/admin/groups'
-import suppliersAPI, { type AdminSupplier, type AdminSupplierAccount, type SupplierMemberInput } from '@/api/admin/suppliers'
-import type { AdminGroup, AdminUser } from '@/types'
+import suppliersAPI, { type AdminSupplier } from '@/api/admin/suppliers'
 
 const props = defineProps<{ supplier: AdminSupplier }>()
 const emit = defineEmits<{ (event: 'edit'): void; (event: 'delete'): void; (event: 'changed'): void }>()
 const { t } = useI18n()
 const appStore = useAppStore()
+const activeTab = ref('accounts')
 const working = ref(false)
-const showMemberDialog = ref(false)
-const members = ref<AdminUser[]>([])
-const accounts = ref<AdminSupplierAccount[]>([])
-const accountTotal = ref(0)
-const accountPage = ref(1)
-const selectedIds = ref<number[]>([])
-const groups = ref<AdminGroup[]>([])
-const selectedGroupIds = ref<number[]>([])
-const reviewNote = ref('')
 const plaintextToken = ref('')
 const tokenStatus = ref(props.supplier.access_token)
-const accountFilters = reactive({ review_status: 'pending' })
+let disposed = false
+onBeforeUnmount(() => { disposed = true; plaintextToken.value = '' })
 
-const allSelected = computed(() => accounts.value.length > 0 && accounts.value.every((account) => selectedIds.value.includes(account.id)))
-const selectedPlatforms = computed(() => new Set(accounts.value.filter((account) => selectedIds.value.includes(account.id)).map((account) => account.platform)))
-const eligibleGroups = computed(() => groups.value.filter((group) => selectedPlatforms.value.size === 0 || selectedPlatforms.value.has(group.platform)))
+const tabs = computed(() => [
+  { value: 'accounts', label: t('supplier.admin.accounts'), count: props.supplier.stats.account_count },
+  { value: 'members', label: t('supplier.admin.members'), count: props.supplier.stats.member_count },
+  { value: 'settings', label: t('supplier.admin.settings') },
+])
+const stats = computed(() => [
+  { label: t('supplier.admin.accountCount'), value: props.supplier.stats.account_count },
+  { label: t('supplier.accounts.pendingCount'), value: props.supplier.stats.pending_count },
+  { label: t('supplier.accounts.schedulableCount'), value: props.supplier.stats.schedulable_count },
+  { label: t('supplier.accounts.errorCount'), value: props.supplier.stats.error_count },
+])
+watch(() => props.supplier.access_token, value => { tokenStatus.value = value })
 
-watch(() => props.supplier, async (supplier) => {
-  tokenStatus.value = supplier.access_token
-  plaintextToken.value = ''
-  selectedIds.value = []
-  await loadAll()
-}, { deep: true })
-
-async function loadAll() {
-  const [memberResult, accountResult, groupResult] = await Promise.all([
-    suppliersAPI.listMembers(props.supplier.id),
-    suppliersAPI.listAccounts(props.supplier.id, accountPage.value, 20, accountFilters),
-    groupsAPI.getAll(),
-  ])
-  members.value = memberResult.items
-  accounts.value = accountResult.items
-  accountTotal.value = accountResult.total
-  groups.value = groupResult
-  selectedIds.value = []
-}
-
-async function loadAccounts() {
-  try {
-    const result = await suppliersAPI.listAccounts(props.supplier.id, accountPage.value, 20, accountFilters)
-    accounts.value = result.items
-    accountTotal.value = result.total
-    selectedIds.value = []
-  } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('supplier.admin.loadFailed'))
-  }
-}
-
-async function addMember(input: SupplierMemberInput) {
-  working.value = true
-  try {
-    await suppliersAPI.addMember(props.supplier.id, input)
-    showMemberDialog.value = false
-    appStore.showSuccess(t('supplier.admin.memberAdded'))
-    await loadAll()
-  } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('common.unknownError'))
-  } finally {
-    working.value = false
-  }
-}
-
-async function removeMemberById(userId: number) {
-  if (!window.confirm(t('supplier.admin.confirmRemoveMember'))) return
-  working.value = true
-  try {
-    await suppliersAPI.removeMember(props.supplier.id, userId)
-    appStore.showSuccess(t('supplier.admin.memberRemoved'))
-    await loadAll()
-  } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('common.unknownError'))
-  } finally {
-    working.value = false
-  }
+async function navigateTab(event: KeyboardEvent, index: number) {
+  let next = index
+  if (event.key === 'ArrowRight') next = (index + 1) % tabs.value.length
+  else if (event.key === 'ArrowLeft') next = (index + tabs.value.length - 1) % tabs.value.length
+  else if (event.key === 'Home') next = 0
+  else if (event.key === 'End') next = tabs.value.length - 1
+  else return
+  event.preventDefault()
+  activeTab.value = tabs.value[next].value
+  await nextTick()
+  document.getElementById('supplier-tab-' + activeTab.value)?.focus()
 }
 
 async function generateToken() {
-  if (tokenStatus.value.exists && !window.confirm(t('supplier.token.confirmRotate'))) return
+  if (working.value || (tokenStatus.value.exists && !window.confirm(t('supplier.token.confirmRotate')))) return
   working.value = true
   try {
-    plaintextToken.value = (await suppliersAPI.regenerateAccessToken(props.supplier.id)).key
+    const result = await suppliersAPI.regenerateAccessToken(props.supplier.id)
+    if (disposed) return
+    plaintextToken.value = result.key
     tokenStatus.value = await suppliersAPI.getAccessTokenStatus(props.supplier.id)
+    if (!disposed) emit('changed')
   } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('common.unknownError'))
+    if (!disposed) appStore.showError((error as Error).message || t('common.unknownError'))
   } finally {
     working.value = false
   }
 }
 
 async function revokeToken() {
-  if (!window.confirm(t('supplier.token.confirmRevoke'))) return
+  if (working.value || !window.confirm(t('supplier.token.confirmRevoke'))) return
   working.value = true
   try {
     await suppliersAPI.revokeAccessToken(props.supplier.id)
+    if (disposed) return
     plaintextToken.value = ''
     tokenStatus.value = await suppliersAPI.getAccessTokenStatus(props.supplier.id)
+    if (!disposed) emit('changed')
   } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('common.unknownError'))
+    if (!disposed) appStore.showError((error as Error).message || t('common.unknownError'))
   } finally {
     working.value = false
   }
@@ -288,48 +153,4 @@ async function copyToken() {
     appStore.showError(t('common.copyFailed'))
   }
 }
-
-async function review(action: 'approve' | 'reject' | 'pause') {
-  if (selectedIds.value.length === 0) return
-  working.value = true
-  try {
-    const input = { account_ids: selectedIds.value, note: reviewNote.value || null, group_ids: action === 'approve' ? selectedGroupIds.value : undefined }
-    if (action === 'approve') await suppliersAPI.approveAccounts(props.supplier.id, input)
-    else if (action === 'reject') await suppliersAPI.rejectAccounts(props.supplier.id, input)
-    else await suppliersAPI.pauseAccounts(props.supplier.id, input)
-    appStore.showSuccess(t('supplier.admin.reviewCompleted'))
-    reviewNote.value = ''
-    await loadAccounts()
-    emit('changed')
-  } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('common.unknownError'))
-  } finally {
-    working.value = false
-  }
-}
-
-function toggleAll(checked: boolean) {
-  selectedIds.value = checked ? accounts.value.map((account) => account.id) : []
-}
-
-function setAccountPage(value: number) {
-  accountPage.value = value
-  void loadAccounts()
-}
-
-function reviewBadge(status: AdminSupplierAccount['review_status']) {
-  if (status === 'approved') return 'badge badge-success'
-  if (status === 'rejected') return 'badge badge-danger'
-  return 'badge badge-warning'
-}
-
-const formatDate = (value: string | null) => value ? new Date(value).toLocaleString() : t('common.notAvailable')
-
-onMounted(async () => {
-  try {
-    await loadAll()
-  } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('supplier.admin.loadFailed'))
-  }
-})
 </script>

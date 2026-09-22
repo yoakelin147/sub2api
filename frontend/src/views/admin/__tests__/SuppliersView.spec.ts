@@ -2,6 +2,7 @@ import { createPinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { flushPromises, mount } from '@vue/test-utils'
 import { describe, expect, it, vi } from 'vitest'
+import { createMemoryHistory, createRouter } from 'vue-router'
 import SuppliersView from '../SuppliersView.vue'
 
 const list = vi.fn().mockResolvedValue({
@@ -22,9 +23,12 @@ const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: {} }, mis
 
 describe('SuppliersView', () => {
   it('lists suppliers and opens a selected tenant detail', async () => {
+    const router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/admin/suppliers', component: SuppliersView }] })
+    await router.push('/admin/suppliers')
+    await router.isReady()
     const wrapper = mount(SuppliersView, {
       global: {
-        plugins: [createPinia(), i18n],
+        plugins: [createPinia(), i18n, router],
         stubs: {
           AppLayout: { template: '<main><slot/></main>' }, Icon: true, Pagination: true,
           SupplierFormDialog: true, SupplierDetail: { props: ['supplier'], template: '<div data-testid="supplier-detail">{{ supplier.code }}</div>' },
@@ -36,6 +40,15 @@ describe('SuppliersView', () => {
     expect(list).toHaveBeenCalledWith(1, 20, { search: '', status: '' })
     expect(wrapper.text()).toContain('Vendor A')
     await wrapper.findAll('button').find((button) => button.text().includes('Vendor A'))!.trigger('click')
+    await flushPromises()
     expect(wrapper.get('[data-testid="supplier-detail"]').text()).toContain('vendor-a')
+    expect(wrapper.find('table').exists()).toBe(false)
+    expect(router.currentRoute.value.query.supplier).toBe('7')
+    await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.backToList')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.find('[data-testid="supplier-detail"]').exists()).toBe(false)
+    expect(wrapper.find('table').exists()).toBe(true)
+    expect(router.currentRoute.value.query.supplier).toBeUndefined()
+    wrapper.unmount()
   })
 })
