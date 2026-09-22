@@ -62,6 +62,27 @@ func TestRedactAuditBody_JSONRedactsSecrets(t *testing.T) {
 	}
 }
 
+func TestRedactAuditBody_OmitsEntireSupplierCredentialsObject(t *testing.T) {
+	raw := []byte(`{
+		"external_id": "vendor-42",
+		"credentials": {
+			"unknown_vendor_field": "supplier-secret-canary",
+			"nested": {"another_unknown_field": "nested-secret-canary"}
+		}
+	}`)
+	out := RedactAuditBody(raw, "application/json")
+
+	if strings.Contains(out, "supplier-secret-canary") || strings.Contains(out, "nested-secret-canary") {
+		t.Fatalf("supplier credentials must be omitted as a whole: %s", out)
+	}
+	if !strings.Contains(out, `"credentials":"***"`) {
+		t.Fatalf("expected credentials placeholder, got: %s", out)
+	}
+	if !strings.Contains(out, "vendor-42") {
+		t.Fatalf("non-secret external_id should remain auditable: %s", out)
+	}
+}
+
 // 裸键 "session"（Ollama Cloud 会话保存的请求体字段）值整体就是浏览器 Cookie 明文，
 // 必须命中键级脱敏；session_id 等运行态标识不受影响，保留以便追责。
 func TestRedactAuditBody_BareSessionKeyRedacted(t *testing.T) {

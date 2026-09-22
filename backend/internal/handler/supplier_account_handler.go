@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -106,6 +107,7 @@ func (h *SupplierHandler) CreateAccount(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": account.ID})
 	response.Success(c, supplierAccountResponse(account))
 }
 
@@ -128,7 +130,20 @@ func (h *SupplierHandler) BatchCreateAccounts(c *gin.Context) {
 		if !ok {
 			return nil, service.ErrSupplierTokenInvalid
 		}
-		return h.accounts.BatchCreate(ctx, supplierID, inputs)
+		result, err := h.accounts.BatchCreate(ctx, supplierID, inputs)
+		if err != nil {
+			return nil, err
+		}
+		accountIDs := make([]string, 0, result.Succeeded)
+		for _, item := range result.Results {
+			if item.Success {
+				accountIDs = append(accountIDs, strconv.FormatInt(item.AccountID, 10))
+			}
+		}
+		middleware.SetAuditExtra(c, map[string]any{
+			"supplier_id": supplierID, "account_ids": strings.Join(accountIDs, ","), "requested_count": result.Total,
+		})
+		return result, nil
 	})
 }
 
@@ -150,6 +165,7 @@ func (h *SupplierHandler) UpdateAccount(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": account.ID})
 	response.Success(c, supplierAccountResponse(account))
 }
 
@@ -162,6 +178,7 @@ func (h *SupplierHandler) DeleteAccount(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": accountID})
 	response.Success(c, gin.H{"message": "Supplier account deleted"})
 }
 
@@ -180,6 +197,7 @@ func (h *SupplierHandler) TestAccount(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": accountID})
 	_ = h.tester.TestAccount(c, account, request.Model, request.Prompt, request.Mode)
 }
 

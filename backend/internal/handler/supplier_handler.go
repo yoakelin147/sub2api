@@ -52,6 +52,7 @@ func (h *SupplierHandler) RegenerateAccessToken(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID})
 	response.Success(c, gin.H{"key": token})
 }
 
@@ -65,6 +66,7 @@ func (h *SupplierHandler) RevokeAccessToken(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID})
 	response.Success(c, gin.H{"message": "Supplier access token revoked"})
 }
 

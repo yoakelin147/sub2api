@@ -3,6 +3,7 @@ package admin
 import (
 	"net/http"
 	"strconv"
+	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -89,6 +90,7 @@ func (h *SupplierHandler) Create(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplier.ID})
 	response.Success(c, adminSupplierResponse(supplier))
 }
 
@@ -114,6 +116,7 @@ func (h *SupplierHandler) Update(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": id})
 	response.Success(c, adminSupplierResponse(supplier))
 }
 
@@ -126,6 +129,7 @@ func (h *SupplierHandler) Delete(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": id})
 	response.Success(c, gin.H{"message": "Supplier deleted"})
 }
 
@@ -152,6 +156,7 @@ func (h *SupplierHandler) RegenerateAccessToken(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": id})
 	response.Success(c, gin.H{"key": token})
 }
 
@@ -164,6 +169,7 @@ func (h *SupplierHandler) RevokeAccessToken(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": id})
 	response.Success(c, gin.H{"message": "Supplier access token revoked"})
 }
 
@@ -206,6 +212,7 @@ func (h *SupplierHandler) AddMember(c *gin.Context) {
 			response.ErrorFrom(c, err)
 			return
 		}
+		middleware.SetAuditExtra(c, map[string]any{"supplier_id": id, "member_user_id": user.ID})
 		response.Success(c, dto.UserFromServiceAdmin(user))
 		return
 	}
@@ -221,6 +228,7 @@ func (h *SupplierHandler) AddMember(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": id, "member_user_id": user.ID})
 	response.Success(c, dto.UserFromServiceAdmin(user))
 }
 
@@ -263,6 +271,7 @@ func (h *SupplierHandler) RemoveMember(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "member_user_id": userID})
 	response.Success(c, user)
 }
 
@@ -320,6 +329,13 @@ func (h *SupplierHandler) reviewAccounts(c *gin.Context, action string) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	accountIDs := make([]string, 0, len(request.AccountIDs))
+	for _, accountID := range request.AccountIDs {
+		accountIDs = append(accountIDs, strconv.FormatInt(accountID, 10))
+	}
+	middleware.SetAuditExtra(c, map[string]any{
+		"supplier_id": supplierID, "account_ids": strings.Join(accountIDs, ","), "requested_count": len(request.AccountIDs),
+	})
 	response.Success(c, gin.H{"updated": len(request.AccountIDs), "action": action})
 }
 

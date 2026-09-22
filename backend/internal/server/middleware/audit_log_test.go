@@ -146,6 +146,75 @@ func TestPromptAuditMutationAuditRoutesHaveStableActionsAndOmitBodies(t *testing
 	}
 }
 
+func TestSupplierMutationAuditRoutesHaveStableActions(t *testing.T) {
+	expected := map[string]string{
+		"POST /api/v1/supplier/accounts":                           "supplier.account.create",
+		"POST /api/v1/supplier/accounts/batch":                     "supplier.account.batch_create",
+		"PUT /api/v1/supplier/accounts/:id":                        "supplier.account.update",
+		"DELETE /api/v1/supplier/accounts/:id":                     "supplier.account.delete",
+		"POST /api/v1/supplier/accounts/:id/test":                  "supplier.account.test",
+		"POST /api/v1/supplier/access-token/regenerate":            "supplier.token.regenerate",
+		"DELETE /api/v1/supplier/access-token":                     "supplier.token.revoke",
+		"POST /api/v1/admin/suppliers":                             "admin.supplier.create",
+		"PUT /api/v1/admin/suppliers/:id":                          "admin.supplier.update",
+		"DELETE /api/v1/admin/suppliers/:id":                       "admin.supplier.delete",
+		"POST /api/v1/admin/suppliers/:id/members":                 "admin.supplier.member.add",
+		"DELETE /api/v1/admin/suppliers/:id/members/:user_id":      "admin.supplier.member.remove",
+		"POST /api/v1/admin/suppliers/:id/access-token/regenerate": "admin.supplier.token.regenerate",
+		"DELETE /api/v1/admin/suppliers/:id/access-token":          "admin.supplier.token.revoke",
+		"POST /api/v1/admin/suppliers/:id/accounts/approve":        "admin.supplier.account.approve",
+		"POST /api/v1/admin/suppliers/:id/accounts/reject":         "admin.supplier.account.reject",
+		"POST /api/v1/admin/suppliers/:id/accounts/pause":          "admin.supplier.account.pause",
+	}
+	for route, action := range expected {
+		require.Equal(t, action, auditActionOverrides[route], route)
+	}
+}
+
+func TestSupplierAuditCapturesTenantAuthMethodAndRedactsBatchCredentials(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	repository := &auditCaptureRepository{}
+	auditService := service.NewAuditLogService(repository, nil)
+	auditService.Start()
+
+	router := gin.New()
+	router.Use(func(c *gin.Context) {
+		c.Set(string(ContextKeyUser), AuthSubject{SupplierID: ptrInt64(17)})
+		c.Set(string(ContextKeyUserRole), service.RoleSupplier)
+		c.Set(string(ContextKeySupplierID), int64(17))
+		c.Set("auth_method", service.AuditAuthMethodSupplierAPIKey)
+		c.Next()
+	})
+	router.Use(gin.HandlerFunc(NewAuditLogMiddleware(auditService)))
+	router.POST("/api/v1/supplier/accounts/batch", func(c *gin.Context) {
+		SetAuditExtra(c, map[string]any{"supplier_id": int64(17), "account_ids": "101,102", "requested_count": 2})
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/api/v1/supplier/accounts/batch", bytes.NewBufferString(
+		`{"accounts":[{"external_id":"a","credentials":{"unknown":"supplier-secret-canary"}}]}`,
+	))
+	request.Header.Set("Content-Type", "application/json")
+	request.Header.Set("x-api-key", "supplier_00112233445566778899aabb_0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef")
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	auditService.Stop()
+
+	repository.mu.Lock()
+	logs := append([]*service.AuditLog(nil), repository.logs...)
+	repository.mu.Unlock()
+	require.Len(t, logs, 1)
+	require.Equal(t, "supplier.account.batch_create", logs[0].Action)
+	require.Equal(t, service.AuditAuthMethodSupplierAPIKey, logs[0].AuthMethod)
+	require.EqualValues(t, 17, logs[0].Extra["supplier_id"])
+	require.Equal(t, "101,102", logs[0].Extra["account_ids"])
+	require.NotContains(t, logs[0].RequestBody, "supplier-secret-canary")
+	require.NotContains(t, logs[0].CredentialMasked, "0123456789abcdef0123456789abcdef")
+}
+
+func ptrInt64(value int64) *int64 { return &value }
+
 func TestPasskeyLoginAuditUsesCanonicalLoginActionAndOmitsCredentialBody(t *testing.T) {
 	route := "POST /api/v1/auth/passkey/login/finish"
 	require.Equal(t, service.AuditActionLogin, auditActionOverrides[route])
