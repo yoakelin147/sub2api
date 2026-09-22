@@ -16,7 +16,7 @@
 
 ## 1. 数据模型基础
 
-- [ ] 1.1 新增 Supplier Ent schema 和领域模型
+- [x] 1.1 新增 Supplier Ent schema 和领域模型
   - 描述：实现供应商 code、name、status、notes、allowed_account_kinds、令牌摘要元数据和软删除
   - 验收：code 对未删除供应商唯一；默认允许类型为空；状态只接受 active/disabled
   - 验证：Supplier schema/service/repository 单元测试
@@ -32,7 +32,7 @@
   - 依赖：1.1
   - 预计：1–1.5 天
 
-- [ ] 1.3 增加 accounts 供应商归属与审核字段
+- [x] 1.3 增加 accounts 供应商归属与审核字段
   - 描述：新增 supplier_id、external_id、review 字段、索引和 Ent edge
   - 验收：历史账号默认 approved 且 supplier_id 为空；租户内 external_id 唯一；不同供应商可重复
   - 验证：schema、repository 和迁移集成测试
@@ -40,7 +40,7 @@
   - 依赖：1.1
   - 预计：1.5–2 天
 
-- [ ] 1.4 编写增量 SQL 迁移并生成 Ent/Wire 代码
+- [x] 1.4 编写增量 SQL 迁移并生成 Ent/Wire 代码
   - 描述：创建 suppliers 表，扩展 users/accounts，回填历史审核状态并增加约束/索引
   - 验收：空库和已有数据均可升级；重复执行安全；不修改历史账号行为
   - 验证：`cd backend && go generate ./ent && go generate ./cmd/server`；迁移测试通过

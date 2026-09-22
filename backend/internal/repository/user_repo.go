@@ -154,6 +154,7 @@ func (r *userRepository) create(ctx context.Context, userIn *service.User, guard
 		SetNillableLastActiveAt(userIn.LastActiveAt).
 		SetRpmLimit(userIn.RPMLimit).
 		SetRestrictPublicGroups(userIn.RestrictPublicGroups).
+		SetNillableSupplierID(userIn.SupplierID).
 		Save(txCtx)
 	if err != nil {
 		return translatePersistenceError(err, nil, service.ErrEmailExists)
@@ -307,6 +308,13 @@ func (r *userRepository) Update(ctx context.Context, userIn *service.User, field
 	}
 	if fields.Role {
 		updateOp = updateOp.SetRole(userIn.Role)
+	}
+	if fields.SupplierID {
+		if userIn.SupplierID == nil {
+			updateOp = updateOp.ClearSupplierID()
+		} else {
+			updateOp = updateOp.SetSupplierID(*userIn.SupplierID)
+		}
 	}
 	if fields.Concurrency {
 		updateOp = updateOp.SetConcurrency(userIn.Concurrency)

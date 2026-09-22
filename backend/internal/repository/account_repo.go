@@ -152,6 +152,24 @@ func createAccountRecord(ctx context.Context, client *dbent.Client, account *ser
 		SetErrorMessage(account.ErrorMessage).
 		SetSchedulable(account.Schedulable).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired)
+	if account.SupplierID != nil {
+		builder.SetSupplierID(*account.SupplierID)
+	}
+	if account.SupplierExternalID != nil {
+		builder.SetSupplierExternalID(*account.SupplierExternalID)
+	}
+	if account.ReviewStatus != "" {
+		builder.SetReviewStatus(account.ReviewStatus)
+	}
+	if account.ReviewedAt != nil {
+		builder.SetReviewedAt(*account.ReviewedAt)
+	}
+	if account.ReviewedBy != nil {
+		builder.SetReviewedBy(*account.ReviewedBy)
+	}
+	if account.ReviewNote != nil {
+		builder.SetReviewNote(*account.ReviewNote)
+	}
 
 	if account.RateMultiplier != nil {
 		builder.SetRateMultiplier(*account.RateMultiplier)
@@ -3465,6 +3483,12 @@ func accountEntityToService(m *dbent.Account) *service.Account {
 		Notes:                   m.Notes,
 		Platform:                m.Platform,
 		Type:                    m.Type,
+		SupplierID:              m.SupplierID,
+		SupplierExternalID:      m.SupplierExternalID,
+		ReviewStatus:            m.ReviewStatus,
+		ReviewedAt:              m.ReviewedAt,
+		ReviewedBy:              m.ReviewedBy,
+		ReviewNote:              m.ReviewNote,
 		Credentials:             copyJSONMap(m.Credentials),
 		Extra:                   copyJSONMap(m.Extra),
 		ProxyID:                 m.ProxyID,

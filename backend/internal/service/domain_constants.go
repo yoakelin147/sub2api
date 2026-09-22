@@ -16,6 +16,12 @@ const (
 	StatusExpired  = domain.StatusExpired
 )
 
+const (
+	AccountReviewStatusPending  = domain.AccountReviewStatusPending
+	AccountReviewStatusApproved = domain.AccountReviewStatusApproved
+	AccountReviewStatusRejected = domain.AccountReviewStatusRejected
+)
+
 // Role constants
 const (
 	RoleAdmin = domain.RoleAdmin

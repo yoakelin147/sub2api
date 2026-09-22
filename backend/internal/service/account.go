@@ -26,6 +26,12 @@ type Account struct {
 	Notes                   *string
 	Platform                string
 	Type                    string
+	SupplierID              *int64
+	SupplierExternalID      *string
+	ReviewStatus            string
+	ReviewedAt              *time.Time
+	ReviewedBy              *int64
+	ReviewNote              *string
 	Credentials             map[string]any
 	Extra                   map[string]any
 	ProxyID                 *int64
