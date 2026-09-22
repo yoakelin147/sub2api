@@ -4,6 +4,21 @@
 
 ## ADDED Requirements
 
+### Requirement: 供应商可在系统令牌页查看接入指南
+
+系统令牌页面 SHALL 提供网页添加步骤和可复制的 API 示例，覆盖令牌验证、单个创建、批量创建、分页查询。示例 SHALL 使用实际配置的 API 根地址，支持 Bash/cURL 和 PowerShell。
+
+#### Scenario: 供应商使用接口示例
+- **WHEN** 供应商选择操作、平台类型和命令格式
+- **THEN** 示例 MUST 包含正确的 x-api-key、创建请求幂等键和该类型必填凭据
+- **THEN** 示例 MUST 只含占位符，不得自动插入完整令牌或实际账号凭据，也不得自动执行请求
+- **THEN** 页面 MUST 明确脱敏值不能鉴权、实际允许类型以 supplier/me 为准、提交不等于审核或连接测试通过
+
+#### Scenario: Antigravity 接入说明
+- **WHEN** 供应商选择 Antigravity API Key 方式
+- **THEN** 页面 MUST 说明这是上游中转服务接入，要求 api_key 与 base_url，真实账号 token 应使用 OAuth 类型
+- **THEN** 页面 MUST 区分平台 API 地址、上游服务地址和管理员网络代理
+
 ### Requirement: 每个供应商只有一个有效系统令牌
 
 系统 SHALL 允许 supplier JWT 或管理员为供应商生成、重新生成和撤销一个有效系统令牌。系统令牌 MUST 使用独立 supplier 前缀，MUST NOT 与管理员 API Key 或模型调用 Key 混用。

@@ -1,11 +1,13 @@
 import { createI18n } from 'vue-i18n'
 import { mount } from '@vue/test-utils'
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 import SupplierAccountForm from '../SupplierAccountForm.vue'
 
 const i18n = createI18n({
   legacy: false,
   locale: 'en',
+  missingWarn: false,
+  fallbackWarn: false,
   messages: {
     en: {
       common: { name: 'Name', cancel: 'Cancel', save: 'Save', saving: 'Saving' },
@@ -31,7 +33,7 @@ describe('SupplierAccountForm', () => {
     })
 
     await wrapper.get('input[required]').setValue('Vendor Account')
-    await wrapper.get('#supplier-credentials').setValue('{"api_key":"sk-test"}')
+    await wrapper.get('[data-field="api_key"]').setValue('sk-test')
     await wrapper.get('form').trigger('submit')
 
     const [, payload] = wrapper.emitted('submit')?.[0] ?? []
@@ -62,9 +64,45 @@ describe('SupplierAccountForm', () => {
       global: { plugins: [i18n], stubs: { BaseDialog: BaseDialogStub } },
     })
 
-    expect(wrapper.get('#supplier-credentials').element).toHaveProperty('value', '')
+    expect(wrapper.get('[data-field="api_key"]').element).toHaveProperty('value', '')
     await wrapper.get('form').trigger('submit')
     const [, payload] = wrapper.emitted('submit')?.[0] ?? []
     expect(payload).not.toHaveProperty('credentials')
+  })
+
+  it('switches to Antigravity fields and requires a valid upstream URL before submission', async () => {
+    const wrapper = mount(SupplierAccountForm, {
+      props: { show: true, kinds: [{ platform: 'openai', type: 'apikey' }, { platform: 'antigravity', type: 'apikey' }] },
+      global: { plugins: [i18n], stubs: { BaseDialog: BaseDialogStub } },
+    })
+    await wrapper.get('select').setValue('antigravity:apikey')
+    expect(wrapper.get('[data-field="base_url"]').element).toHaveProperty('value', 'https://')
+    await wrapper.get('input[required]').setValue('Upstream account')
+    await wrapper.get('[data-field="api_key"]').setValue('example-key')
+    await wrapper.get('[data-field="base_url"]').setValue('')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    expect(wrapper.get('[role="alert"]').text()).toContain('supplier.accounts.missingCredentials')
+    await wrapper.get('[data-field="base_url"]').setValue('http://upstream.example.test')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    await wrapper.get('[data-field="base_url"]').setValue('https://upstream.example.test')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('submit')?.[0]?.[1]).toMatchObject({ platform: 'antigravity', type: 'apikey', credentials: { api_key: 'example-key', base_url: 'https://upstream.example.test' } })
+  })
+
+  it('preserves entered credentials when a type switch is cancelled and rejects empty credentials', async () => {
+    const wrapper = mount(SupplierAccountForm, {
+      props: { show: true, kinds: [{ platform: 'openai', type: 'apikey' }, { platform: 'antigravity', type: 'oauth' }] },
+      global: { plugins: [i18n], stubs: { BaseDialog: BaseDialogStub } },
+    })
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('submit')).toBeUndefined()
+    await wrapper.get('[data-field="api_key"]').setValue('keep-this-value')
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValueOnce(false)
+    await wrapper.get('select').setValue('antigravity:oauth')
+    expect(wrapper.get('select').element).toHaveProperty('value', 'openai:apikey')
+    expect(wrapper.get('[data-field="api_key"]').element).toHaveProperty('value', 'keep-this-value')
+    confirm.mockRestore()
   })
 })

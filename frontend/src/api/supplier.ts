@@ -157,9 +157,21 @@ export async function deleteAccount(id: number): Promise<void> {
 export async function testAccount(
   id: number,
   input: { model?: string; prompt?: string; mode?: string } = {},
-): Promise<unknown> {
-  const { data } = await apiClient.post(`/supplier/accounts/${id}/test`, input)
-  return data
+): Promise<boolean> {
+  const { data } = await apiClient.post<string>(`/supplier/accounts/${id}/test`, input, { responseType: 'text' })
+  // Account tests return SSE, including failures sent with HTTP 200.
+  if (typeof data !== 'string') return false
+  let completed = false
+  for (const block of data.split(/\r?\n\r?\n/)) {
+    const payload = block.split(/\r?\n/).filter(line => line.startsWith('data:')).map(line => line.slice(5).trimStart()).join('\n')
+    if (!payload) continue
+    try {
+      const event = JSON.parse(payload)
+      if (!event || typeof event !== 'object' || event.type === 'error') return false
+      if (event.type === 'test_complete') completed = event.success === true
+    } catch { return false }
+  }
+  return completed
 }
 
 export async function getAccessTokenStatus(): Promise<SupplierTokenStatus> {

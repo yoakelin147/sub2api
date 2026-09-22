@@ -73,7 +73,7 @@
 
 #### Scenario: 幂等键正文冲突
 - **WHEN** 同一供应商以相同幂等键提交不同正文
-- **THEN** 系统 MUST 返回 422
+- **THEN** 系统 MUST 返回 409 `IDEMPOTENCY_KEY_CONFLICT`
 
 ### Requirement: 自定义上游地址必须通过 SSRF 校验
 
@@ -96,3 +96,21 @@ supplier 角色 SHALL 使用独立路由和菜单，只显示供应账号、系�
 - **THEN** 前端 MUST 跳转到 `/supplier/accounts`
 - **THEN** 管理员和普通用户菜单 MUST 不显示
 
+### Requirement: 供应商账号表单明确凭据要求和操作结果
+
+账号表单 SHALL 默认按当前 platform/type 显示普通凭据输入项，保留高级 JSON 入口，复用统一凭据模板。必填字段和上游地址格式 SHALL 在提交前检查，服务端继续承担完整凭据、类型授权和 SSRF 校验。
+
+#### Scenario: 切换账号类型
+- **WHEN** 供应商切换平台或认证类型
+- **THEN** 表单 MUST 显示新类型的字段与模板
+- **THEN** 已填写凭据被替换前 MUST 提示确认，取消不得清除原值
+
+#### Scenario: Antigravity API Key 缺少地址
+- **WHEN** 供应商仅填写 api_key，未填写完整 base_url
+- **THEN** 表单 MUST 指明缺失字段或地址格式问题并阻止提交
+- **THEN** 系统 MUST 明确上游地址不等于平台 API 地址或管理员网络代理
+
+#### Scenario: 上游测试通过 HTTP 200 返回失败事件
+- **WHEN** 账号测试返回 error 事件，或未返回完整的 test_complete/success=true
+- **THEN** 界面 MUST NOT 提示连接测试通过
+- **THEN** 提交成功、测试通过、审核通过 SHALL 分别表达，不互相代替

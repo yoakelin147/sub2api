@@ -334,7 +334,7 @@ expires_at, last_used_at, created_at, updated_at
 - 幂等作用域包含 `supplier_id + auth principal + route + key`。
 - 请求正文使用稳定 JSON 计算哈希。
 - 相同键、相同正文返回首次结果并带 `X-Idempotency-Replayed: true`。
-- 相同键、不同正文返回 422。
+- 相同键、不同正文返回 409 `IDEMPOTENCY_KEY_CONFLICT`（复用现有幂等服务）。
 - 处理中重复请求返回 409。
 - 幂等记录保留时间不得短于供应商客户端最大重试窗口；沿用项目现有写请求默认 TTL，并在 API 文档中声明。
 

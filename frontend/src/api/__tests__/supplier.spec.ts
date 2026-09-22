@@ -25,4 +25,20 @@ describe('supplier API', () => {
       headers: { 'Idempotency-Key': 'batch-key' },
     })
   })
+
+  it('requires an explicit successful SSE completion instead of treating HTTP 200 as a passed test', async () => {
+    const { testAccount } = await import('@/api/supplier')
+    for (const [body, expected] of [
+      ['data: {"type":"test_complete","success":true}\n\n', true],
+      ['data: {"type":"error","error":"Upstream rejected request"}\n\n', false],
+      ['data: {"type":"content","text":"incomplete"}\n\n', false],
+      ['data: {"type":"test_complete","success":false}\r\n\r\n', false],
+      ['data: {"type":"test_complete","success":true}\n\ndata: {"type":"error"}\n\n', false],
+      ['invalid response', false],
+    ] as const) {
+      post.mockResolvedValueOnce({ data: body })
+      expect(await testAccount(11)).toBe(expected)
+    }
+    expect(post).toHaveBeenLastCalledWith('/supplier/accounts/11/test', {}, { responseType: 'text' })
+  })
 })

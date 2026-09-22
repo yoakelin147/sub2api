@@ -34,7 +34,7 @@ describe('SupplierAccessTokenView', () => {
 
   it('shows the generated token once without persisting it', async () => {
     const wrapper = mount(SupplierAccessTokenView, {
-      global: { plugins: [createPinia(), i18n], stubs: { AppLayout: { template: '<main><slot/></main>' }, Icon: true } },
+      global: { plugins: [createPinia(), i18n], stubs: { AppLayout: { template: '<main><slot/></main>' }, Icon: true, SupplierApiGuide: true } },
     })
     await flushPromises()
     await wrapper.get('button.btn-primary').trigger('click')

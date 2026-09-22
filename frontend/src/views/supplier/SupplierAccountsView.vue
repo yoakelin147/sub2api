@@ -105,7 +105,7 @@
       </section>
     </div>
 
-    <SupplierAccountForm :show="showForm" :kinds="allowedKinds" :account="editingAccount" :saving="saving" @close="showForm = false" @submit="save" />
+    <SupplierAccountForm :show="showForm" :kinds="allowedKinds" :account="editingAccount" :saving="saving" :server-error="saveError" @close="showForm = false" @submit="save" />
     <SupplierBatchImportDialog :show="showBatch" @close="showBatch = false" @completed="batchCompleted" />
   </AppLayout>
 </template>
@@ -141,6 +141,7 @@ const allowedKinds = ref<SupplierAccountKind[]>([])
 const stats = ref<SupplierStats | null>(null)
 const loading = ref(true)
 const saving = ref(false)
+const saveError = ref('')
 const page = ref(1)
 const pageSize = ref(20)
 const total = ref(0)
@@ -188,17 +189,21 @@ function changePageSize(value: number) {
 }
 
 function openCreate() {
+  saveError.value = ''
   editingAccount.value = null
   showForm.value = true
 }
 
 function openEdit(account: SupplierAccount) {
+  saveError.value = ''
   editingAccount.value = account
   showForm.value = true
 }
 
 async function save(accountId: number | null, input: SupplierAccountInput | SupplierAccountUpdateInput) {
+  if (saving.value) return
   saving.value = true
+  saveError.value = ''
   try {
     if (accountId) {
       await updateAccount(accountId, input as SupplierAccountUpdateInput)
@@ -210,7 +215,11 @@ async function save(accountId: number | null, input: SupplierAccountInput | Supp
     showForm.value = false
     await load()
   } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('supplier.accounts.saveFailed'))
+    const failure = error as { message?: string; reason?: string }
+    saveError.value = failure.reason === 'INVALID_CREDENTIALS' ? t('supplier.accounts.serverCredentialsInvalid')
+      : failure.reason === 'ACCOUNT_KIND_NOT_ALLOWED' ? t('supplier.accounts.kindNotAllowed')
+        : failure.reason === 'SUPPLIER_EXTERNAL_ID_EXISTS' ? t('supplier.accounts.externalIdExists')
+          : failure.message || t('supplier.accounts.saveFailed')
   } finally {
     saving.value = false
   }
@@ -227,8 +236,9 @@ async function toggleStatus(account: SupplierAccount) {
 
 async function test(account: SupplierAccount) {
   try {
-    await testAccount(account.id, {})
-    appStore.showSuccess(t('supplier.accounts.testSucceeded'))
+    const success = await testAccount(account.id, {})
+    if (success) appStore.showSuccess(t('supplier.accounts.testSucceeded'))
+    else appStore.showError(t('supplier.accounts.testFailed'))
   } catch (error) {
     appStore.showError((error as { message?: string }).message || t('common.unknownError'))
   }

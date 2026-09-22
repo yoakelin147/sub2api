@@ -51,6 +51,7 @@
           <button class="btn btn-secondary" @click="copyToken"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button>
         </div>
       </section>
+      <SupplierApiGuide />
     </div>
   </AppLayout>
 </template>
@@ -60,6 +61,7 @@ import { onMounted, ref } from 'vue'
 import { useI18n } from 'vue-i18n'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import Icon from '@/components/icons/Icon.vue'
+import SupplierApiGuide from '@/components/supplier/SupplierApiGuide.vue'
 import { useAppStore } from '@/stores/app'
 import {
   getAccessTokenStatus,
