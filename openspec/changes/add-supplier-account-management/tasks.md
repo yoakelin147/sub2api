@@ -96,7 +96,7 @@
 
 ## 3. 账号租户服务
 
-- [ ] 3.1 实现 SupplierAccountRepository 作用域查询
+- [x] 3.1 实现 SupplierAccountRepository 作用域查询
   - 描述：增加 CreateOwned/GetOwned/ListOwned/UpdateOwned/DeleteOwned，不暴露全局账号读取
   - 验收：每条资源 SQL/Ent 查询均绑定 supplier_id；跨租户统一返回 not found
   - 验证：两供应商集成测试覆盖读、写、删、测和批量混入越权 ID
