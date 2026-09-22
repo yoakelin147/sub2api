@@ -63,7 +63,7 @@ export default {
       result: 'Import result',
       resultSummary: '{succeeded} succeeded, {failed} failed',
       row: 'Row {index}',
-      formatHintJson: 'Use a JSON array or { accounts: [...] } envelope.',
+      formatHintJson: 'Use a JSON array or an object containing an accounts array.',
       formatHintCsv: 'Use headers such as name, platform, type, external_id and credential.api_key; credentials may also be JSON.',
       formatHintText: 'One JSON object per line, or platform|type|external_id|name|credential.',
       failed: 'Batch import failed',

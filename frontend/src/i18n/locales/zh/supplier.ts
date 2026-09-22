@@ -63,7 +63,7 @@ export default {
       result: '导入结果',
       resultSummary: '成功 {succeeded} 条，失败 {failed} 条',
       row: '第 {index} 行',
-      formatHintJson: '使用 JSON 数组或 { accounts: [...] } 结构。',
+      formatHintJson: '使用 JSON 数组，或使用包含 accounts 数组的对象。',
       formatHintCsv: '表头可用 name、platform、type、external_id、credential.api_key；credentials 也可填写 JSON。',
       formatHintText: '每行一个 JSON 对象，或 platform|type|external_id|name|credential。',
       failed: '批量导入失败',

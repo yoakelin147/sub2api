@@ -861,7 +861,7 @@ router.beforeEach(async (to, _from, next) => {
   // Check if route requires authentication
   const requiresAuth = to.meta.requiresAuth !== false // Default to true
   const requiresAdmin = to.meta.requiresAdmin === true
-  const userRole = authStore.user?.role
+  const userRole = authStore.user?.role ?? (authStore.isAdmin ? 'admin' : authStore.isSupplier ? 'supplier' : 'user')
 
   if (to.path === '/setup') {
     try {
