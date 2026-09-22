@@ -17,6 +17,7 @@ func RegisterUserRoutes(
 	settingService *service.SettingService,
 	panelRateLimiter *middleware.PanelRateLimiter,
 ) {
+	userOrAdmin := middleware.AllowRoles(service.RoleAdmin, service.RoleUser)
 	authenticated := v1.Group("")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
 	authenticated.Use(middleware.BackendModeUserGuard(settingService))
@@ -31,17 +32,18 @@ func RegisterUserRoutes(
 			user.GET("/profile", h.User.GetProfile)
 			user.PUT("/password", h.User.ChangePassword)
 			user.PUT("", h.User.UpdateProfile)
-			user.GET("/aff", h.User.GetAffiliate)
-			user.POST("/aff/transfer", h.User.TransferAffiliateQuota)
+			user.GET("/aff", userOrAdmin, h.User.GetAffiliate)
+			user.POST("/aff/transfer", userOrAdmin, h.User.TransferAffiliateQuota)
 			user.POST("/account-bindings/email/send-code", h.User.SendEmailBindingCode)
 			user.POST("/account-bindings/email", h.User.BindEmailIdentity)
 			user.DELETE("/account-bindings/:provider", h.User.UnbindIdentity)
 			user.POST("/auth-identities/bind/start", h.User.StartIdentityBinding)
-			user.GET("/api-keys/:id/usage/daily", panelRateLimiter.Heavy(), h.Usage.GetMyAPIKeyDailyUsage)
-			user.GET("/platform-quotas", h.User.GetMyPlatformQuotas)
+			user.GET("/api-keys/:id/usage/daily", userOrAdmin, panelRateLimiter.Heavy(), h.Usage.GetMyAPIKeyDailyUsage)
+			user.GET("/platform-quotas", userOrAdmin, h.User.GetMyPlatformQuotas)
 
 			// 通知邮箱管理
 			notifyEmail := user.Group("/notify-email")
+			notifyEmail.Use(userOrAdmin)
 			{
 				notifyEmail.POST("/send-code", h.User.SendNotifyEmailCode)
 				notifyEmail.POST("/verify", h.User.VerifyNotifyEmail)
@@ -74,6 +76,7 @@ func RegisterUserRoutes(
 
 		// API Key管理
 		keys := authenticated.Group("/keys")
+		keys.Use(userOrAdmin)
 		{
 			keys.GET("", h.APIKey.List)
 			keys.GET("/:id", h.APIKey.GetByID)
@@ -84,6 +87,7 @@ func RegisterUserRoutes(
 
 		// 用户可用分组（非管理员接口）
 		groups := authenticated.Group("/groups")
+		groups.Use(userOrAdmin)
 		{
 			groups.GET("/available", h.APIKey.GetAvailableGroups)
 			groups.GET("/rates", h.APIKey.GetUserGroupRates)
@@ -91,12 +95,14 @@ func RegisterUserRoutes(
 
 		// 用户可用渠道（非管理员接口）
 		channels := authenticated.Group("/channels")
+		channels.Use(userOrAdmin)
 		{
 			channels.GET("/available", h.AvailableChannel.List)
 		}
 
 		// 使用记录（聚合统计属重查询，叠加更严格的按用户限流）
 		usage := authenticated.Group("/usage")
+		usage.Use(userOrAdmin)
 		usage.Use(panelRateLimiter.Heavy())
 		{
 			usage.GET("", h.Usage.List)
@@ -114,6 +120,7 @@ func RegisterUserRoutes(
 
 		// 公告（用户可见）
 		announcements := authenticated.Group("/announcements")
+		announcements.Use(userOrAdmin)
 		{
 			announcements.GET("", h.Announcement.List)
 			announcements.POST("/:id/read", h.Announcement.MarkRead)
@@ -121,6 +128,7 @@ func RegisterUserRoutes(
 
 		// 卡密兑换
 		redeem := authenticated.Group("/redeem")
+		redeem.Use(userOrAdmin)
 		{
 			redeem.POST("", h.Redeem.Redeem)
 			redeem.GET("/history", h.Redeem.GetHistory)
@@ -128,6 +136,7 @@ func RegisterUserRoutes(
 
 		// 用户订阅
 		subscriptions := authenticated.Group("/subscriptions")
+		subscriptions.Use(userOrAdmin)
 		{
 			subscriptions.GET("", h.Subscription.List)
 			subscriptions.GET("/active", h.Subscription.GetActive)
@@ -137,6 +146,7 @@ func RegisterUserRoutes(
 
 		// 渠道监控（用户只读）
 		monitors := authenticated.Group("/channel-monitors")
+		monitors.Use(userOrAdmin)
 		{
 			monitors.GET("", h.ChannelMonitor.List)
 			monitors.GET("/:id/status", h.ChannelMonitor.GetStatus)
@@ -144,6 +154,7 @@ func RegisterUserRoutes(
 
 		// V2 passive views require feature on + mode=v2.
 		monitorV2 := authenticated.Group("/channel-monitor-v2")
+		monitorV2.Use(userOrAdmin)
 		monitorV2.Use(panelRateLimiter.Heavy())
 		monitorV2.Use(channelMonitorModeV2Guard(settingService))
 		{

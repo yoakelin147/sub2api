@@ -25,6 +25,7 @@ func RegisterPaymentRoutes(
 	// --- User-facing payment endpoints (authenticated) ---
 	authenticated := v1.Group("/payment")
 	authenticated.Use(gin.HandlerFunc(jwtAuth))
+	authenticated.Use(middleware.AllowRoles(service.RoleAdmin, service.RoleUser))
 	authenticated.Use(middleware.BackendModeUserGuard(settingService))
 	// 面板全局按用户限流
 	authenticated.Use(panelRateLimiter.Global())
