@@ -130,7 +130,24 @@ func RegisterAdminRoutes(
 
 		// 操作审计日志
 		registerAuditLogRoutes(admin, h, stepUpAuth)
+
+		registerSupplierAdminRoutes(admin, h)
 	}
+}
+
+func registerSupplierAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
+	suppliers := admin.Group("/suppliers")
+	suppliers.GET("", h.Admin.Supplier.List)
+	suppliers.POST("", h.Admin.Supplier.Create)
+	suppliers.GET("/:id", h.Admin.Supplier.Get)
+	suppliers.PUT("/:id", h.Admin.Supplier.Update)
+	suppliers.DELETE("/:id", h.Admin.Supplier.Delete)
+	suppliers.GET("/:id/access-token", h.Admin.Supplier.AccessTokenStatus)
+	suppliers.POST("/:id/access-token/regenerate", h.Admin.Supplier.RegenerateAccessToken)
+	suppliers.DELETE("/:id/access-token", h.Admin.Supplier.RevokeAccessToken)
+	suppliers.GET("/:id/members", h.Admin.Supplier.ListMembers)
+	suppliers.POST("/:id/members", h.Admin.Supplier.AddMember)
+	suppliers.DELETE("/:id/members/:user_id", h.Admin.Supplier.RemoveMember)
 }
 
 func registerPromptAuditRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
