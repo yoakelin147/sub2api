@@ -26,8 +26,14 @@ func NewSupplierHandler(
 }
 
 func (h *SupplierHandler) Me(c *gin.Context) {
-	supplier := h.currentSupplier(c)
-	if supplier == nil {
+	supplierID, ok := middleware.GetSupplierIDFromContext(c)
+	if !ok {
+		middleware.AbortWithError(c, http.StatusUnauthorized, "SUPPLIER_AUTH_REQUIRED", "Supplier authentication required")
+		return
+	}
+	supplier, err := h.suppliers.GetWithStats(c.Request.Context(), supplierID)
+	if err != nil {
+		response.ErrorFrom(c, err)
 		return
 	}
 	response.Success(c, supplierResponse(supplier))
@@ -92,6 +98,7 @@ func supplierResponse(supplier *service.Supplier) gin.H {
 		"status":                supplier.Status,
 		"allowed_account_kinds": supplier.AllowedAccountKinds,
 		"access_token":          tokenStatusResponse(supplier),
+		"stats":                 supplier.Stats,
 	}
 }
 

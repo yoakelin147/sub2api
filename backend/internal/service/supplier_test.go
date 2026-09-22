@@ -56,7 +56,9 @@ func TestSupplierServiceCreateRejectsInvalidCodeAndStatus(t *testing.T) {
 }
 
 type supplierRepositoryStub struct {
-	created *Supplier
+	created   *Supplier
+	listItems []Supplier
+	stats     map[int64]SupplierStats
 }
 
 func (r *supplierRepositoryStub) Create(_ context.Context, supplier *Supplier) error {
@@ -81,7 +83,11 @@ func (r *supplierRepositoryStub) List(
 	pagination.PaginationParams,
 	SupplierListFilters,
 ) ([]Supplier, *pagination.PaginationResult, error) {
-	return nil, nil, nil
+	return r.listItems, &pagination.PaginationResult{Total: int64(len(r.listItems)), Page: 1, PageSize: 20}, nil
+}
+
+func (r *supplierRepositoryStub) GetStatsBySupplierIDs(context.Context, []int64) (map[int64]SupplierStats, error) {
+	return r.stats, nil
 }
 
 func (r *supplierRepositoryStub) UpdateTokenLastUsed(context.Context, int64, time.Time) error {
@@ -100,4 +106,16 @@ func TestNormalizeSupplierAccountKindsRejectsInternalAndUnknownKinds(t *testing.
 		_, err := NormalizeSupplierAccountKinds([]domain.SupplierAccountKind{kind})
 		require.ErrorIs(t, err, ErrSupplierAccountKindInvalid)
 	}
+}
+
+func TestSupplierServiceListAttachesOperationalStats(t *testing.T) {
+	want := SupplierStats{MemberCount: 2, AccountCount: 8, PendingCount: 3, SchedulableCount: 4, ErrorCount: 1}
+	repo := &supplierRepositoryStub{
+		listItems: []Supplier{{ID: 7, Code: "vendor"}},
+		stats:     map[int64]SupplierStats{7: want},
+	}
+
+	items, _, err := NewSupplierService(repo).List(context.Background(), pagination.PaginationParams{Page: 1, PageSize: 20}, SupplierListFilters{})
+	require.NoError(t, err)
+	require.Equal(t, want, items[0].Stats)
 }

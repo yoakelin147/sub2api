@@ -68,7 +68,7 @@ func (h *SupplierHandler) Get(c *gin.Context) {
 	if !ok {
 		return
 	}
-	supplier, err := h.suppliers.GetByID(c.Request.Context(), id)
+	supplier, err := h.suppliers.GetWithStats(c.Request.Context(), id)
 	if err != nil {
 		response.ErrorFrom(c, err)
 		return
@@ -242,6 +242,7 @@ func adminSupplierResponse(supplier *service.Supplier) gin.H {
 			"created_at": supplier.TokenCreatedAt, "last_used_at": supplier.TokenLastUsedAt,
 		},
 		"created_at": supplier.CreatedAt, "updated_at": supplier.UpdatedAt,
+		"stats": supplier.Stats,
 	}
 }
 

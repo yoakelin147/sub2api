@@ -9,7 +9,38 @@ import (
 	"github.com/Wei-Shaw/sub2api/ent/supplier"
 	"github.com/Wei-Shaw/sub2api/internal/pkg/pagination"
 	"github.com/Wei-Shaw/sub2api/internal/service"
+	"github.com/lib/pq"
 )
+
+func (r *supplierRepository) GetStatsBySupplierIDs(ctx context.Context, supplierIDs []int64) (map[int64]service.SupplierStats, error) {
+	stats := make(map[int64]service.SupplierStats, len(supplierIDs))
+	if len(supplierIDs) == 0 {
+		return stats, nil
+	}
+	rows, err := r.client.QueryContext(ctx, `
+		SELECT s.id,
+			(SELECT COUNT(*) FROM users u WHERE u.supplier_id = s.id AND u.deleted_at IS NULL),
+			(SELECT COUNT(*) FROM accounts a WHERE a.supplier_id = s.id AND a.deleted_at IS NULL),
+			(SELECT COUNT(*) FROM accounts a WHERE a.supplier_id = s.id AND a.deleted_at IS NULL AND a.review_status = 'pending'),
+			(SELECT COUNT(*) FROM accounts a WHERE a.supplier_id = s.id AND a.deleted_at IS NULL AND a.schedulable = true),
+			(SELECT COUNT(*) FROM accounts a WHERE a.supplier_id = s.id AND a.deleted_at IS NULL AND COALESCE(a.error_message, '') <> '')
+		FROM suppliers s
+		WHERE s.id = ANY($1) AND s.deleted_at IS NULL
+	`, pq.Array(supplierIDs))
+	if err != nil {
+		return nil, err
+	}
+	defer func() { _ = rows.Close() }()
+	for rows.Next() {
+		var supplierID int64
+		var item service.SupplierStats
+		if err := rows.Scan(&supplierID, &item.MemberCount, &item.AccountCount, &item.PendingCount, &item.SchedulableCount, &item.ErrorCount); err != nil {
+			return nil, err
+		}
+		stats[supplierID] = item
+	}
+	return stats, rows.Err()
+}
 
 type supplierRepository struct {
 	client *dbent.Client

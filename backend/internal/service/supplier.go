@@ -48,6 +48,15 @@ type Supplier struct {
 	CreatedAt           time.Time
 	UpdatedAt           time.Time
 	DeletedAt           *time.Time
+	Stats               SupplierStats
+}
+
+type SupplierStats struct {
+	MemberCount      int64 `json:"member_count"`
+	AccountCount     int64 `json:"account_count"`
+	PendingCount     int64 `json:"pending_count"`
+	SchedulableCount int64 `json:"schedulable_count"`
+	ErrorCount       int64 `json:"error_count"`
 }
 
 type SupplierListFilters struct {
@@ -62,6 +71,7 @@ type SupplierRepository interface {
 	Update(ctx context.Context, supplier *Supplier) error
 	Delete(ctx context.Context, id int64) error
 	List(ctx context.Context, params pagination.PaginationParams, filters SupplierListFilters) ([]Supplier, *pagination.PaginationResult, error)
+	GetStatsBySupplierIDs(ctx context.Context, supplierIDs []int64) (map[int64]SupplierStats, error)
 	UpdateTokenLastUsed(ctx context.Context, id int64, usedAt time.Time) error
 }
 
@@ -130,7 +140,35 @@ func (s *SupplierService) List(
 	params pagination.PaginationParams,
 	filters SupplierListFilters,
 ) ([]Supplier, *pagination.PaginationResult, error) {
-	return s.repo.List(ctx, params, filters)
+	items, result, err := s.repo.List(ctx, params, filters)
+	if err != nil || len(items) == 0 {
+		return items, result, err
+	}
+	ids := make([]int64, 0, len(items))
+	for i := range items {
+		ids = append(ids, items[i].ID)
+	}
+	stats, err := s.repo.GetStatsBySupplierIDs(ctx, ids)
+	if err != nil {
+		return nil, nil, err
+	}
+	for i := range items {
+		items[i].Stats = stats[items[i].ID]
+	}
+	return items, result, nil
+}
+
+func (s *SupplierService) GetWithStats(ctx context.Context, id int64) (*Supplier, error) {
+	supplier, err := s.repo.GetByID(ctx, id)
+	if err != nil {
+		return nil, err
+	}
+	stats, err := s.repo.GetStatsBySupplierIDs(ctx, []int64{id})
+	if err != nil {
+		return nil, err
+	}
+	supplier.Stats = stats[id]
+	return supplier, nil
 }
 
 func (s *SupplierService) Update(ctx context.Context, id int64, input UpdateSupplierInput) (*Supplier, error) {
