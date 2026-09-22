@@ -44,26 +44,50 @@
 
     <section class="card p-5">
       <div class="mb-4 flex items-center justify-between">
-        <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('supplier.admin.members') }}</h3>
-        <span class="text-sm text-gray-500">{{ members.length }}</span>
-      </div>
-      <form class="grid gap-3 rounded-lg bg-gray-50 p-4 dark:bg-dark-800 sm:grid-cols-2 lg:grid-cols-5" @submit.prevent="addMember">
-        <input v-model.number="memberForm.user_id" class="input" type="number" min="1" :placeholder="t('supplier.admin.bindUserId')" />
-        <input v-model.trim="memberForm.email" class="input" type="email" :placeholder="t('common.email')" :required="!memberForm.user_id" />
-        <input v-model="memberForm.password" class="input" type="password" :placeholder="t('common.password')" :required="!memberForm.user_id" autocomplete="new-password" />
-        <input v-model.trim="memberForm.username" class="input" :placeholder="t('common.name')" />
-        <button class="btn btn-primary" :disabled="working" type="submit">{{ t('supplier.admin.addMember') }}</button>
-        <p class="text-xs text-gray-500 sm:col-span-2 lg:col-span-5">{{ t('supplier.admin.newMemberHint') }}</p>
-      </form>
-      <div class="mt-4 divide-y divide-gray-100 dark:divide-dark-700">
-        <div v-for="member in members" :key="member.id" class="flex items-center justify-between gap-4 py-3">
-          <div class="min-w-0">
-            <p class="truncate font-medium text-gray-900 dark:text-white">{{ member.username || member.email }}</p>
-            <p class="truncate text-sm text-gray-500">{{ member.email }} · #{{ member.id }}</p>
+        <div>
+          <div class="flex items-center gap-2">
+            <h3 class="text-lg font-semibold text-gray-900 dark:text-white">{{ t('supplier.admin.members') }}</h3>
+            <span class="badge badge-gray">{{ members.length }}</span>
           </div>
-          <button class="btn btn-ghost btn-sm text-red-600" :disabled="working" @click="removeMemberById(member.id)">{{ t('supplier.admin.removeMember') }}</button>
+          <p class="mt-1 text-sm text-gray-500 dark:text-gray-400">{{ t('supplier.admin.membersDescription') }}</p>
         </div>
-        <p v-if="members.length === 0" class="py-6 text-center text-sm text-gray-500">{{ t('common.noData') }}</p>
+        <button class="btn btn-primary" :disabled="working" @click="showMemberDialog = true">
+          <Icon name="userPlus" size="sm" />{{ t('supplier.admin.addMember') }}
+        </button>
+      </div>
+      <div class="overflow-x-auto rounded-lg border border-gray-200 dark:border-dark-700">
+        <table class="w-full min-w-[680px] divide-y divide-gray-200 dark:divide-dark-700">
+          <thead class="bg-gray-50 text-left text-xs uppercase text-gray-500 dark:bg-dark-800 dark:text-gray-400">
+            <tr>
+              <th class="px-4 py-3">{{ t('common.email') }}</th>
+              <th class="px-4 py-3">{{ t('admin.users.username') }}</th>
+              <th class="px-4 py-3">{{ t('admin.users.form.roleLabel') }}</th>
+              <th class="px-4 py-3">{{ t('common.status') }}</th>
+              <th class="px-4 py-3 text-right">{{ t('common.actions') }}</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-gray-100 bg-white dark:divide-dark-800 dark:bg-dark-900">
+            <tr v-for="member in members" :key="member.id">
+              <td class="px-4 py-3">
+                <p class="font-medium text-gray-900 dark:text-white">{{ member.email }}</p>
+                <p class="text-xs text-gray-500">#{{ member.id }}</p>
+              </td>
+              <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{{ member.username || '-' }}</td>
+              <td class="px-4 py-3"><span class="badge badge-gray">{{ t('admin.users.roles.supplier') }}</span></td>
+              <td class="px-4 py-3">
+                <span :class="member.status === 'active' ? 'badge badge-success' : 'badge badge-danger'">
+                  {{ member.status === 'active' ? t('common.active') : t('common.disabled') }}
+                </span>
+              </td>
+              <td class="px-4 py-3 text-right">
+                <button class="btn btn-ghost btn-sm text-red-600" :disabled="working" @click="removeMemberById(member.id)">{{ t('supplier.admin.removeMember') }}</button>
+              </td>
+            </tr>
+            <tr v-if="members.length === 0">
+              <td colspan="5" class="px-4 py-10 text-center text-sm text-gray-500">{{ t('common.noData') }}</td>
+            </tr>
+          </tbody>
+        </table>
       </div>
     </section>
 
@@ -127,6 +151,13 @@
       </div>
       <Pagination v-if="accountTotal > 0" :total="accountTotal" :page="accountPage" :page-size="20" :show-page-size-selector="false" @update:page="setAccountPage" />
     </section>
+
+    <SupplierMemberDialog
+      :show="showMemberDialog"
+      :saving="working"
+      @close="showMemberDialog = false"
+      @submit="addMember"
+    />
   </div>
 </template>
 
@@ -135,9 +166,10 @@ import { computed, onMounted, reactive, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import SupplierMemberDialog from './SupplierMemberDialog.vue'
 import { useAppStore } from '@/stores/app'
 import groupsAPI from '@/api/admin/groups'
-import suppliersAPI, { type AdminSupplier, type AdminSupplierAccount } from '@/api/admin/suppliers'
+import suppliersAPI, { type AdminSupplier, type AdminSupplierAccount, type SupplierMemberInput } from '@/api/admin/suppliers'
 import type { AdminGroup, AdminUser } from '@/types'
 
 const props = defineProps<{ supplier: AdminSupplier }>()
@@ -145,6 +177,7 @@ const emit = defineEmits<{ (event: 'edit'): void; (event: 'delete'): void; (even
 const { t } = useI18n()
 const appStore = useAppStore()
 const working = ref(false)
+const showMemberDialog = ref(false)
 const members = ref<AdminUser[]>([])
 const accounts = ref<AdminSupplierAccount[]>([])
 const accountTotal = ref(0)
@@ -156,7 +189,6 @@ const reviewNote = ref('')
 const plaintextToken = ref('')
 const tokenStatus = ref(props.supplier.access_token)
 const accountFilters = reactive({ review_status: 'pending' })
-const memberForm = reactive<{ user_id?: number; email: string; password: string; username: string }>({ email: '', password: '', username: '' })
 
 const allSelected = computed(() => accounts.value.length > 0 && accounts.value.every((account) => selectedIds.value.includes(account.id)))
 const selectedPlatforms = computed(() => new Set(accounts.value.filter((account) => selectedIds.value.includes(account.id)).map((account) => account.platform)))
@@ -193,13 +225,11 @@ async function loadAccounts() {
   }
 }
 
-async function addMember() {
+async function addMember(input: SupplierMemberInput) {
   working.value = true
   try {
-    await suppliersAPI.addMember(props.supplier.id, memberForm.user_id
-      ? { user_id: memberForm.user_id }
-      : { email: memberForm.email, password: memberForm.password, username: memberForm.username })
-    Object.assign(memberForm, { user_id: undefined, email: '', password: '', username: '' })
+    await suppliersAPI.addMember(props.supplier.id, input)
+    showMemberDialog.value = false
     appStore.showSuccess(t('supplier.admin.memberAdded'))
     await loadAll()
   } catch (error) {
@@ -210,6 +240,7 @@ async function addMember() {
 }
 
 async function removeMemberById(userId: number) {
+  if (!window.confirm(t('supplier.admin.confirmRemoveMember'))) return
   working.value = true
   try {
     await suppliersAPI.removeMember(props.supplier.id, userId)

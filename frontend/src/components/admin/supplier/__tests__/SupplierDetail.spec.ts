@@ -1,10 +1,12 @@
 import { createPinia } from 'pinia'
 import { createI18n } from 'vue-i18n'
 import { flushPromises, mount } from '@vue/test-utils'
-import { describe, expect, it, vi } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SupplierDetail from '../SupplierDetail.vue'
+import SupplierMemberDialog from '../SupplierMemberDialog.vue'
 
 const approveAccounts = vi.fn().mockResolvedValue(undefined)
+const addMember = vi.fn().mockResolvedValue(undefined)
 const listMembers = vi.fn().mockResolvedValue({ items: [], total: 0, page: 1, page_size: 100, pages: 1 })
 const listAccounts = vi.fn().mockResolvedValue({
   items: [{
@@ -19,7 +21,7 @@ vi.mock('@/api/admin/suppliers', () => ({ default: {
   listMembers: (...args: unknown[]) => listMembers(...args),
   listAccounts: (...args: unknown[]) => listAccounts(...args),
   approveAccounts: (...args: unknown[]) => approveAccounts(...args),
-  rejectAccounts: vi.fn(), pauseAccounts: vi.fn(), addMember: vi.fn(), removeMember: vi.fn(),
+  rejectAccounts: vi.fn(), pauseAccounts: vi.fn(), addMember: (...args: unknown[]) => addMember(...args), removeMember: vi.fn(),
   regenerateAccessToken: vi.fn(), getAccessTokenStatus: vi.fn(), revokeAccessToken: vi.fn(),
 } }))
 
@@ -37,6 +39,8 @@ const supplier = {
 }
 
 describe('SupplierDetail', () => {
+  beforeEach(() => vi.clearAllMocks())
+
   it('approves only selected accounts with selected groups', async () => {
     const wrapper = mount(SupplierDetail, {
       props: { supplier },
@@ -56,5 +60,29 @@ describe('SupplierDetail', () => {
       group_ids: [3],
       note: null,
     })
+  })
+
+  it('opens the member dialog and refreshes the member list after adding', async () => {
+    const wrapper = mount(SupplierDetail, {
+      props: { supplier },
+      global: { plugins: [createPinia(), i18n], stubs: { Icon: true, Pagination: true } },
+    })
+    await flushPromises()
+
+    await wrapper.findAll('button').find((button) => button.text() === 'supplier.admin.addMember')!.trigger('click')
+    const dialog = wrapper.getComponent(SupplierMemberDialog)
+    expect(dialog.props('show')).toBe(true)
+
+    dialog.vm.$emit('submit', { email: 'new@example.test', password: 'Password!123', username: 'new', concurrency: 1 })
+    await flushPromises()
+
+    expect(addMember).toHaveBeenCalledWith(7, {
+      email: 'new@example.test',
+      password: 'Password!123',
+      username: 'new',
+      concurrency: 1,
+    })
+    expect(dialog.props('show')).toBe(false)
+    expect(listMembers).toHaveBeenCalledTimes(2)
   })
 })
