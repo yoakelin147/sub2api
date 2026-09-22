@@ -3,6 +3,7 @@ package dto
 import (
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 
@@ -99,4 +100,24 @@ func TestAccountFromServiceShallow_NilCredentialsOmitsStatus(t *testing.T) {
 	require.NotNil(t, got)
 	require.Nil(t, got.Credentials)
 	require.Nil(t, got.CredentialsStatus)
+}
+
+func TestAccountFromServiceShallow_IncludesSupplierReviewMetadata(t *testing.T) {
+	supplierID, externalID, reviewerID := int64(7), "vendor-42", int64(3)
+	reviewedAt := time.Date(2026, time.September, 22, 1, 2, 3, 0, time.UTC)
+	note := "approved after validation"
+
+	got := AccountFromServiceShallow(&service.Account{
+		ID: 11, Name: "supplier account", Platform: "openai", Type: "apikey",
+		SupplierID: &supplierID, SupplierExternalID: &externalID,
+		ReviewStatus: service.AccountReviewStatusApproved, ReviewedAt: &reviewedAt,
+		ReviewedBy: &reviewerID, ReviewNote: &note,
+	})
+
+	require.Equal(t, &supplierID, got.SupplierID)
+	require.Equal(t, &externalID, got.SupplierExternalID)
+	require.Equal(t, service.AccountReviewStatusApproved, got.ReviewStatus)
+	require.Equal(t, &reviewedAt, got.ReviewedAt)
+	require.Equal(t, &reviewerID, got.ReviewedBy)
+	require.Equal(t, &note, got.ReviewNote)
 }

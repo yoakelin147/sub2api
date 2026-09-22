@@ -206,11 +206,17 @@ type AdminGroup struct {
 }
 
 type Account struct {
-	ID       int64   `json:"id"`
-	Name     string  `json:"name"`
-	Notes    *string `json:"notes"`
-	Platform string  `json:"platform"`
-	Type     string  `json:"type"`
+	ID                 int64      `json:"id"`
+	Name               string     `json:"name"`
+	Notes              *string    `json:"notes"`
+	Platform           string     `json:"platform"`
+	Type               string     `json:"type"`
+	SupplierID         *int64     `json:"supplier_id,omitempty"`
+	SupplierExternalID *string    `json:"supplier_external_id,omitempty"`
+	ReviewStatus       string     `json:"review_status,omitempty"`
+	ReviewedAt         *time.Time `json:"reviewed_at,omitempty"`
+	ReviewedBy         *int64     `json:"reviewed_by,omitempty"`
+	ReviewNote         *string    `json:"review_note,omitempty"`
 	// Credentials 经 RedactCredentials 处理后只含非敏感子键；敏感 token / api_key / 私钥
 	// 的存在性通过 CredentialsStatus（has_<key>）暴露，原始值不返回前端。
 	Credentials             map[string]any                 `json:"credentials"`
