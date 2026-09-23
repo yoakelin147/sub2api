@@ -25,22 +25,32 @@ const maxSupplierAccountBatchRequestBytes = 2 << 20
 var errSupplierRequestTooLarge = errors.New("supplier request body is too large")
 
 type supplierAccountRequest struct {
-	ExternalID  string         `json:"external_id"`
-	Name        string         `json:"name"`
-	Notes       *string        `json:"notes"`
-	Platform    string         `json:"platform"`
-	Type        string         `json:"type"`
-	Credentials map[string]any `json:"credentials"`
-	ExpiresAt   *int64         `json:"expires_at"`
+	ExternalID         string         `json:"external_id"`
+	Name               string         `json:"name"`
+	Notes              *string        `json:"notes"`
+	Platform           string         `json:"platform"`
+	Type               string         `json:"type"`
+	Credentials        map[string]any `json:"credentials"`
+	ExpiresAt          *int64         `json:"expires_at"`
+	ProxyID            *int64         `json:"proxy_id"`
+	Concurrency        *int           `json:"concurrency"`
+	Priority           *int           `json:"priority"`
+	LoadFactor         *int           `json:"load_factor"`
+	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired"`
 }
 
 type supplierAccountUpdateRequest struct {
-	ExternalID  *string         `json:"external_id"`
-	Name        *string         `json:"name"`
-	Notes       *string         `json:"notes"`
-	Credentials *map[string]any `json:"credentials"`
-	ExpiresAt   *int64          `json:"expires_at"`
-	Status      *string         `json:"status"`
+	ExternalID         *string         `json:"external_id"`
+	Name               *string         `json:"name"`
+	Notes              *string         `json:"notes"`
+	Credentials        *map[string]any `json:"credentials"`
+	ExpiresAt          *int64          `json:"expires_at"`
+	Status             *string         `json:"status"`
+	ProxyID            *int64          `json:"proxy_id"`
+	Concurrency        *int            `json:"concurrency"`
+	Priority           *int            `json:"priority"`
+	LoadFactor         *int            `json:"load_factor"`
+	AutoPauseOnExpired *bool           `json:"auto_pause_on_expired"`
 }
 
 type supplierAccountBatchRequest struct {
@@ -51,6 +61,20 @@ type supplierAccountTestRequest struct {
 	Model  string `json:"model"`
 	Prompt string `json:"prompt"`
 	Mode   string `json:"mode"`
+}
+
+func (h *SupplierHandler) ListProxies(c *gin.Context) {
+	supplierID, ok := middleware.GetSupplierIDFromContext(c)
+	if !ok {
+		middleware.AbortWithError(c, http.StatusUnauthorized, "SUPPLIER_AUTH_REQUIRED", "Supplier authentication required")
+		return
+	}
+	options, err := h.accounts.AvailableProxies(c.Request.Context(), supplierID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	response.Success(c, options)
 }
 
 func (h *SupplierHandler) ListAccounts(c *gin.Context) {
@@ -105,6 +129,8 @@ func (h *SupplierHandler) CreateAccount(c *gin.Context) {
 			ExternalID: request.ExternalID, Name: request.Name, Notes: request.Notes,
 			Platform: request.Platform, Type: request.Type, Credentials: request.Credentials,
 			ExpiresAt: unixTime(request.ExpiresAt),
+			ProxyID:   request.ProxyID, Concurrency: request.Concurrency, Priority: request.Priority,
+			LoadFactor: request.LoadFactor, AutoPauseOnExpired: request.AutoPauseOnExpired,
 		})
 		if err != nil {
 			return nil, err
@@ -130,6 +156,8 @@ func (h *SupplierHandler) BatchCreateAccounts(c *gin.Context) {
 			ExternalID: item.ExternalID, Name: item.Name, Notes: item.Notes,
 			Platform: item.Platform, Type: item.Type, Credentials: item.Credentials,
 			ExpiresAt: unixTime(item.ExpiresAt),
+			ProxyID:   item.ProxyID, Concurrency: item.Concurrency, Priority: item.Priority,
+			LoadFactor: item.LoadFactor, AutoPauseOnExpired: item.AutoPauseOnExpired,
 		})
 	}
 	executeSupplierIdempotentJSON(c, "supplier.accounts.batch_create", request, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
@@ -167,6 +195,8 @@ func (h *SupplierHandler) UpdateAccount(c *gin.Context) {
 	account, err := h.accounts.Update(c.Request.Context(), supplierID, accountID, service.UpdateSupplierAccountInput{
 		ExternalID: request.ExternalID, Name: request.Name, Notes: request.Notes,
 		Credentials: request.Credentials, ExpiresAt: unixTime(request.ExpiresAt), Status: request.Status,
+		ProxyID: request.ProxyID, Concurrency: request.Concurrency, Priority: request.Priority,
+		LoadFactor: request.LoadFactor, AutoPauseOnExpired: request.AutoPauseOnExpired,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -260,7 +290,10 @@ func supplierAccountResponse(account *service.Account) gin.H {
 		"notes": account.Notes, "platform": account.Platform, "type": account.Type,
 		"credential_status": credentialStatus, "has_credentials": len(credentialStatus) > 0,
 		"status": account.Status, "schedulable": account.Schedulable,
-		"review_status": account.ReviewStatus, "review_note": account.ReviewNote,
+		"proxy_id": account.ProxyID, "concurrency": account.Concurrency,
+		"priority": account.Priority, "load_factor": account.LoadFactor,
+		"auto_pause_on_expired": account.AutoPauseOnExpired,
+		"review_status":         account.ReviewStatus, "review_note": account.ReviewNote,
 		"expires_at": account.ExpiresAt, "last_used_at": account.LastUsedAt,
 		"created_at": account.CreatedAt, "updated_at": account.UpdatedAt,
 	}

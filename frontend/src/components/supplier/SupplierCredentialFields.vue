@@ -8,7 +8,7 @@
         <option v-for="choice in choices[field]" :key="choice" :value="choice">{{ choice }}</option>
       </select>
       <textarea v-else-if="field === 'service_account_json'" class="input font-mono text-sm" rows="5" autocomplete="off" spellcheck="false" :value="typeof credentials[field] === 'object' ? JSON.stringify(credentials[field], null, 2) : credentials[field] as string" :disabled="disabled" :data-field="field" @input="update(field, ($event.target as HTMLTextAreaElement).value)"></textarea>
-      <input v-else class="input" :type="secretFields.includes(field) ? 'password' : 'text'" autocomplete="off" spellcheck="false" :value="credentials[field] ?? ''" :placeholder="field === 'base_url' ? 'https://…' : ''" :disabled="disabled" :data-field="field" @input="update(field, ($event.target as HTMLInputElement).value)" />
+      <input v-else class="input" :type="secretFields.includes(field) ? 'password' : field === 'email' ? 'email' : 'text'" autocomplete="off" spellcheck="false" :value="credentials[field] ?? ''" :placeholder="field === 'base_url' ? 'https://…' : ''" :disabled="disabled" :data-field="field" @input="update(field, ($event.target as HTMLInputElement).value)" />
     </label>
   </div>
 </template>
@@ -22,7 +22,7 @@ import { supplierRequiredCredentials } from '@/features/supplier/accountKinds'
 const props = defineProps<{ kind: SupplierAccountKind; credentials: Record<string, unknown>; disabled?: boolean }>()
 const emit = defineEmits<{ (event: 'update:credentials', value: Record<string, unknown>): void }>()
 const { t } = useI18n()
-const secretFields = ['api_key', 'access_token', 'refresh_token', 'aws_access_key_id', 'aws_secret_access_key']
+const secretFields = ['api_key', 'access_token', 'refresh_token', 'password', 'aws_access_key_id', 'aws_secret_access_key']
 const required = computed(() => supplierRequiredCredentials(props.kind, props.credentials))
 const fields = computed(() => {
   const optional = props.kind.type === 'oauth' || props.kind.type === 'setup-token' ? ['refresh_token'] : []

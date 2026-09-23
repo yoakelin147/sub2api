@@ -26,11 +26,13 @@ func NewSupplierHandler(suppliers *service.SupplierService, tokens *service.Supp
 }
 
 type supplierWriteRequest struct {
-	Code                string                       `json:"code" binding:"required"`
+	Code                string                       `json:"code"`
 	Name                string                       `json:"name" binding:"required"`
 	Status              string                       `json:"status" binding:"omitempty,oneof=active disabled"`
 	Notes               *string                      `json:"notes"`
 	AllowedAccountKinds []domain.SupplierAccountKind `json:"allowed_account_kinds"`
+	ReviewRequired      *bool                        `json:"review_required"`
+	AutoApproveGroups   map[string]int64             `json:"auto_approve_groups"`
 }
 
 type supplierMemberRequest struct {
@@ -85,6 +87,7 @@ func (h *SupplierHandler) Create(c *gin.Context) {
 	supplier, err := h.suppliers.Create(c.Request.Context(), service.CreateSupplierInput{
 		Code: request.Code, Name: request.Name, Status: request.Status, Notes: request.Notes,
 		AllowedAccountKinds: request.AllowedAccountKinds,
+		ReviewRequired:      request.ReviewRequired, AutoApproveGroups: request.AutoApproveGroups,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -111,6 +114,7 @@ func (h *SupplierHandler) Update(c *gin.Context) {
 	}
 	supplier, err := h.suppliers.Update(c.Request.Context(), id, service.UpdateSupplierInput{
 		Name: &name, Status: status, Notes: request.Notes, AllowedAccountKinds: &kinds,
+		ReviewRequired: request.ReviewRequired, AutoApproveGroups: &request.AutoApproveGroups,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -237,6 +241,7 @@ func adminSupplierResponse(supplier *service.Supplier) gin.H {
 		"id": supplier.ID, "code": supplier.Code, "name": supplier.Name,
 		"status": supplier.Status, "notes": supplier.Notes,
 		"allowed_account_kinds": supplier.AllowedAccountKinds,
+		"review_required":       supplier.ReviewRequired, "auto_approve_groups": supplier.AutoApproveGroups,
 		"access_token": gin.H{
 			"exists": supplier.TokenHash != nil, "masked_key": supplier.TokenPrefix,
 			"created_at": supplier.TokenCreatedAt, "last_used_at": supplier.TokenLastUsedAt,
@@ -295,6 +300,47 @@ func (h *SupplierHandler) ListAccounts(c *gin.Context) {
 		out = append(out, *dto.AccountFromServiceShallow(&items[i]))
 	}
 	response.Paginated(c, out, result.Total, result.Page, result.PageSize)
+}
+
+func (h *SupplierHandler) GetAccount(c *gin.Context) {
+	supplierID, accountID, ok := adminSupplierAccountIDs(c)
+	if !ok {
+		return
+	}
+	account, err := h.accounts.GetForAdmin(c.Request.Context(), supplierID, accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, dto.AccountFromServiceShallow(account))
+}
+
+func (h *SupplierHandler) RevealAccountPassword(c *gin.Context) {
+	supplierID, accountID, ok := adminSupplierAccountIDs(c)
+	if !ok {
+		return
+	}
+	password, err := h.accounts.RevealLoginPassword(c.Request.Context(), supplierID, accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, gin.H{"password": password})
+}
+
+func adminSupplierAccountIDs(c *gin.Context) (int64, int64, bool) {
+	supplierID, ok := adminSupplierID(c)
+	if !ok {
+		return 0, 0, false
+	}
+	accountID, err := strconv.ParseInt(c.Param("account_id"), 10, 64)
+	if err != nil || accountID <= 0 {
+		response.BadRequest(c, "Invalid account ID")
+		return 0, 0, false
+	}
+	return supplierID, accountID, true
 }
 
 func (h *SupplierHandler) ApproveAccounts(c *gin.Context) {

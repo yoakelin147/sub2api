@@ -1968,16 +1968,24 @@ func init() {
 	supplierDescAllowedAccountKinds := supplierFields[4].Descriptor()
 	// supplier.DefaultAllowedAccountKinds holds the default value on creation for the allowed_account_kinds field.
 	supplier.DefaultAllowedAccountKinds = supplierDescAllowedAccountKinds.Default.(func() []domain.SupplierAccountKind)
+	// supplierDescReviewRequired is the schema descriptor for review_required field.
+	supplierDescReviewRequired := supplierFields[5].Descriptor()
+	// supplier.DefaultReviewRequired holds the default value on creation for the review_required field.
+	supplier.DefaultReviewRequired = supplierDescReviewRequired.Default.(bool)
+	// supplierDescAutoApproveGroups is the schema descriptor for auto_approve_groups field.
+	supplierDescAutoApproveGroups := supplierFields[6].Descriptor()
+	// supplier.DefaultAutoApproveGroups holds the default value on creation for the auto_approve_groups field.
+	supplier.DefaultAutoApproveGroups = supplierDescAutoApproveGroups.Default.(func() map[string]int64)
 	// supplierDescTokenSelector is the schema descriptor for token_selector field.
-	supplierDescTokenSelector := supplierFields[5].Descriptor()
+	supplierDescTokenSelector := supplierFields[7].Descriptor()
 	// supplier.TokenSelectorValidator is a validator for the "token_selector" field. It is called by the builders before save.
 	supplier.TokenSelectorValidator = supplierDescTokenSelector.Validators[0].(func(string) error)
 	// supplierDescTokenHash is the schema descriptor for token_hash field.
-	supplierDescTokenHash := supplierFields[6].Descriptor()
+	supplierDescTokenHash := supplierFields[8].Descriptor()
 	// supplier.TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
 	supplier.TokenHashValidator = supplierDescTokenHash.Validators[0].(func(string) error)
 	// supplierDescTokenPrefix is the schema descriptor for token_prefix field.
-	supplierDescTokenPrefix := supplierFields[7].Descriptor()
+	supplierDescTokenPrefix := supplierFields[9].Descriptor()
 	// supplier.TokenPrefixValidator is a validator for the "token_prefix" field. It is called by the builders before save.
 	supplier.TokenPrefixValidator = supplierDescTokenPrefix.Validators[0].(func(string) error)
 	tlsfingerprintprofileMixin := schema.TLSFingerprintProfile{}.Mixin()

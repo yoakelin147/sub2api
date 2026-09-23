@@ -38,6 +38,7 @@
         <div v-if="tab.value === 'settings'" class="grid gap-6 p-4 sm:p-5 lg:grid-cols-2">
           <section class="min-w-0">
             <h3 class="font-semibold text-gray-900 dark:text-white">{{ t('supplier.admin.basic') }}</h3>
+            <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">{{ supplier.review_required ? t('supplier.admin.reviewRequired') : t('supplier.admin.autoApproveGroups') }}</p>
             <p v-if="supplier.notes" class="mt-2 max-h-24 overflow-auto break-words text-sm text-gray-600 dark:text-gray-300">{{ supplier.notes }}</p>
             <p class="mb-2 mt-4 text-sm text-gray-500">{{ t('supplier.admin.allowedKinds') }}</p>
             <div class="flex max-h-48 flex-wrap gap-2 overflow-auto">

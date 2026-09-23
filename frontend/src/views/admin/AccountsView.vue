@@ -7,6 +7,7 @@
             v-model:searchQuery="params.search"
             :filters="params"
             :groups="groups"
+            :suppliers="supplierNames"
             @update:filters="(newFilters) => Object.assign(params, newFilters)"
             @change="debouncedReload"
             @update:searchQuery="debouncedReload"
@@ -252,14 +253,18 @@
               <span v-else class="mt-1 inline-flex w-fit rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500 dark:bg-dark-800 dark:text-gray-400">
                 {{ t('supplier.admin.platformOwned') }}
               </span>
-              <span
-                v-if="accountDisplayEmail(row)"
-                class="text-xs text-gray-500 dark:text-gray-400 truncate max-w-[200px]"
-                :title="accountDisplayEmail(row) + (row.parent_chatgpt_account_id ? ' · ' + row.parent_chatgpt_account_id : '')"
-              >
-                {{ accountDisplayEmail(row) }}
-              </span>
             </div>
+          </template>
+          <template #cell-login_email="{ row }">
+            <span class="block max-w-[220px] truncate" :title="accountDisplayEmail(row)">{{ accountDisplayEmail(row) || '—' }}</span>
+          </template>
+          <template #cell-login_password="{ row }">
+            <template v-if="row.supplier_id && row.credentials_status?.has_login_password_encrypted">
+              <span v-if="revealedAccountPassword?.id === row.id" class="break-all">{{ revealedAccountPassword?.value }}</span>
+              <span v-else>••••••</span>
+              <button type="button" class="btn btn-secondary btn-sm ml-2" :disabled="revealingAccountId === row.id" @click="toggleAccountPassword(row)">{{ t(revealedAccountPassword?.id === row.id ? 'supplier.admin.hidePassword' : 'supplier.admin.showPassword') }}</button>
+            </template>
+            <span v-else>—</span>
           </template>
           <template #cell-notes="{ value }">
             <span v-if="value" :title="value" class="block max-w-xs truncate text-sm text-gray-600 dark:text-gray-300">{{ value }}</span>
@@ -548,6 +553,23 @@ const { t } = useI18n()
 const appStore = useAppStore()
 const authStore = useAuthStore()
 const supplierNames = ref<Record<number, string>>({})
+const revealedAccountPassword = ref<{ id: number; value: string } | null>(null)
+const revealingAccountId = ref<number | null>(null)
+
+async function toggleAccountPassword(row: AccountListItem) {
+  if (!row.supplier_id) return
+  if (revealedAccountPassword.value?.id === row.id) { revealedAccountPassword.value = null; return }
+  revealedAccountPassword.value = null
+  revealingAccountId.value = row.id
+  try {
+    const value = await adminAPI.suppliers.revealAccountPassword(row.supplier_id, row.id)
+    if (revealingAccountId.value === row.id) revealedAccountPassword.value = { id: row.id, value }
+  } catch (error) {
+    appStore.showError(extractApiErrorMessage(error, t('common.error')))
+  } finally {
+    revealingAccountId.value = null
+  }
+}
 
 const proxies = ref<AccountProxy[]>([])
 const groups = ref<AdminGroup[]>([])
@@ -575,6 +597,7 @@ type AccountBulkEditTarget =
         group?: string
         search?: string
         privacy_mode?: string
+        supplier_id?: string
         sort_by?: string
         sort_order?: AccountSortOrder
       }
@@ -1095,6 +1118,7 @@ const {
     status: '',
     privacy_mode: '',
     group: '',
+    supplier_id: '',
     search: '',
     lite: '1',
     include_scheduler_score: shouldIncludeSchedulerScore() ? '1' : '0',
@@ -1193,6 +1217,7 @@ const buildUpstreamBillingRateFilters = () => {
     group: typeof rawParams.group === 'string' ? rawParams.group : '',
     search: typeof rawParams.search === 'string' ? rawParams.search : '',
     privacy_mode: typeof rawParams.privacy_mode === 'string' ? rawParams.privacy_mode : '',
+    supplier_id: typeof rawParams.supplier_id === 'string' ? rawParams.supplier_id : '',
     sort_by: sortState.sort_by,
     sort_order: sortState.sort_order
   }
@@ -1794,6 +1819,8 @@ const allColumns = computed(() => {
   const c = [
     { key: 'select', label: '', sortable: false },
     { key: 'name', label: t('admin.accounts.columns.name'), sortable: true },
+    { key: 'login_email', label: t('supplier.admin.loginEmail'), sortable: false },
+    { key: 'login_password', label: t('supplier.admin.loginPassword'), sortable: false },
     { key: 'id', label: t('admin.accounts.columns.id'), sortable: true },
     { key: 'platform_type', label: t('admin.accounts.columns.platformType'), sortable: false },
     { key: 'capacity', label: t('admin.accounts.columns.capacity'), sortable: false },
@@ -2065,6 +2092,7 @@ const buildBulkEditFilterSnapshot = () => {
     group: typeof rawParams.group === 'string' ? rawParams.group : '',
     search: typeof rawParams.search === 'string' ? rawParams.search : '',
     privacy_mode: typeof rawParams.privacy_mode === 'string' ? rawParams.privacy_mode : '',
+    supplier_id: typeof rawParams.supplier_id === 'string' ? rawParams.supplier_id : '',
     sort_by: typeof rawParams.sort_by === 'string' ? rawParams.sort_by : '',
     sort_order: sortOrder
   }
@@ -2141,12 +2169,15 @@ const buildAccountQueryFilters = () => ({
   status: params.status || '',
   group: params.group || '',
   privacy_mode: params.privacy_mode || '',
+  supplier_id: params.supplier_id || '',
   search: params.search || '',
   sort_by: sortState.sort_by,
   sort_order: sortState.sort_order
 })
 const accountMatchesCurrentFilters = (account: Account) => {
   const filters = buildAccountQueryFilters()
+  if (filters.supplier_id === 'owned' && account.supplier_id != null) return false
+  if (filters.supplier_id && filters.supplier_id !== 'owned' && account.supplier_id !== Number(filters.supplier_id)) return false
   if (filters.platform && account.platform !== filters.platform) return false
   if (filters.type && account.type !== filters.type) return false
   if (filters.status) {
@@ -2546,8 +2577,15 @@ onMounted(async () => {
   load()
   loadUpstreamBillingProbeGlobalState()
   const supplierListRequest = adminAPI.suppliers?.list
-    ? adminAPI.suppliers.list(1, 1000)
-    : Promise.resolve({ items: [], total: 0, page: 1, page_size: 1000, pages: 1 })
+    ? (async () => {
+        const first = await adminAPI.suppliers.list(1, 1000)
+        const items = [...first.items]
+        for (let page = 2; page <= first.pages; page++) {
+          items.push(...(await adminAPI.suppliers.list(page, 1000)).items)
+        }
+        return items
+      })()
+    : Promise.resolve([])
   const [proxiesResult, groupsResult, suppliersResult] = await Promise.allSettled([
     adminAPI.proxies.getAll(),
     adminAPI.groups.getAll(),
@@ -2564,7 +2602,7 @@ onMounted(async () => {
     console.error('Failed to load groups:', groupsResult.reason)
   }
   if (suppliersResult.status === 'fulfilled') {
-    supplierNames.value = Object.fromEntries(suppliersResult.value.items.map((supplier) => [supplier.id, supplier.name]))
+    supplierNames.value = Object.fromEntries(suppliersResult.value.map((supplier) => [supplier.id, supplier.name]))
   } else {
     console.error('Failed to load suppliers:', suppliersResult.reason)
   }
@@ -2581,6 +2619,8 @@ onMounted(async () => {
 })
 
 onUnmounted(() => {
+  revealedAccountPassword.value = null
+  revealingAccountId.value = null
   upstreamBillingRateAbortController?.abort()
   if (usageBatchFlushTimer !== null) {
     clearTimeout(usageBatchFlushTimer)

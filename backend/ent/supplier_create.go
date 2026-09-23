@@ -113,6 +113,26 @@ func (_c *SupplierCreate) SetAllowedAccountKinds(v []domain.SupplierAccountKind)
 	return _c
 }
 
+// SetReviewRequired sets the "review_required" field.
+func (_c *SupplierCreate) SetReviewRequired(v bool) *SupplierCreate {
+	_c.mutation.SetReviewRequired(v)
+	return _c
+}
+
+// SetNillableReviewRequired sets the "review_required" field if the given value is not nil.
+func (_c *SupplierCreate) SetNillableReviewRequired(v *bool) *SupplierCreate {
+	if v != nil {
+		_c.SetReviewRequired(*v)
+	}
+	return _c
+}
+
+// SetAutoApproveGroups sets the "auto_approve_groups" field.
+func (_c *SupplierCreate) SetAutoApproveGroups(v map[string]int64) *SupplierCreate {
+	_c.mutation.SetAutoApproveGroups(v)
+	return _c
+}
+
 // SetTokenSelector sets the "token_selector" field.
 func (_c *SupplierCreate) SetTokenSelector(v string) *SupplierCreate {
 	_c.mutation.SetTokenSelector(v)
@@ -275,6 +295,17 @@ func (_c *SupplierCreate) defaults() error {
 		v := supplier.DefaultAllowedAccountKinds()
 		_c.mutation.SetAllowedAccountKinds(v)
 	}
+	if _, ok := _c.mutation.ReviewRequired(); !ok {
+		v := supplier.DefaultReviewRequired
+		_c.mutation.SetReviewRequired(v)
+	}
+	if _, ok := _c.mutation.AutoApproveGroups(); !ok {
+		if supplier.DefaultAutoApproveGroups == nil {
+			return fmt.Errorf("ent: uninitialized supplier.DefaultAutoApproveGroups (forgotten import ent/runtime?)")
+		}
+		v := supplier.DefaultAutoApproveGroups()
+		_c.mutation.SetAutoApproveGroups(v)
+	}
 	return nil
 }
 
@@ -312,6 +343,12 @@ func (_c *SupplierCreate) check() error {
 	}
 	if _, ok := _c.mutation.AllowedAccountKinds(); !ok {
 		return &ValidationError{Name: "allowed_account_kinds", err: errors.New(`ent: missing required field "Supplier.allowed_account_kinds"`)}
+	}
+	if _, ok := _c.mutation.ReviewRequired(); !ok {
+		return &ValidationError{Name: "review_required", err: errors.New(`ent: missing required field "Supplier.review_required"`)}
+	}
+	if _, ok := _c.mutation.AutoApproveGroups(); !ok {
+		return &ValidationError{Name: "auto_approve_groups", err: errors.New(`ent: missing required field "Supplier.auto_approve_groups"`)}
 	}
 	if v, ok := _c.mutation.TokenSelector(); ok {
 		if err := supplier.TokenSelectorValidator(v); err != nil {
@@ -386,6 +423,14 @@ func (_c *SupplierCreate) createSpec() (*Supplier, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.AllowedAccountKinds(); ok {
 		_spec.SetField(supplier.FieldAllowedAccountKinds, field.TypeJSON, value)
 		_node.AllowedAccountKinds = value
+	}
+	if value, ok := _c.mutation.ReviewRequired(); ok {
+		_spec.SetField(supplier.FieldReviewRequired, field.TypeBool, value)
+		_node.ReviewRequired = value
+	}
+	if value, ok := _c.mutation.AutoApproveGroups(); ok {
+		_spec.SetField(supplier.FieldAutoApproveGroups, field.TypeJSON, value)
+		_node.AutoApproveGroups = value
 	}
 	if value, ok := _c.mutation.TokenSelector(); ok {
 		_spec.SetField(supplier.FieldTokenSelector, field.TypeString, value)
@@ -584,6 +629,30 @@ func (u *SupplierUpsert) SetAllowedAccountKinds(v []domain.SupplierAccountKind) 
 // UpdateAllowedAccountKinds sets the "allowed_account_kinds" field to the value that was provided on create.
 func (u *SupplierUpsert) UpdateAllowedAccountKinds() *SupplierUpsert {
 	u.SetExcluded(supplier.FieldAllowedAccountKinds)
+	return u
+}
+
+// SetReviewRequired sets the "review_required" field.
+func (u *SupplierUpsert) SetReviewRequired(v bool) *SupplierUpsert {
+	u.Set(supplier.FieldReviewRequired, v)
+	return u
+}
+
+// UpdateReviewRequired sets the "review_required" field to the value that was provided on create.
+func (u *SupplierUpsert) UpdateReviewRequired() *SupplierUpsert {
+	u.SetExcluded(supplier.FieldReviewRequired)
+	return u
+}
+
+// SetAutoApproveGroups sets the "auto_approve_groups" field.
+func (u *SupplierUpsert) SetAutoApproveGroups(v map[string]int64) *SupplierUpsert {
+	u.Set(supplier.FieldAutoApproveGroups, v)
+	return u
+}
+
+// UpdateAutoApproveGroups sets the "auto_approve_groups" field to the value that was provided on create.
+func (u *SupplierUpsert) UpdateAutoApproveGroups() *SupplierUpsert {
+	u.SetExcluded(supplier.FieldAutoApproveGroups)
 	return u
 }
 
@@ -831,6 +900,34 @@ func (u *SupplierUpsertOne) SetAllowedAccountKinds(v []domain.SupplierAccountKin
 func (u *SupplierUpsertOne) UpdateAllowedAccountKinds() *SupplierUpsertOne {
 	return u.Update(func(s *SupplierUpsert) {
 		s.UpdateAllowedAccountKinds()
+	})
+}
+
+// SetReviewRequired sets the "review_required" field.
+func (u *SupplierUpsertOne) SetReviewRequired(v bool) *SupplierUpsertOne {
+	return u.Update(func(s *SupplierUpsert) {
+		s.SetReviewRequired(v)
+	})
+}
+
+// UpdateReviewRequired sets the "review_required" field to the value that was provided on create.
+func (u *SupplierUpsertOne) UpdateReviewRequired() *SupplierUpsertOne {
+	return u.Update(func(s *SupplierUpsert) {
+		s.UpdateReviewRequired()
+	})
+}
+
+// SetAutoApproveGroups sets the "auto_approve_groups" field.
+func (u *SupplierUpsertOne) SetAutoApproveGroups(v map[string]int64) *SupplierUpsertOne {
+	return u.Update(func(s *SupplierUpsert) {
+		s.SetAutoApproveGroups(v)
+	})
+}
+
+// UpdateAutoApproveGroups sets the "auto_approve_groups" field to the value that was provided on create.
+func (u *SupplierUpsertOne) UpdateAutoApproveGroups() *SupplierUpsertOne {
+	return u.Update(func(s *SupplierUpsert) {
+		s.UpdateAutoApproveGroups()
 	})
 }
 
@@ -1259,6 +1356,34 @@ func (u *SupplierUpsertBulk) SetAllowedAccountKinds(v []domain.SupplierAccountKi
 func (u *SupplierUpsertBulk) UpdateAllowedAccountKinds() *SupplierUpsertBulk {
 	return u.Update(func(s *SupplierUpsert) {
 		s.UpdateAllowedAccountKinds()
+	})
+}
+
+// SetReviewRequired sets the "review_required" field.
+func (u *SupplierUpsertBulk) SetReviewRequired(v bool) *SupplierUpsertBulk {
+	return u.Update(func(s *SupplierUpsert) {
+		s.SetReviewRequired(v)
+	})
+}
+
+// UpdateReviewRequired sets the "review_required" field to the value that was provided on create.
+func (u *SupplierUpsertBulk) UpdateReviewRequired() *SupplierUpsertBulk {
+	return u.Update(func(s *SupplierUpsert) {
+		s.UpdateReviewRequired()
+	})
+}
+
+// SetAutoApproveGroups sets the "auto_approve_groups" field.
+func (u *SupplierUpsertBulk) SetAutoApproveGroups(v map[string]int64) *SupplierUpsertBulk {
+	return u.Update(func(s *SupplierUpsert) {
+		s.SetAutoApproveGroups(v)
+	})
+}
+
+// UpdateAutoApproveGroups sets the "auto_approve_groups" field to the value that was provided on create.
+func (u *SupplierUpsertBulk) UpdateAutoApproveGroups() *SupplierUpsertBulk {
+	return u.Update(func(s *SupplierUpsert) {
+		s.UpdateAutoApproveGroups()
 	})
 }
 

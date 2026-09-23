@@ -42,6 +42,8 @@ token_hash                 varchar(64) nullable
 token_prefix               varchar(32) nullable
 token_created_at           timestamptz nullable
 token_last_used_at         timestamptz nullable
+review_required            boolean NOT NULL DEFAULT true
+auto_approve_groups        jsonb NOT NULL DEFAULT '{}'
 created_at                 timestamptz
 updated_at                 timestamptz
 deleted_at                 timestamptz nullable
@@ -108,7 +110,7 @@ review_note                text NULL
 - `supplier_external_id` 去除首尾空白，空字符串转 NULL。
 - 活跃行建立 `(supplier_id, supplier_external_id)` 部分唯一索引，条件为 `supplier_id IS NOT NULL AND supplier_external_id IS NOT NULL AND deleted_at IS NULL`。
 - 建立 `(supplier_id, review_status)` 和 `(supplier_id, status)` 索引。
-- 供应商提交账号必须写入 `pending + inactive + schedulable=false`，且不绑定分组。
+- 供应商默认提交账号写入 `pending + disabled + schedulable=false`，且不绑定分组；管理员开启免审并指定同平台启用分组时创建账号直接绑定分组、审核通过并启用。
 
 ### 2.4 删除语义
 
@@ -198,6 +200,11 @@ platform
 type
 credentials
 expires_at
+proxy_id (平台库存中启用且未过期的代理，必填)
+concurrency (可选)
+priority (可选)
+load_factor (可选)
+auto_pause_on_expired (可选)
 ```
 
 禁止：
@@ -205,10 +212,6 @@ expires_at
 ```text
 supplier_id
 group_ids
-proxy_id
-priority
-concurrency
-load_factor
 rate_multiplier
 status
 schedulable
@@ -221,9 +224,9 @@ extra
 
 ### 5.2 更新字段
 
-允许更新：名称、备注、供应商外部编号、凭据、过期时间和供应商主动暂停状态。
+允许更新：名称、备注、供应商外部编号、凭据、过期时间、平台库存代理、并发、优先级、负载因子、到期停调和供应商主动暂停状态。
 
-- 修改任意敏感凭据、Base URL、平台或类型，必须重新进入 pending 并停止调度。
+- 默认审核策略下修改凭据、Base URL 或库存代理，必须重新进入 pending 并停止调度；免审供应商的修改不改变被驳回账号的审核状态。
 - 首版不允许原地修改平台或类型；应删除后重建，减少跨类型残留凭据风险。
 - 供应商可以把已审核账号设为 inactive。
 - 只有 `review_status=approved` 的账号才允许恢复 active；pending/rejected 不能由供应商启用。
@@ -262,7 +265,7 @@ expires_at, last_used_at, created_at, updated_at
 
 - 各已支持平台的静态 `apikey`。
 - 管理员允许的 `upstream`，Base URL 只允许 HTTPS 并按显式域名白名单验证；拒绝 localhost、环回、链路本地、RFC1918、IPv6 ULA、云元数据地址和重定向到私网。
-- 已取得的 `setup-token` 和 `oauth` 凭据包；允许 access/refresh token 等该平台必要字段，但不允许供应商调用交互式 OAuth、SSO、密码或 Cookie 换票接口。
+- 已取得的 `setup-token` 和 `oauth` 凭据包；允许 access/refresh token 等该平台必要字段。供应商可在已授权平台/类型与有效库存代理范围内调用专属 OAuth/Setup Token 换票接口；Claude Cookie、Grok SSO 和启用后的 Grok 密码登录也有独立入口，不开放管理员接口。
 - `bedrock` 的 API Key 或 SigV4 凭据，以及 `service_account` JSON；只接受现有账号模型已支持且校验通过的字段。
 - 所有类型均由 supplier 的 `allowed_account_kinds` 显式启用；默认全部拒绝。
 - 不接受任意请求头覆写和 Composite/影子账号内部字段；模型映射仅在平台现有校验规则允许时开放。
@@ -295,10 +298,11 @@ expires_at, last_used_at, created_at, updated_at
 | Method | Path | Authentication | Description |
 |---|---|---|---|
 | GET | `/api/v1/supplier/me` | JWT/token | 当前供应商精简信息 |
+| GET | `/api/v1/supplier/proxies` | JWT/token | 可选库存代理 ID 和名称 |
 | GET | `/api/v1/supplier/accounts` | JWT/token | 分页查询自己的账号 |
 | GET | `/api/v1/supplier/accounts/:id` | JWT/token | 获取自己的账号 |
-| POST | `/api/v1/supplier/accounts` | JWT/token | 创建一个待审核账号 |
-| POST | `/api/v1/supplier/accounts/batch` | JWT/token | 批量创建待审核账号 |
+| POST | `/api/v1/supplier/accounts` | JWT/token | 创建账号；默认待审核，可信供应商自动审核 |
+| POST | `/api/v1/supplier/accounts/batch` | JWT/token | 批量创建，逐项依审核策略处理 |
 | PUT | `/api/v1/supplier/accounts/:id` | JWT/token | 更新允许字段 |
 | DELETE | `/api/v1/supplier/accounts/:id` | JWT/token | 软删除自己的账号 |
 | POST | `/api/v1/supplier/accounts/:id/test` | JWT/token | 测试自己的账号 |
@@ -324,6 +328,8 @@ expires_at, last_used_at, created_at, updated_at
 | POST | `/api/v1/admin/suppliers/:id/access-token/regenerate` | 生成或轮换令牌 |
 | DELETE | `/api/v1/admin/suppliers/:id/access-token` | 撤销令牌 |
 | GET | `/api/v1/admin/suppliers/:id/accounts` | 查看供应商账号 |
+| GET | `/api/v1/admin/suppliers/:id/accounts/:account_id` | 查看待审配置和脱敏凭据 |
+| GET | `/api/v1/admin/suppliers/:id/accounts/:account_id/password` | 管理员按需查看网页登录密码，禁止缓存并记审计 |
 | POST | `/api/v1/admin/suppliers/:id/accounts/approve` | 批量审核通过 |
 | POST | `/api/v1/admin/suppliers/:id/accounts/reject` | 批量拒绝 |
 | POST | `/api/v1/admin/suppliers/:id/accounts/pause` | 批量暂停供应商账号 |
@@ -479,5 +485,5 @@ docker compose --env-file deploy/.env -f deploy/docker-compose.dev.yml up -d --b
 | 系统令牌 | 每供应商一个、只存摘要 | 满足当前需求并保持最小实现 |
 | 新账号状态 | 默认待审核 | 防止恶意/错误凭据直接进入生产调度 |
 | 批量格式 | JSON API，最大 500 | 先覆盖系统对接，CSV 按真实样例后加 |
-| OAuth 等复杂凭据 | 支持已取得的凭据包，不开放交互式登录 | 供应商负责取得凭据，平台负责严格校验和安全存储 |
-| 自动审核 | 不提供 | 供应商始终不能绕过平台审核和调度配置 |
+| OAuth 等复杂凭据 | 支持已取得的凭据包和受限自助授权 | 供应商自行登录，平台约束供应商、类型、库存代理与换票会话 |
+| 自动审核 | 默认关闭，仅管理员为可信供应商配置平台分组后开启 | 未配置分组时拒绝提交 |

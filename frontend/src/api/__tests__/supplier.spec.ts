@@ -10,10 +10,26 @@ vi.mock('@/api/client', () => ({ apiClient: { post, get, put, delete: remove } }
 describe('supplier API', () => {
   beforeEach(() => vi.clearAllMocks())
 
+  it('sends Gemini options and a supplier-scoped code exchange without changing proxies', async () => {
+    post.mockResolvedValue({ data: {} })
+    const { generateSupplierOAuthURL, exchangeSupplierOAuthCode } = await import('@/api/supplier')
+    await generateSupplierOAuthURL('gemini', { proxy_id: 3, type: 'oauth', oauth_type: 'google_one', project_id: 'my-project' })
+    await exchangeSupplierOAuthCode('gemini', 'oauth', 'session', 'code', 'state')
+    expect(post).toHaveBeenNthCalledWith(1, '/supplier/oauth/gemini/auth-url', { proxy_id: 3, type: 'oauth', oauth_type: 'google_one', project_id: 'my-project' })
+    expect(post).toHaveBeenNthCalledWith(2, '/supplier/oauth/gemini/exchange-code', { type: 'oauth', session_id: 'session', code: 'code', state: 'state' })
+  })
+
+  it('reads Grok password capability from the supplier route', async () => {
+    get.mockResolvedValueOnce({ data: { password_auth_enabled: false } })
+    const { getSupplierGrokOAuthCapabilities } = await import('@/api/supplier')
+    expect(await getSupplierGrokOAuthCapabilities()).toEqual({ password_auth_enabled: false })
+    expect(get).toHaveBeenCalledWith('/supplier/oauth/grok/capabilities')
+  })
+
   it('sends a caller-visible idempotency key for single and batch creates', async () => {
     post.mockResolvedValue({ data: {} })
     const { createAccount, batchCreateAccounts } = await import('@/api/supplier')
-    const account = { name: 'A', platform: 'openai', type: 'apikey', credentials: { api_key: 'secret' } }
+    const account = { name: 'A', platform: 'openai', type: 'apikey', credentials: { api_key: 'secret' }, proxy_id: 3 }
 
     await createAccount(account, 'single-key')
     await batchCreateAccounts([account], 'batch-key')

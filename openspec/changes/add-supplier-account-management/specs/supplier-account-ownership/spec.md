@@ -11,7 +11,7 @@
 #### Scenario: 供应商创建账号
 - **WHEN** active 供应商提交合法账号
 - **THEN** 系统 MUST 从认证上下文写入 supplier_id
-- **THEN** 账号 MUST 创建为 pending、inactive、schedulable=false 且无分组
+- **THEN** 默认 MUST 创建为 pending、inactive、schedulable=false 且无分组；管理员配置可信免审和同平台分组时，创建为 approved、active、schedulable=true 且绑定预设分组
 
 #### Scenario: 客户端伪造 supplier_id
 - **WHEN** 供应商请求正文、query 或 header 中提供其他 supplier_id
@@ -75,7 +75,7 @@ review_status SHALL 只表示平台对凭据配置的审核结论；status 和 s
 
 ### Requirement: 凭据身份变化触发重新审核
 
-供应商修改上游 Key、Base URL 或其他凭据身份字段时，系统 MUST 自动将账号置为 pending、inactive、schedulable=false。名称和备注变化 MUST NOT 触发重新审核。
+默认需要审核的供应商修改上游 Key、Base URL、代理或其他凭据身份字段时，系统 MUST 自动将账号置为 pending、inactive、schedulable=false。免审供应商的已审核账号修改后保持原运行状态；名称和备注变化 MUST NOT 触发重新审核。
 
 #### Scenario: 修改 API Key
 - **WHEN** 供应商更新已审核账号的 api_key
@@ -85,4 +85,3 @@ review_status SHALL 只表示平台对凭据配置的审核结论；status 和 s
 #### Scenario: 仅修改备注
 - **WHEN** 供应商只修改 name 或 notes
 - **THEN** 原审核状态和调度状态 MUST 保持不变
-

@@ -130,7 +130,7 @@ sub2api-redis-dev      healthy
 - admin API Key、用户模型 Key、JWT 和 supplier token 格式/权限不可互换。
 - 创建和批量创建强制幂等；幂等存储不可用时 fail closed。
 - 单账号正文 1 MiB、批量正文 2 MiB、批量数量 500；合法 JSON 加超量尾部也会返回 413。
-- 凭据按静态 allowlist 校验；未知字段、Cookie、密码、SSO、header override 和管理员字段被拒绝。
+- 凭据按静态 allowlist 校验；未知字段、Cookie、SSO、header override 和管理员字段被拒绝。仅 OAuth / Setup Token 允许且必须提交网页登录邮箱与密码，密码加密保存。
 - Base URL 仅 HTTPS、受域名白名单和私网/保留地址检查约束。
 - 供应商操作按 supplier_id 共用 Redis 限流桶，机器令牌不能绕过 user_id 限流。
 - 审计请求体把整个 `credentials` 节点替换为 `***`，包括未知嵌套键。
@@ -140,7 +140,7 @@ sub2api-redis-dev      healthy
 ### 5.2 明确保留的系统边界
 
 - 现有 `accounts.credentials` 仍为数据库 JSONB 明文，沿用项目现有运行方式；全量应用层加密迁移不属于本变更范围。
-- Composite、影子账号和交互式 OAuth/SSO/密码/Cookie 换票保持管理员专属。
+- Composite、影子账号及管理员授权接口仍不可由供应商访问；供应商仅可使用受类型、库存代理和供应商身份约束的独立换票入口。
 - 不包含供应商结算、账单或供应商内部多级 RBAC。
 
 ## 6. 部署与回滚
@@ -181,7 +181,7 @@ sub2api-redis-dev      healthy
 
 - Antigravity API Key 模式为上游中转服务接入，服务端和实际转发都要求 api_key、base_url；旧表单漏生成地址且类型切换不同步，导致 422。现改为按类型展示普通输入项，共享模板覆盖 Antigravity 地址、OAuth、Bedrock、Service Account 和国内平台，保留高级 JSON。
 - 空必填值及不完整 HTTPS 地址在提交前给出明确提示；输入过的凭据在更换类型/模板前确认。服务端类型授权、域名白名单和 SSRF 校验保持原样。
-- 供应商账号运营字段仍由管理员管理：创建时无代理、无分组、并发 1、优先级 50、倍率 1、pending/disabled、不可调度。供应商不得经 JSON 设置管理员字段。
+- 供应商提交必须绑定有效库存代理，可设置并发、优先级、负载因子及到期停调。默认审核策略下无分组、倍率 1、pending/disabled、不可调度；管理员可为可信供应商指定分组并开启免审。供应商不得经 JSON 设置分组、倍率或审核状态。
 - 连接测试返回 SSE，旧界面把 HTTP 200 当成测试完成。现在要求明确 test_complete/success=true；error、截断、畸形或不完整响应都不能显示通过。
 - 系统令牌页面新增指南，支持网页步骤、Bash/cURL 与 PowerShell、令牌验证、单个创建、批量创建及分页查询。例子只使用占位符；说明真实允许类型、幂等重试、逐项结果、权限和常见错误。
 - 修正过期时间编辑时使用 UTC 字符串回填本地输入框的问题，复用项目现有格式化函数。

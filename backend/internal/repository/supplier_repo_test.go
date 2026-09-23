@@ -14,10 +14,11 @@ func TestSupplierEntityToServicePreservesTenantConfiguration(t *testing.T) {
 	now := time.Date(2026, time.September, 22, 12, 0, 0, 0, time.UTC)
 	prefix := "supplier_demo"
 	row := &dbent.Supplier{
-		ID:     7,
-		Code:   "demo",
-		Name:   "Demo Supplier",
-		Status: domain.SupplierStatusActive,
+		ID:             7,
+		Code:           "demo",
+		Name:           "Demo Supplier",
+		Status:         domain.SupplierStatusActive,
+		ReviewRequired: true,
 		AllowedAccountKinds: []domain.SupplierAccountKind{
 			{Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey},
 		},
@@ -28,10 +29,11 @@ func TestSupplierEntityToServicePreservesTenantConfiguration(t *testing.T) {
 
 	got := supplierEntityToService(row)
 	require.Equal(t, &service.Supplier{
-		ID:     7,
-		Code:   "demo",
-		Name:   "Demo Supplier",
-		Status: domain.SupplierStatusActive,
+		ID:             7,
+		Code:           "demo",
+		Name:           "Demo Supplier",
+		Status:         domain.SupplierStatusActive,
+		ReviewRequired: true,
 		AllowedAccountKinds: []domain.SupplierAccountKind{
 			{Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey},
 		},

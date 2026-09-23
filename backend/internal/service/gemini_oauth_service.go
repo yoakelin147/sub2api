@@ -99,6 +99,14 @@ type GeminiAuthURLResult struct {
 }
 
 func (s *GeminiOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, redirectURI, projectID, oauthType, tierID string) (*GeminiAuthURLResult, error) {
+	return s.generateAuthURL(ctx, proxyID, redirectURI, projectID, oauthType, tierID, 0)
+}
+
+func (s *GeminiOAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID, proxyID int64, projectID, oauthType, tierID string) (*GeminiAuthURLResult, error) {
+	return s.generateAuthURL(ctx, &proxyID, "", projectID, oauthType, tierID, supplierID)
+}
+
+func (s *GeminiOAuthService) generateAuthURL(ctx context.Context, proxyID *int64, redirectURI, projectID, oauthType, tierID string, supplierID int64) (*GeminiAuthURLResult, error) {
 	state, err := geminicli.GenerateState()
 	if err != nil {
 		return nil, fmt.Errorf("failed to generate state: %w", err)
@@ -137,6 +145,7 @@ func (s *GeminiOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64
 	}
 
 	session := &geminicli.OAuthSession{
+		SupplierID:   supplierID,
 		State:        state,
 		CodeVerifier: codeVerifier,
 		ProxyURL:     proxyURL,
@@ -443,11 +452,19 @@ func (s *GeminiOAuthService) RefreshAccountGoogleOneTier(
 }
 
 func (s *GeminiOAuthService) ExchangeCode(ctx context.Context, input *GeminiExchangeCodeInput) (*GeminiTokenInfo, error) {
+	return s.exchangeCode(ctx, input, 0)
+}
+
+func (s *GeminiOAuthService) ExchangeSupplierCode(ctx context.Context, supplierID int64, input *GeminiExchangeCodeInput) (*GeminiTokenInfo, error) {
+	return s.exchangeCode(ctx, input, supplierID)
+}
+
+func (s *GeminiOAuthService) exchangeCode(ctx context.Context, input *GeminiExchangeCodeInput, supplierID int64) (*GeminiTokenInfo, error) {
 	logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] ========== ExchangeCode START ==========")
 	logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] SessionID: %s", input.SessionID)
 
 	session, ok := s.sessionStore.Get(input.SessionID)
-	if !ok {
+	if !ok || session.SupplierID != supplierID || (supplierID > 0 && (input.ProxyID != nil || (input.OAuthType != "" && input.OAuthType != session.OAuthType) || input.TierID != "")) {
 		logger.LegacyPrintf("service.gemini_oauth", "[GeminiOAuth] ERROR: Session not found or expired")
 		return nil, fmt.Errorf("session not found or expired")
 	}

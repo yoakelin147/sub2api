@@ -11,7 +11,7 @@ describe('parseSupplierAccountImport', () => {
     )
 
     expect(accounts).toEqual([
-      { external_id: 'ext-1', name: 'A', platform: 'openai', type: 'apikey', credentials: { api_key: 'sk-a' } },
+      { external_id: 'ext-1', name: 'A', platform: 'openai', type: 'apikey', credentials: { api_key: 'sk-a' }, proxy_id: 0 },
     ])
   })
 
@@ -29,6 +29,7 @@ describe('parseSupplierAccountImport', () => {
         platform: 'openai',
         type: 'apikey',
         credentials: { api_key: 'sk-a' },
+        proxy_id: 0,
         notes: 'quoted "note"',
       },
     ])

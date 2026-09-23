@@ -32,6 +32,10 @@ const (
 	FieldNotes = "notes"
 	// FieldAllowedAccountKinds holds the string denoting the allowed_account_kinds field in the database.
 	FieldAllowedAccountKinds = "allowed_account_kinds"
+	// FieldReviewRequired holds the string denoting the review_required field in the database.
+	FieldReviewRequired = "review_required"
+	// FieldAutoApproveGroups holds the string denoting the auto_approve_groups field in the database.
+	FieldAutoApproveGroups = "auto_approve_groups"
 	// FieldTokenSelector holds the string denoting the token_selector field in the database.
 	FieldTokenSelector = "token_selector"
 	// FieldTokenHash holds the string denoting the token_hash field in the database.
@@ -75,6 +79,8 @@ var Columns = []string{
 	FieldStatus,
 	FieldNotes,
 	FieldAllowedAccountKinds,
+	FieldReviewRequired,
+	FieldAutoApproveGroups,
 	FieldTokenSelector,
 	FieldTokenHash,
 	FieldTokenPrefix,
@@ -116,6 +122,10 @@ var (
 	StatusValidator func(string) error
 	// DefaultAllowedAccountKinds holds the default value on creation for the "allowed_account_kinds" field.
 	DefaultAllowedAccountKinds func() []domain.SupplierAccountKind
+	// DefaultReviewRequired holds the default value on creation for the "review_required" field.
+	DefaultReviewRequired bool
+	// DefaultAutoApproveGroups holds the default value on creation for the "auto_approve_groups" field.
+	DefaultAutoApproveGroups func() map[string]int64
 	// TokenSelectorValidator is a validator for the "token_selector" field. It is called by the builders before save.
 	TokenSelectorValidator func(string) error
 	// TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.
@@ -165,6 +175,11 @@ func ByStatus(opts ...sql.OrderTermOption) OrderOption {
 // ByNotes orders the results by the notes field.
 func ByNotes(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldNotes, opts...).ToFunc()
+}
+
+// ByReviewRequired orders the results by the review_required field.
+func ByReviewRequired(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldReviewRequired, opts...).ToFunc()
 }
 
 // ByTokenSelector orders the results by the token_selector field.

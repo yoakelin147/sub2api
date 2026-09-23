@@ -26,6 +26,8 @@ const memberResult = { items: [{ id: 21, email: 'member@example.test', username:
 vi.mock('@/api/admin/suppliers', () => ({ default: {
   listMembers: (...args: unknown[]) => listMembers(...args),
   listAccounts: (...args: unknown[]) => listAccounts(...args),
+  getAccount: vi.fn().mockResolvedValue({ id: 11, name: 'Pending Account', platform: 'openai', type: 'oauth', credentials: { email: 'login@example.test' }, credentials_status: { has_access_token: true, has_login_password_encrypted: true }, proxy_id: 3, concurrency: 1, priority: 50, auto_pause_on_expired: true }),
+  revealAccountPassword: vi.fn().mockResolvedValue('web-secret'),
   approveAccounts: (...args: unknown[]) => approveAccounts(...args),
   rejectAccounts: vi.fn(), pauseAccounts: vi.fn(), addMember: (...args: unknown[]) => addMember(...args), removeMember: (...args: unknown[]) => removeMember(...args),
   regenerateAccessToken: vi.fn(), getAccessTokenStatus: vi.fn(), revokeAccessToken: vi.fn(),
@@ -51,6 +53,23 @@ describe('SupplierDetail', () => {
     vi.clearAllMocks()
     listMembers.mockReset().mockResolvedValue(memberResult)
     listAccounts.mockReset().mockResolvedValue(accountResult)
+  })
+
+  it('shows review configuration with a masked password until explicitly revealed', async () => {
+    listAccounts.mockResolvedValue({ ...accountResult, items: [{ ...accountResult.items[0], credentials: { email: 'login@example.test' }, credentials_status: { has_login_password_encrypted: true } }] })
+    const wrapper = mount(SupplierAccountsPanel, { props: { supplierId: 7 }, global })
+    await flushPromises()
+    expect(wrapper.text()).toContain('login@example.test')
+    expect(wrapper.text()).not.toContain('web-secret')
+    await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.configuration')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('access_token')
+    expect(wrapper.text()).not.toContain('web-secret')
+    await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.showPassword')!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('web-secret')
+    await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.hidePassword')!.trigger('click')
+    expect(wrapper.text()).not.toContain('web-secret')
   })
 
   it('approves only selected accounts with selected groups', async () => {

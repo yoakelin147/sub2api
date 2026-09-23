@@ -41,6 +41,7 @@ const (
 
 // OAuthSession stores OAuth flow state for OpenAI
 type OAuthSession struct {
+	SupplierID   int64     `json:"supplier_id,omitempty"`
 	State        string    `json:"state"`
 	CodeVerifier string    `json:"code_verifier"`
 	ClientID     string    `json:"client_id,omitempty"`

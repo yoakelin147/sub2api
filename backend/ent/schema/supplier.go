@@ -35,6 +35,10 @@ func (Supplier) Fields() []ent.Field {
 		field.JSON("allowed_account_kinds", []domain.SupplierAccountKind{}).
 			Default(func() []domain.SupplierAccountKind { return []domain.SupplierAccountKind{} }).
 			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
+		field.Bool("review_required").Default(true),
+		field.JSON("auto_approve_groups", map[string]int64{}).
+			Default(func() map[string]int64 { return map[string]int64{} }).
+			SchemaType(map[string]string{dialect.Postgres: "jsonb"}),
 		field.String("token_selector").MaxLen(64).Optional().Nillable(),
 		field.String("token_hash").MaxLen(64).Optional().Nillable(),
 		field.String("token_prefix").MaxLen(32).Optional().Nillable(),

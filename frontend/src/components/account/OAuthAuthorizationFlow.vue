@@ -703,6 +703,7 @@
                 <button
                   v-if="!authUrl"
                   type="button"
+                  data-testid="oauth-generate-url"
                   :disabled="loading"
                   class="btn btn-primary text-sm"
                   @click="handleGenerateUrl"
@@ -797,6 +798,14 @@
                 <p class="text-sm text-blue-700 dark:text-blue-300">
                   {{ oauthOpenUrlDesc }}
                 </p>
+                <a
+                  v-if="authUrl"
+                  :href="authUrl"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  data-testid="oauth-open-url"
+                  class="mt-2 inline-block text-sm font-medium text-blue-600 underline dark:text-blue-400"
+                >{{ oauthStep2OpenUrl }}</a>
                 <!-- Local callback notice -->
                 <div
                   v-if="showLocalCallbackNotice"
@@ -846,6 +855,7 @@
                   </label>
                   <textarea
                     v-model="authCodeInput"
+                    data-testid="oauth-auth-code"
                     rows="3"
                     class="input w-full resize-none font-mono text-sm"
                     :placeholder="oauthAuthCodePlaceholder"
@@ -901,6 +911,7 @@ import Icon from '@/components/icons/Icon.vue'
 import type { AddMethod, AuthInputMethod } from '@/composables/useAccountOAuth'
 import type { AccountPlatform } from '@/types'
 import { adminAPI } from '@/api/admin'
+import { getSupplierGrokOAuthCapabilities } from '@/api/supplier'
 
 interface Props {
   addMethod: AddMethod
@@ -923,6 +934,7 @@ interface Props {
   showSsoOption?: boolean
   /** Grok email----password login (admin; password never persisted). */
   showEmailPasswordOption?: boolean
+  supplierMode?: boolean
   showManualOption?: boolean
   initialInputMethod?: AuthInputMethod
   /**
@@ -953,6 +965,7 @@ const props = withDefaults(defineProps<Props>(), {
   showCodexPatOption: false,
   showSsoOption: false,
   showEmailPasswordOption: false,
+  supplierMode: false,
   showManualOption: true,
   initialInputMethod: 'manual',
   initialEmailPassword: '',
@@ -1032,7 +1045,9 @@ watch(
     passwordAuthEnabled.value = false
     if (platform !== 'grok' || !requested) return
     try {
-      const capabilities = await adminAPI.grok.getCapabilities()
+      const capabilities = props.supplierMode
+        ? await getSupplierGrokOAuthCapabilities()
+        : await adminAPI.grok.getCapabilities()
       passwordAuthEnabled.value = capabilities.password_auth_enabled
     } catch {
       // Fail closed; the backend enforces the same capability.

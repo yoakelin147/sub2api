@@ -35,6 +35,10 @@ type Supplier struct {
 	Notes *string `json:"notes,omitempty"`
 	// AllowedAccountKinds holds the value of the "allowed_account_kinds" field.
 	AllowedAccountKinds []domain.SupplierAccountKind `json:"allowed_account_kinds,omitempty"`
+	// ReviewRequired holds the value of the "review_required" field.
+	ReviewRequired bool `json:"review_required,omitempty"`
+	// AutoApproveGroups holds the value of the "auto_approve_groups" field.
+	AutoApproveGroups map[string]int64 `json:"auto_approve_groups,omitempty"`
 	// TokenSelector holds the value of the "token_selector" field.
 	TokenSelector *string `json:"token_selector,omitempty"`
 	// TokenHash holds the value of the "token_hash" field.
@@ -85,8 +89,10 @@ func (*Supplier) scanValues(columns []string) ([]any, error) {
 	values := make([]any, len(columns))
 	for i := range columns {
 		switch columns[i] {
-		case supplier.FieldAllowedAccountKinds:
+		case supplier.FieldAllowedAccountKinds, supplier.FieldAutoApproveGroups:
 			values[i] = new([]byte)
+		case supplier.FieldReviewRequired:
+			values[i] = new(sql.NullBool)
 		case supplier.FieldID:
 			values[i] = new(sql.NullInt64)
 		case supplier.FieldCode, supplier.FieldName, supplier.FieldStatus, supplier.FieldNotes, supplier.FieldTokenSelector, supplier.FieldTokenHash, supplier.FieldTokenPrefix:
@@ -164,6 +170,20 @@ func (_m *Supplier) assignValues(columns []string, values []any) error {
 			} else if value != nil && len(*value) > 0 {
 				if err := json.Unmarshal(*value, &_m.AllowedAccountKinds); err != nil {
 					return fmt.Errorf("unmarshal field allowed_account_kinds: %w", err)
+				}
+			}
+		case supplier.FieldReviewRequired:
+			if value, ok := values[i].(*sql.NullBool); !ok {
+				return fmt.Errorf("unexpected type %T for field review_required", values[i])
+			} else if value.Valid {
+				_m.ReviewRequired = value.Bool
+			}
+		case supplier.FieldAutoApproveGroups:
+			if value, ok := values[i].(*[]byte); !ok {
+				return fmt.Errorf("unexpected type %T for field auto_approve_groups", values[i])
+			} else if value != nil && len(*value) > 0 {
+				if err := json.Unmarshal(*value, &_m.AutoApproveGroups); err != nil {
+					return fmt.Errorf("unmarshal field auto_approve_groups: %w", err)
 				}
 			}
 		case supplier.FieldTokenSelector:
@@ -274,6 +294,12 @@ func (_m *Supplier) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("allowed_account_kinds=")
 	builder.WriteString(fmt.Sprintf("%v", _m.AllowedAccountKinds))
+	builder.WriteString(", ")
+	builder.WriteString("review_required=")
+	builder.WriteString(fmt.Sprintf("%v", _m.ReviewRequired))
+	builder.WriteString(", ")
+	builder.WriteString("auto_approve_groups=")
+	builder.WriteString(fmt.Sprintf("%v", _m.AutoApproveGroups))
 	builder.WriteString(", ")
 	if v := _m.TokenSelector; v != nil {
 		builder.WriteString("token_selector=")

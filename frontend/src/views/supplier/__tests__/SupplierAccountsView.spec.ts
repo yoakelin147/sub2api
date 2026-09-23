@@ -22,6 +22,7 @@ const listAccounts = vi.fn().mockResolvedValue({
 vi.mock('@/api/supplier', () => ({
   getProfile: (...args: unknown[]) => getProfile(...args),
   listAccounts: (...args: unknown[]) => listAccounts(...args),
+  listProxies: vi.fn().mockResolvedValue([{ id: 3, name: 'Platform proxy' }]),
   createAccount: vi.fn(), updateAccount: vi.fn(), deleteAccount: vi.fn(), testAccount: vi.fn(),
 }))
 

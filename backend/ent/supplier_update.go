@@ -132,6 +132,26 @@ func (_u *SupplierUpdate) AppendAllowedAccountKinds(v []domain.SupplierAccountKi
 	return _u
 }
 
+// SetReviewRequired sets the "review_required" field.
+func (_u *SupplierUpdate) SetReviewRequired(v bool) *SupplierUpdate {
+	_u.mutation.SetReviewRequired(v)
+	return _u
+}
+
+// SetNillableReviewRequired sets the "review_required" field if the given value is not nil.
+func (_u *SupplierUpdate) SetNillableReviewRequired(v *bool) *SupplierUpdate {
+	if v != nil {
+		_u.SetReviewRequired(*v)
+	}
+	return _u
+}
+
+// SetAutoApproveGroups sets the "auto_approve_groups" field.
+func (_u *SupplierUpdate) SetAutoApproveGroups(v map[string]int64) *SupplierUpdate {
+	_u.mutation.SetAutoApproveGroups(v)
+	return _u
+}
+
 // SetTokenSelector sets the "token_selector" field.
 func (_u *SupplierUpdate) SetTokenSelector(v string) *SupplierUpdate {
 	_u.mutation.SetTokenSelector(v)
@@ -430,6 +450,12 @@ func (_u *SupplierUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 			sqljson.Append(u, supplier.FieldAllowedAccountKinds, value)
 		})
 	}
+	if value, ok := _u.mutation.ReviewRequired(); ok {
+		_spec.SetField(supplier.FieldReviewRequired, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AutoApproveGroups(); ok {
+		_spec.SetField(supplier.FieldAutoApproveGroups, field.TypeJSON, value)
+	}
 	if value, ok := _u.mutation.TokenSelector(); ok {
 		_spec.SetField(supplier.FieldTokenSelector, field.TypeString, value)
 	}
@@ -667,6 +693,26 @@ func (_u *SupplierUpdateOne) SetAllowedAccountKinds(v []domain.SupplierAccountKi
 // AppendAllowedAccountKinds appends value to the "allowed_account_kinds" field.
 func (_u *SupplierUpdateOne) AppendAllowedAccountKinds(v []domain.SupplierAccountKind) *SupplierUpdateOne {
 	_u.mutation.AppendAllowedAccountKinds(v)
+	return _u
+}
+
+// SetReviewRequired sets the "review_required" field.
+func (_u *SupplierUpdateOne) SetReviewRequired(v bool) *SupplierUpdateOne {
+	_u.mutation.SetReviewRequired(v)
+	return _u
+}
+
+// SetNillableReviewRequired sets the "review_required" field if the given value is not nil.
+func (_u *SupplierUpdateOne) SetNillableReviewRequired(v *bool) *SupplierUpdateOne {
+	if v != nil {
+		_u.SetReviewRequired(*v)
+	}
+	return _u
+}
+
+// SetAutoApproveGroups sets the "auto_approve_groups" field.
+func (_u *SupplierUpdateOne) SetAutoApproveGroups(v map[string]int64) *SupplierUpdateOne {
+	_u.mutation.SetAutoApproveGroups(v)
 	return _u
 }
 
@@ -997,6 +1043,12 @@ func (_u *SupplierUpdateOne) sqlSave(ctx context.Context) (_node *Supplier, err 
 		_spec.AddModifier(func(u *sql.UpdateBuilder) {
 			sqljson.Append(u, supplier.FieldAllowedAccountKinds, value)
 		})
+	}
+	if value, ok := _u.mutation.ReviewRequired(); ok {
+		_spec.SetField(supplier.FieldReviewRequired, field.TypeBool, value)
+	}
+	if value, ok := _u.mutation.AutoApproveGroups(); ok {
+		_spec.SetField(supplier.FieldAutoApproveGroups, field.TypeJSON, value)
 	}
 	if value, ok := _u.mutation.TokenSelector(); ok {
 		_spec.SetField(supplier.FieldTokenSelector, field.TypeString, value)

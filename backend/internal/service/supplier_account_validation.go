@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"encoding/pem"
 	"net/http"
+	"net/mail"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/config"
@@ -40,21 +41,21 @@ func credentialSpec(required []string, optional ...string) supplierCredentialSpe
 var supplierCredentialSpecs = map[SupplierAccountKind]supplierCredentialSpec{
 	{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}:            credentialSpec([]string{"api_key"}, "base_url"),
 	{Platform: PlatformOpenAI, Type: AccountTypeUpstream}:          credentialSpec([]string{"api_key", "base_url"}),
-	{Platform: PlatformOpenAI, Type: AccountTypeOAuth}:             credentialSpec([]string{"access_token"}, "refresh_token", "id_token", "expires_at", "email", "chatgpt_account_id", "chatgpt_user_id", "organization_id", "plan_type", "subscription_expires_at", "client_id"),
-	{Platform: PlatformOpenAI, Type: AccountTypeSetupToken}:        credentialSpec([]string{"access_token"}, "refresh_token", "expires_at", "email", "chatgpt_account_id"),
+	{Platform: PlatformOpenAI, Type: AccountTypeOAuth}:             credentialSpec([]string{"access_token", "email", "password"}, "refresh_token", "id_token", "expires_at", "chatgpt_account_id", "chatgpt_user_id", "organization_id", "plan_type", "subscription_expires_at", "client_id"),
+	{Platform: PlatformOpenAI, Type: AccountTypeSetupToken}:        credentialSpec([]string{"access_token", "email", "password"}, "refresh_token", "expires_at", "chatgpt_account_id"),
 	{Platform: PlatformAnthropic, Type: AccountTypeAPIKey}:         credentialSpec([]string{"api_key"}, "base_url", "auth_scheme"),
 	{Platform: PlatformAnthropic, Type: AccountTypeUpstream}:       credentialSpec([]string{"api_key", "base_url"}, "auth_scheme"),
-	{Platform: PlatformAnthropic, Type: AccountTypeOAuth}:          credentialSpec([]string{"access_token"}, "refresh_token", "expires_at", "token_type", "scope"),
-	{Platform: PlatformAnthropic, Type: AccountTypeSetupToken}:     credentialSpec([]string{"access_token"}, "refresh_token", "expires_at", "token_type", "scope"),
+	{Platform: PlatformAnthropic, Type: AccountTypeOAuth}:          credentialSpec([]string{"access_token", "email", "password"}, "refresh_token", "expires_at", "token_type", "scope"),
+	{Platform: PlatformAnthropic, Type: AccountTypeSetupToken}:     credentialSpec([]string{"access_token", "email", "password"}, "refresh_token", "expires_at", "token_type", "scope"),
 	{Platform: PlatformAnthropic, Type: AccountTypeBedrock}:        credentialSpec([]string{"auth_mode", "aws_region"}, "aws_access_key_id", "aws_secret_access_key", "aws_session_token", "aws_force_global", "api_key"),
 	{Platform: PlatformAnthropic, Type: AccountTypeServiceAccount}: credentialSpec([]string{"service_account_json", "location"}, "project_id", "client_email", "tier_id"),
 	{Platform: PlatformGemini, Type: AccountTypeAPIKey}:            credentialSpec([]string{"api_key"}, "base_url", "tier_id"),
-	{Platform: PlatformGemini, Type: AccountTypeOAuth}:             credentialSpec([]string{"access_token"}, "refresh_token", "token_type", "expires_at", "scope", "project_id", "oauth_type", "tier_id"),
+	{Platform: PlatformGemini, Type: AccountTypeOAuth}:             credentialSpec([]string{"access_token", "email", "password"}, "refresh_token", "token_type", "expires_at", "scope", "project_id", "oauth_type", "tier_id"),
 	{Platform: PlatformGemini, Type: AccountTypeServiceAccount}:    credentialSpec([]string{"service_account_json", "location"}, "project_id", "client_email", "tier_id"),
-	{Platform: PlatformAntigravity, Type: AccountTypeOAuth}:        credentialSpec([]string{"access_token"}, "refresh_token", "token_type", "expires_at", "project_id", "email", "plan_type"),
+	{Platform: PlatformAntigravity, Type: AccountTypeOAuth}:        credentialSpec([]string{"access_token", "email", "password"}, "refresh_token", "token_type", "expires_at", "project_id", "plan_type"),
 	{Platform: PlatformAntigravity, Type: AccountTypeAPIKey}:       credentialSpec([]string{"api_key", "base_url"}),
 	{Platform: PlatformGrok, Type: AccountTypeAPIKey}:              credentialSpec([]string{"api_key"}, "base_url"),
-	{Platform: PlatformGrok, Type: AccountTypeOAuth}:               credentialSpec([]string{"access_token"}, "refresh_token", "id_token", "token_type", "expires_at", "client_id", "scope", "email", "sub", "team_id", "subscription_tier", "entitlement_status", "base_url"),
+	{Platform: PlatformGrok, Type: AccountTypeOAuth}:               credentialSpec([]string{"access_token", "email", "password"}, "refresh_token", "id_token", "token_type", "expires_at", "client_id", "scope", "sub", "team_id", "subscription_tier", "entitlement_status", "base_url"),
 	{Platform: PlatformKimi, Type: AccountTypeAPIKey}:              credentialSpec([]string{"api_key", "account_mode", "api_protocol"}, "base_url", "api_base_urls"),
 	{Platform: PlatformZhipu, Type: AccountTypeAPIKey}:             credentialSpec([]string{"api_key", "account_mode", "api_protocol"}, "base_url", "api_base_urls", "zhipu_organization", "zhipu_project"),
 	{Platform: PlatformDeepseek, Type: AccountTypeAPIKey}:          credentialSpec([]string{"api_key", "account_mode", "api_protocol"}, "base_url", "api_base_urls"),
@@ -78,7 +79,9 @@ func ValidateSupplierAccountCredentials(cfg *config.Config, platform, accountTyp
 			return nil, ErrSupplierCredentialsInvalid
 		}
 		if text, ok := value.(string); ok {
-			value = strings.TrimSpace(text)
+			if key != "password" {
+				value = strings.TrimSpace(text)
+			}
 			if len(text) > maxSupplierCredentialBytes {
 				return nil, ErrSupplierCredentialsInvalid
 			}
@@ -87,6 +90,16 @@ func ValidateSupplierAccountCredentials(cfg *config.Config, platform, accountTyp
 	}
 	for key := range spec.required {
 		if !nonEmptyCredentialValue(normalized[key]) {
+			return nil, ErrSupplierCredentialsInvalid
+		}
+	}
+	if kind.Type == AccountTypeOAuth || kind.Type == AccountTypeSetupToken {
+		email, ok := normalized["email"].(string)
+		address, err := mail.ParseAddress(email)
+		if !ok || err != nil || address.Address != email {
+			return nil, ErrSupplierCredentialsInvalid
+		}
+		if _, ok := normalized["password"].(string); !ok {
 			return nil, ErrSupplierCredentialsInvalid
 		}
 	}

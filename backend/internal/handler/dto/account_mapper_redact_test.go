@@ -59,6 +59,20 @@ func TestAccountFromServiceShallow_RedactsSensitiveCredentials(t *testing.T) {
 	require.Equal(t, "rt-secret", src.Credentials["refresh_token"])
 }
 
+func TestSupplierAccountListProjectionHidesEncryptedLoginPassword(t *testing.T) {
+	supplierID := int64(7)
+	account := &service.Account{ID: 42, SupplierID: &supplierID, Name: "OAuth", Platform: service.PlatformOpenAI, Type: service.AccountTypeOAuth,
+		Credentials: map[string]any{"email": "login@example.com", "login_password_encrypted": "secret-ciphertext"}}
+	item := AccountListItemFromAccount(AccountFromServiceShallow(account))
+	require.Equal(t, &supplierID, item.SupplierID)
+	require.Equal(t, "login@example.com", item.Credentials["email"])
+	require.True(t, item.CredentialsStatus["has_login_password_encrypted"])
+	require.NotContains(t, item.Credentials, "login_password_encrypted")
+	raw, err := json.Marshal(item)
+	require.NoError(t, err)
+	require.NotContains(t, string(raw), "secret-ciphertext")
+}
+
 func TestAccountFromServiceShallow_RedactsOllamaCloudManagedExtra(t *testing.T) {
 	snapshot := map[string]any{
 		"status":          service.OllamaCloudUsageStatusOK,

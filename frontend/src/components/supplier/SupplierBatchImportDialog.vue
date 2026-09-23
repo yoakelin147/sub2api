@@ -18,6 +18,15 @@
         <textarea v-model="input" class="input min-h-72 font-mono text-xs" spellcheck="false"></textarea>
         <p class="input-hint">{{ formatHint }}</p>
       </label>
+      <label class="block">
+        <span class="input-label">{{ t('supplier.accounts.proxy') }}</span>
+        <select v-model.number="proxyId" class="input" required>
+          <option :value="0">{{ t('supplier.accounts.selectProxy') }}</option>
+          <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">{{ proxy.name }}</option>
+        </select>
+        <p class="input-hint">{{ t('supplier.batch.proxyHint') }}</p>
+      </label>
+      <p v-if="proxies.length === 0" role="alert" class="text-sm text-amber-700">{{ t('supplier.accounts.noProxy') }}</p>
 
       <div v-if="parseError" role="alert" class="rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700 dark:border-red-900/50 dark:bg-red-900/20 dark:text-red-300">
         {{ parseError }}
@@ -47,7 +56,7 @@
     <template #footer>
       <button type="button" class="btn btn-secondary" :disabled="submitting" @click="close">{{ t('common.close') }}</button>
       <button type="button" class="btn btn-secondary" :disabled="submitting || !input.trim()" @click="parse">{{ t('supplier.batch.parse') }}</button>
-      <button type="button" class="btn btn-primary" :disabled="submitting || accounts.length === 0" @click="submit">
+      <button type="button" class="btn btn-primary" :disabled="submitting || accounts.length === 0 || !proxyId || proxies.length === 0" @click="submit">
         {{ submitting ? t('common.submitting') : t('supplier.batch.submit', { count: accounts.length }) }}
       </button>
     </template>
@@ -58,10 +67,10 @@
 import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import BaseDialog from '@/components/common/BaseDialog.vue'
-import { batchCreateAccounts, type SupplierAccountInput, type SupplierBatchResult } from '@/api/supplier'
+import { batchCreateAccounts, type SupplierAccountInput, type SupplierBatchResult, type SupplierProxyOption } from '@/api/supplier'
 import { parseSupplierAccountImport, type SupplierImportFormat } from '@/features/supplier/accountImport'
 
-const props = defineProps<{ show: boolean }>()
+const props = defineProps<{ show: boolean; proxies: SupplierProxyOption[] }>()
 const emit = defineEmits<{ (event: 'close'): void; (event: 'completed'): void }>()
 const { t } = useI18n()
 
@@ -71,6 +80,7 @@ const accounts = ref<SupplierAccountInput[]>([])
 const parseError = ref('')
 const submitting = ref(false)
 const result = ref<SupplierBatchResult | null>(null)
+const proxyId = ref(0)
 
 const formats = computed(() => [
   { value: 'json' as const, label: t('supplier.batch.json') },
@@ -84,6 +94,11 @@ watch(() => props.show, (show) => {
   accounts.value = []
   parseError.value = ''
   result.value = null
+  proxyId.value = props.proxies[0]?.id ?? 0
+})
+
+watch(() => props.proxies, (proxies) => {
+  if (!proxyId.value) proxyId.value = proxies[0]?.id ?? 0
 })
 
 watch([format, input], () => {
@@ -107,7 +122,8 @@ async function submit() {
   submitting.value = true
   parseError.value = ''
   try {
-    result.value = await batchCreateAccounts(accounts.value)
+    if (!props.proxies.some(proxy => proxy.id === proxyId.value)) throw new Error(t('supplier.accounts.noProxy'))
+    result.value = await batchCreateAccounts(accounts.value.map(account => ({ ...account, proxy_id: account.proxy_id || proxyId.value })))
     if (result.value.succeeded > 0) emit('completed')
   } catch (error) {
     parseError.value = (error as { message?: string }).message || t('supplier.batch.failed')

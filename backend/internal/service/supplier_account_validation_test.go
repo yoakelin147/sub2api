@@ -18,11 +18,12 @@ func TestValidateSupplierAccountCredentials(t *testing.T) {
 		wantErr  bool
 	}{
 		{name: "openai api key", platform: PlatformOpenAI, typeName: AccountTypeAPIKey, creds: map[string]any{"api_key": " secret ", "base_url": "https://api.openai.com/"}},
-		{name: "oauth token bundle", platform: PlatformOpenAI, typeName: AccountTypeOAuth, creds: map[string]any{"access_token": "token", "refresh_token": "refresh"}},
+		{name: "oauth token bundle with web login", platform: PlatformOpenAI, typeName: AccountTypeOAuth, creds: map[string]any{"access_token": "token", "refresh_token": "refresh", "email": "user@example.com", "password": "web-password"}},
 		{name: "bedrock sigv4", platform: PlatformAnthropic, typeName: AccountTypeBedrock, creds: map[string]any{"auth_mode": "sigv4", "aws_region": "us-east-1", "aws_access_key_id": "id", "aws_secret_access_key": "secret"}},
 		{name: "bedrock missing secret", platform: PlatformAnthropic, typeName: AccountTypeBedrock, creds: map[string]any{"auth_mode": "sigv4", "aws_region": "us-east-1", "aws_access_key_id": "id"}, wantErr: true},
 		{name: "unknown field", platform: PlatformOpenAI, typeName: AccountTypeAPIKey, creds: map[string]any{"api_key": "secret", "priority": 1}, wantErr: true},
-		{name: "oauth password forbidden", platform: PlatformGrok, typeName: AccountTypeOAuth, creds: map[string]any{"access_token": "token", "password": "secret"}, wantErr: true},
+		{name: "oauth missing email", platform: PlatformGrok, typeName: AccountTypeOAuth, creds: map[string]any{"access_token": "token", "password": "secret"}, wantErr: true},
+		{name: "api key password forbidden", platform: PlatformOpenAI, typeName: AccountTypeAPIKey, creds: map[string]any{"api_key": "token", "password": "secret"}, wantErr: true},
 		{name: "private base url", platform: PlatformOpenAI, typeName: AccountTypeUpstream, creds: map[string]any{"api_key": "secret", "base_url": "https://127.0.0.1/v1"}, wantErr: true},
 	}
 

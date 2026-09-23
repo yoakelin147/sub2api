@@ -11,6 +11,7 @@ const {
   getUpstreamBillingProbeSettings,
   getAllProxies,
   getAllGroups,
+  listSuppliers,
   showError
 } = vi.hoisted(() => ({
   listAccounts: vi.fn(),
@@ -20,6 +21,7 @@ const {
   getUpstreamBillingProbeSettings: vi.fn(),
   getAllProxies: vi.fn(),
   getAllGroups: vi.fn(),
+  listSuppliers: vi.fn(),
   showError: vi.fn()
 }))
 
@@ -40,6 +42,9 @@ vi.mock('@/api/admin', () => ({
     },
     groups: {
       getAll: getAllGroups
+    },
+    suppliers: {
+      list: listSuppliers
     }
   }
 }))
@@ -96,8 +101,12 @@ const AccountBulkActionsBarStub = {
 }
 
 const AccountTableFiltersStub = {
-  emits: ['change'],
-  template: '<button data-test="change-filter" @click="$emit(\'change\')">change filter</button>'
+  props: ['filters', 'suppliers'],
+  emits: ['change', 'update:filters'],
+  template: `<div>
+    <button data-test="change-filter" @click="$emit('change')">change filter</button>
+    <button data-test="select-owned" @click="$emit('update:filters', { ...filters, supplier_id: 'owned' }); $emit('change')">platform owned</button>
+  </div>`
 }
 
 const mountView = () => mount(AccountsView, {
@@ -150,6 +159,7 @@ describe('admin AccountsView select all filtered results', () => {
     getUpstreamBillingProbeSettings.mockReset()
     getAllProxies.mockReset()
     getAllGroups.mockReset()
+    listSuppliers.mockReset()
     showError.mockReset()
 
     listWithEtag.mockResolvedValue({
@@ -161,6 +171,7 @@ describe('admin AccountsView select all filtered results', () => {
     getUpstreamBillingProbeSettings.mockResolvedValue({ enabled: true, interval_minutes: 30 })
     getAllProxies.mockResolvedValue([])
     getAllGroups.mockResolvedValue([])
+    listSuppliers.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 1000, pages: 1 })
   })
 
   afterEach(() => {
@@ -234,6 +245,35 @@ describe('admin AccountsView select all filtered results', () => {
 
     expect(wrapper.get('[data-test="selected-count"]').text()).toBe('0')
     expect(wrapper.get('[data-test="all-results-selected"]').text()).toBe('false')
+  })
+
+  it('uses the platform-owned source for both listing and selecting all results', async () => {
+    listAccounts.mockResolvedValue({ items: makeAccounts(2), total: 2, page: 1, page_size: 20, pages: 1 })
+    const wrapper = mountView()
+    await flushPromises()
+
+    await wrapper.get('[data-test="select-owned"]').trigger('click')
+    await flushPromises()
+    expect(listAccounts).toHaveBeenLastCalledWith(1, 20, expect.objectContaining({ supplier_id: 'owned' }), expect.any(Object))
+
+    await wrapper.get('[data-test="select-all-results"]').trigger('click')
+    await flushPromises()
+    expect(listAccounts).toHaveBeenLastCalledWith(1, 1000, expect.objectContaining({ supplier_id: 'owned' }))
+    wrapper.unmount()
+  })
+
+  it('loads every supplier page into the source filter', async () => {
+    listAccounts.mockResolvedValue({ items: [], total: 0, page: 1, page_size: 20, pages: 0 })
+    listSuppliers.mockImplementation(async (page: number) => ({
+      items: page === 1 ? [{ id: 7, name: 'First' }] : [{ id: 8, name: 'Second' }],
+      total: 2, page, page_size: 1, pages: 2,
+    }))
+    const wrapper = mountView()
+    await flushPromises()
+
+    expect(listSuppliers).toHaveBeenCalledWith(2, 1000)
+    expect(wrapper.getComponent(AccountTableFiltersStub).props('suppliers')).toEqual({ 7: 'First', 8: 'Second' })
+    wrapper.unmount()
   })
 
   it('keeps the original page selection when loading all results fails', async () => {

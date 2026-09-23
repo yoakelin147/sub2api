@@ -104,3 +104,30 @@ func TestOpenAIOAuthService_ExchangeCode_StateMatch(t *testing.T) {
 	_, ok := svc.sessionStore.Get("sid")
 	require.False(t, ok)
 }
+
+func TestOpenAIOAuthService_SupplierSessionIsolation(t *testing.T) {
+	client := &openaiOAuthClientStateStub{}
+	svc := NewOpenAIOAuthService(nil, client)
+	defer svc.Stop()
+	svc.sessionStore.Set("supplier-session", &openai.OAuthSession{
+		SupplierID: 42, State: "expected-state", CodeVerifier: "verifier",
+		RedirectURI: openai.DefaultRedirectURI, CreatedAt: time.Now(),
+	})
+	input := &OpenAIExchangeCodeInput{SessionID: "supplier-session", Code: "code", State: "expected-state"}
+	_, err := svc.ExchangeCode(context.Background(), input)
+	require.ErrorContains(t, err, "session not found")
+	_, err = svc.ExchangeSupplierCode(context.Background(), 43, input)
+	require.ErrorContains(t, err, "session not found")
+	require.Equal(t, int32(0), atomic.LoadInt32(&client.exchangeCalled))
+	input.RedirectURI = "https://example.com/callback"
+	_, err = svc.ExchangeSupplierCode(context.Background(), 42, input)
+	require.ErrorContains(t, err, "overrides are not permitted")
+	require.Equal(t, int32(0), atomic.LoadInt32(&client.exchangeCalled))
+	input.RedirectURI = ""
+	tokens, err := svc.ExchangeSupplierCode(context.Background(), 42, input)
+	require.NoError(t, err)
+	require.Equal(t, "at", tokens.AccessToken)
+	require.Equal(t, int32(1), atomic.LoadInt32(&client.exchangeCalled))
+	_, ok := svc.sessionStore.Get("supplier-session")
+	require.False(t, ok)
+}

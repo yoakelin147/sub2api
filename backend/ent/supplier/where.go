@@ -90,6 +90,11 @@ func Notes(v string) predicate.Supplier {
 	return predicate.Supplier(sql.FieldEQ(FieldNotes, v))
 }
 
+// ReviewRequired applies equality check predicate on the "review_required" field. It's identical to ReviewRequiredEQ.
+func ReviewRequired(v bool) predicate.Supplier {
+	return predicate.Supplier(sql.FieldEQ(FieldReviewRequired, v))
+}
+
 // TokenSelector applies equality check predicate on the "token_selector" field. It's identical to TokenSelectorEQ.
 func TokenSelector(v string) predicate.Supplier {
 	return predicate.Supplier(sql.FieldEQ(FieldTokenSelector, v))
@@ -513,6 +518,16 @@ func NotesEqualFold(v string) predicate.Supplier {
 // NotesContainsFold applies the ContainsFold predicate on the "notes" field.
 func NotesContainsFold(v string) predicate.Supplier {
 	return predicate.Supplier(sql.FieldContainsFold(FieldNotes, v))
+}
+
+// ReviewRequiredEQ applies the EQ predicate on the "review_required" field.
+func ReviewRequiredEQ(v bool) predicate.Supplier {
+	return predicate.Supplier(sql.FieldEQ(FieldReviewRequired, v))
+}
+
+// ReviewRequiredNEQ applies the NEQ predicate on the "review_required" field.
+func ReviewRequiredNEQ(v bool) predicate.Supplier {
+	return predicate.Supplier(sql.FieldNEQ(FieldReviewRequired, v))
 }
 
 // TokenSelectorEQ applies the EQ predicate on the "token_selector" field.

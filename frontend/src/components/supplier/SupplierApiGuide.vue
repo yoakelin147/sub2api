@@ -20,13 +20,14 @@
       </div>
       <div class="grid items-end gap-3 sm:grid-cols-3">
         <label><span class="input-label">{{ t('supplier.guide.operation') }}</span><select v-model="operation" class="input" data-test="guide-operation"><option v-for="item in operations" :key="item" :value="item">{{ t(`supplier.guide.operations.${item}`) }}</option></select></label>
-        <label><span class="input-label">{{ t('supplier.guide.exampleKind') }}</span><select v-model="kindKey" class="input" :disabled="!isWrite" data-test="guide-kind"><option v-for="item in SUPPLIER_ACCOUNT_KINDS" :key="item.platform + ':' + item.type" :value="item.platform + ':' + item.type">{{ t(`monitorCommon.providers.${item.platform}`) }} / {{ t(`supplier.admin.kindTypes.${item.type}`) }}</option></select></label>
+        <label><span class="input-label">{{ t('supplier.guide.exampleKind') }}</span><select v-model="kindKey" class="input" :disabled="!isWrite && !isOAuthOperation" data-test="guide-kind"><option v-for="item in selectableKinds" :key="item.platform + ':' + item.type" :value="item.platform + ':' + item.type">{{ t(`monitorCommon.providers.${item.platform}`) }} / {{ t(`supplier.admin.kindTypes.${item.type}`) }}</option></select></label>
         <label><span class="input-label">{{ t('supplier.guide.language') }}</span><select v-model="language" class="input" data-test="guide-language"><option value="bash">cURL / Bash</option><option value="powershell">PowerShell</option></select></label>
       </div>
+      <label v-if="operation === 'oauthCredential' && kind.platform === 'grok'" class="block"><span class="input-label">{{ t('supplier.guide.credentialMethod') }}</span><select v-model="grokMethod" class="input" data-test="guide-credential-method"><option value="sso">SSO</option><option value="password">{{ t('supplier.guide.passwordMethod') }}</option></select></label>
       <p class="text-xs leading-5 text-gray-500">{{ t('supplier.guide.exampleHint') }}</p>
       <div class="overflow-hidden rounded-lg border border-gray-200 dark:border-dark-700">
         <div class="flex items-center justify-between bg-gray-50 px-4 py-2 dark:bg-dark-800">
-          <span class="text-xs font-medium text-gray-500">{{ isWrite ? 'POST' : 'GET' }} {{ endpoint }}</span>
+          <span class="text-xs font-medium text-gray-500">{{ hasBody ? 'POST' : 'GET' }} {{ endpoint }}</span>
           <button class="btn btn-ghost btn-sm" @click="copyExample"><Icon name="copy" size="sm" />{{ t('supplier.guide.copyExample') }}</button>
         </div>
         <pre class="max-h-80 overflow-auto bg-gray-950 p-4 text-xs leading-6 text-gray-100" tabindex="0" :aria-label="t('supplier.guide.codeExample')"><code>{{ example }}</code></pre>
@@ -45,7 +46,7 @@
 </template>
 
 <script setup lang="ts">
-import { computed, ref } from 'vue'
+import { computed, ref, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { RouterLink } from 'vue-router'
 import Icon from '@/components/icons/Icon.vue'
@@ -55,36 +56,57 @@ import { useAppStore } from '@/stores/app'
 
 const { t } = useI18n()
 const appStore = useAppStore()
-const operations = ['verify', 'create', 'batch', 'list'] as const
+const operations = ['verify', 'proxies', 'oauthUrl', 'oauthExchange', 'oauthCredential', 'create', 'batch', 'list'] as const
 const operation = ref<typeof operations[number]>('verify')
 const language = ref('bash')
 const kindKey = ref('openai:apikey')
+const grokMethod = ref<'sso' | 'password'>('sso')
 const kind = computed(() => SUPPLIER_ACCOUNT_KINDS.find(item => item.platform + ':' + item.type === kindKey.value)!)
+const isOAuthOperation = computed(() => operation.value === 'oauthUrl' || operation.value === 'oauthExchange' || operation.value === 'oauthCredential')
+const selectableKinds = computed(() => isOAuthOperation.value ? SUPPLIER_ACCOUNT_KINDS.filter(item => (item.type === 'oauth' || (item.platform === 'anthropic' && item.type === 'setup-token')) && (operation.value !== 'oauthCredential' || item.platform === 'anthropic' || item.platform === 'grok')) : SUPPLIER_ACCOUNT_KINDS)
+watch(operation, () => { if (isOAuthOperation.value && !selectableKinds.value.some(item => item.platform + ':' + item.type === kindKey.value)) kindKey.value = operation.value === 'oauthCredential' ? 'anthropic:oauth' : 'openai:oauth' })
 const apiBase = new URL(getAPIBaseURL(), window.location.origin).href.replace(/\/$/, '')
 const isWrite = computed(() => operation.value === 'create' || operation.value === 'batch')
-const endpoint = computed(() => operation.value === 'verify' ? '/supplier/me' : operation.value === 'batch' ? '/supplier/accounts/batch' : operation.value === 'list' ? '/supplier/accounts?page=1&page_size=20' : '/supplier/accounts')
+const hasBody = computed(() => isWrite.value || isOAuthOperation.value)
+const endpoint = computed(() => ({
+  verify: '/supplier/me',
+  proxies: '/supplier/proxies',
+  oauthUrl: `/supplier/oauth/${kind.value.platform}/auth-url`,
+  oauthExchange: `/supplier/oauth/${kind.value.platform}/exchange-code`,
+  oauthCredential: `/supplier/oauth/${kind.value.platform}/credential-exchange`,
+  create: '/supplier/accounts',
+  batch: '/supplier/accounts/batch',
+  list: '/supplier/accounts?page=1&page_size=20',
+})[operation.value])
 const example = computed(() => {
   const credentials = Object.fromEntries(Object.entries(supplierCredentialTemplate(kind.value)).map(([key, value]) => [key, value === '' ? 'REPLACE_WITH_' + key.toUpperCase() : value === 'https://' ? 'https://YOUR_ALLOWED_UPSTREAM_HOST' : value]))
+  if (kind.value.type === 'oauth' || kind.value.type === 'setup-token') delete credentials.refresh_token
   if (kind.value.type === 'service_account') credentials.service_account_json = JSON.stringify({ project_id: 'YOUR_PROJECT_ID', client_email: 'YOUR_SERVICE_ACCOUNT_EMAIL', private_key: 'REPLACE_WITH_PEM_PRIVATE_KEY' })
-  const account = { external_id: 'ext-10001', name: 'Account 10001', platform: kind.value.platform, type: kind.value.type, credentials }
-  const body = JSON.stringify(operation.value === 'batch' ? { accounts: [account, { ...account, external_id: 'ext-10002', name: 'Account 10002' }] } : account, null, 2)
+  const account = { name: 'Account 10001', platform: kind.value.platform, type: kind.value.type, proxy_id: 123, credentials }
+  const requestBody = operation.value === 'oauthUrl' ? { proxy_id: 123, type: kind.value.type, ...(kind.value.platform === 'gemini' ? { oauth_type: 'code_assist' } : {}) }
+    : operation.value === 'oauthExchange' ? { type: kind.value.type, session_id: 'REPLACE_WITH_SESSION_ID', code: 'REPLACE_WITH_AUTH_CODE', state: 'REPLACE_WITH_STATE' }
+    : operation.value === 'oauthCredential' ? { type: kind.value.type, proxy_id: 123, ...(kind.value.platform === 'anthropic' ? { method: 'cookie', session_key: 'REPLACE_WITH_SESSION_KEY' } : grokMethod.value === 'sso' ? { method: 'sso', sso_token: 'REPLACE_WITH_SSO_TOKEN' } : { method: 'password', email: 'REPLACE_WITH_EMAIL', password: 'REPLACE_WITH_PASSWORD' }) }
+    : operation.value === 'batch' ? { accounts: [account, { ...account, name: 'Account 10002' }] } : account
+  const body = JSON.stringify(requestBody, null, 2)
   const requestKey = kind.value.platform + '-' + kind.value.type + '-' + operation.value + '-10001-v1'
   if (language.value === 'powershell') {
     return [
       "$API_BASE = '" + apiBase.replace(/'/g, "''") + "'",
       "$SUPPLIER_TOKEN = 'REPLACE_WITH_FULL_SUPPLIER_TOKEN'",
       "$headers = @{ 'x-api-key' = $SUPPLIER_TOKEN }",
-      ...(isWrite.value ? ["$headers['Idempotency-Key'] = '" + requestKey + "'", "$body = @'", body, "'@"] : []),
-      'Invoke-RestMethod -Method ' + (isWrite.value ? 'Post' : 'Get') + ' -Uri "$API_BASE' + endpoint.value + '" -Headers $headers' + (isWrite.value ? " -ContentType 'application/json' -Body ([System.Text.Encoding]::UTF8.GetBytes($body))" : ''),
+      ...(isWrite.value ? ["$headers['Idempotency-Key'] = '" + requestKey + "'"] : []),
+      ...(hasBody.value ? ["$body = @'", body, "'@"] : []),
+      'Invoke-RestMethod -Method ' + (hasBody.value ? 'Post' : 'Get') + ' -Uri "$API_BASE' + endpoint.value + '" -Headers $headers' + (hasBody.value ? " -ContentType 'application/json' -Body ([System.Text.Encoding]::UTF8.GetBytes($body))" : ''),
     ].join('\n')
   }
   const quote = (value: string) => "'" + value.replace(/'/g, "'\\''") + "'"
   return [
     'API_BASE=' + quote(apiBase),
     "SUPPLIER_TOKEN='REPLACE_WITH_FULL_SUPPLIER_TOKEN'",
-    'curl --fail-with-body -sS -X ' + (isWrite.value ? 'POST' : 'GET') + ' "$API_BASE' + endpoint.value + '" \\',
-    '  -H "x-api-key: $SUPPLIER_TOKEN"' + (isWrite.value ? ' \\' : ''),
+    'curl --fail-with-body -sS -X ' + (hasBody.value ? 'POST' : 'GET') + ' "$API_BASE' + endpoint.value + '" \\',
+    '  -H "x-api-key: $SUPPLIER_TOKEN"' + (hasBody.value ? ' \\' : ''),
     ...(isWrite.value ? ['  -H ' + quote('Idempotency-Key: ' + requestKey) + ' \\', "  -H 'Content-Type: application/json' \\", '  --data-raw ' + quote(body)] : []),
+    ...(!isWrite.value && hasBody.value ? ["  -H 'Content-Type: application/json' \\", '  --data-raw ' + quote(body)] : []),
   ].join('\n')
 })
 

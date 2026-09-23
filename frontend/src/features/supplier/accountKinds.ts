@@ -28,7 +28,7 @@ export const SUPPLIER_ACCOUNT_KINDS: SupplierAccountKind[] = [
 // Shared by the supplier form and API examples; the backend remains authoritative.
 export function supplierCredentialTemplate(kind: SupplierAccountKind | undefined): Record<string, unknown> {
   if (!kind) return {}
-  if (kind.type === 'oauth' || kind.type === 'setup-token') return { access_token: '', refresh_token: '' }
+  if (kind.type === 'oauth' || kind.type === 'setup-token') return { email: '', password: '', access_token: '', refresh_token: '' }
   if (kind.type === 'bedrock') return { auth_mode: 'api_key', aws_region: 'us-east-1', api_key: '' }
   if (kind.type === 'service_account') {
     return { service_account_json: '{"project_id":"","client_email":"","private_key":""}', location: 'us-central1' }
@@ -42,7 +42,7 @@ export function supplierCredentialTemplate(kind: SupplierAccountKind | undefined
 }
 
 export function supplierRequiredCredentials(kind: SupplierAccountKind, credentials: Record<string, unknown> = {}): string[] {
-  if (kind.type === 'oauth' || kind.type === 'setup-token') return ['access_token']
+  if (kind.type === 'oauth' || kind.type === 'setup-token') return ['email', 'password', 'access_token']
   if (kind.type === 'bedrock') {
     return ['auth_mode', 'aws_region', ...(credentials.auth_mode === 'sigv4' ? ['aws_access_key_id', 'aws_secret_access_key'] : ['api_key'])]
   }

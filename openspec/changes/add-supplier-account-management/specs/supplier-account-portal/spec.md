@@ -19,7 +19,7 @@
 
 #### Scenario: 允许类型
 - **WHEN** 供应商提交已启用的 platform/type 且 credentials 合法
-- **THEN** 系统 MUST 创建待审核账号
+- **THEN** 系统 MUST 按供应商审核策略创建账号；默认待审核
 
 #### Scenario: 未允许类型
 - **WHEN** 供应商提交未在 allowed_account_kinds 中的 platform/type
@@ -30,23 +30,32 @@
 - **THEN** 系统 MUST 返回 422 `INVALID_CREDENTIALS`
 - **THEN** 系统 MUST NOT 静默保存未知字段
 
-### Requirement: 供应商不能设置运营字段
+### Requirement: 供应商只能设置受控账号参数
 
-供应商创建和更新 DTO MUST NOT 包含 supplier_id、group_ids、proxy_id、priority、concurrency、load_factor、rate_multiplier、schedulable、review_status 或 extra。
+供应商创建和更新 DTO MAY 包含库存 `proxy_id`、`concurrency`、`priority`、`load_factor`、`auto_pause_on_expired`；MUST NOT 包含 supplier_id、group_ids、rate_multiplier、schedulable、review_status 或 extra。`proxy_id` 必须引用启用且未过期的平台库存代理，库存为空时账号提交和修改 MUST 失败。
 
 #### Scenario: 请求包含禁止字段
 - **WHEN** 供应商请求包含任一禁止字段
 - **THEN** 系统 MUST 返回 422
 - **THEN** 禁止字段 MUST NOT 被写入
 
+#### Scenario: 未配置有效代理
+- **WHEN** 供应商新建或编辑账号时未提供有效库存代理
+- **THEN** 系统 MUST 返回 422 `SUPPLIER_PROXY_REQUIRED`
+- **THEN** 账号 MUST NOT 被保存或启用
+
 ### Requirement: 账号凭据永不回显
+
+OAuth / Setup Token 类型的创建及凭据更新 MUST 接收 token、网页登录 `email` 与 `password`。密码 MUST 使用稳定密钥加密保存；缺少固定密钥时拒绝保存。供应商不得读取已保存密码，且其他账号类型不得提交密码。
+
+供应商后台 SHALL 复用管理员 OAuth 授权界面，为已获准的 OpenAI、Claude、Gemini、Antigravity、Grok OAuth 及 Claude Setup Token 提供授权码换票；Claude Cookie、Grok SSO 和平台启用的 Grok 密码登录也可换票。必须选择平台有效库存代理；授权码会话 MUST 绑定当前供应商和代理，并校验适用的 OAuth state，不得接受换票时覆盖代理或重定向地址。换得的 Token SHALL 仅用于填充供应商本人的账号表单，仍需供应商提交账号并经过适用的审核；授权码、密码、Cookie、SSO 和 Token 不得写入审计正文。
 
 供应商列表和详情 SHALL 使用独立白名单 DTO，不返回完整 credentials 或 extra。
 
 #### Scenario: 查询刚创建的账号
 - **WHEN** 供应商查询刚提交账号
 - **THEN** 响应 MUST 只包含凭据掩码或 has_credentials
-- **THEN** 响应 MUST NOT 包含完整 api_key、token、cookie 或 secret
+- **THEN** 响应 MUST NOT 包含完整 api_key、token、password、cookie 或 secret
 
 ### Requirement: 批量创建有明确边界和逐项结果
 

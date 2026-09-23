@@ -27,6 +27,7 @@ export interface SupplierProfile {
   name: string
   status: 'active' | 'disabled'
   allowed_account_kinds: SupplierAccountKind[]
+  review_required: boolean
   access_token: SupplierTokenStatus
   stats: SupplierStats
 }
@@ -43,6 +44,11 @@ export interface SupplierAccount {
   status: 'active' | 'disabled'
   schedulable: boolean
   review_status: 'pending' | 'approved' | 'rejected'
+  proxy_id: number | null
+  concurrency: number
+  priority: number
+  load_factor: number | null
+  auto_pause_on_expired: boolean
   review_note: string | null
   expires_at: string | null
   last_used_at: string | null
@@ -58,6 +64,11 @@ export interface SupplierAccountInput {
   type: string
   credentials: Record<string, unknown>
   expires_at?: number | null
+  proxy_id: number
+  concurrency?: number
+  priority?: number
+  load_factor?: number
+  auto_pause_on_expired?: boolean
 }
 
 export interface SupplierAccountUpdateInput {
@@ -67,6 +78,54 @@ export interface SupplierAccountUpdateInput {
   credentials?: Record<string, unknown>
   expires_at?: number | null
   status?: 'active' | 'disabled'
+  proxy_id?: number
+  concurrency?: number
+  priority?: number
+  load_factor?: number
+  auto_pause_on_expired?: boolean
+}
+
+export interface SupplierProxyOption { id: number; name: string }
+
+export async function listProxies(): Promise<SupplierProxyOption[]> {
+  const { data } = await apiClient.get<SupplierProxyOption[]>('/supplier/proxies')
+  return data
+}
+
+export interface SupplierOAuthOptions {
+  proxy_id: number
+  type: 'oauth' | 'setup-token'
+  oauth_type?: 'code_assist' | 'google_one' | 'ai_studio'
+  project_id?: string
+  tier_id?: string
+}
+
+export async function getSupplierGrokOAuthCapabilities(): Promise<{ password_auth_enabled: boolean }> {
+  const { data } = await apiClient.get('/supplier/oauth/grok/capabilities')
+  return data
+}
+
+export async function generateSupplierOAuthURL(platform: string, options: SupplierOAuthOptions): Promise<{ auth_url: string; session_id: string; state?: string }> {
+  const { data } = await apiClient.post(`/supplier/oauth/${platform}/auth-url`, options)
+  return data
+}
+
+export async function exchangeSupplierOAuthCode(platform: string, type: 'oauth' | 'setup-token', sessionId: string, code: string, state: string): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post(`/supplier/oauth/${platform}/exchange-code`, { type, session_id: sessionId, code, state })
+  return data
+}
+
+export async function exchangeSupplierOAuthCredential(platform: string, input: {
+  type: 'oauth' | 'setup-token'
+  proxy_id: number
+  method: 'cookie' | 'sso' | 'password'
+  session_key?: string
+  sso_token?: string
+  email?: string
+  password?: string
+}): Promise<Record<string, unknown>> {
+  const { data } = await apiClient.post(`/supplier/oauth/${platform}/credential-exchange`, input)
+  return data
 }
 
 export interface SupplierAccountFilters {

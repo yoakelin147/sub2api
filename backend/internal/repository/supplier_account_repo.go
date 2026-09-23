@@ -22,9 +22,9 @@ func NewSupplierAccountRepository(
 	return newAccountRepositoryWithSQL(client, sqlDB, schedulerCache)
 }
 
-func (r *accountRepository) CreateOwned(ctx context.Context, supplierID int64, account *service.Account) error {
+func (r *accountRepository) CreateOwned(ctx context.Context, supplierID int64, account *service.Account, groups []service.AccountGroup) error {
 	account.SupplierID = &supplierID
-	return r.CreateWithAccountGroups(ctx, account, nil)
+	return r.CreateWithAccountGroups(ctx, account, groups)
 }
 
 func (r *accountRepository) GetOwnedByID(ctx context.Context, supplierID, accountID int64) (*service.Account, error) {
@@ -126,6 +126,11 @@ func (r *accountRepository) UpdateOwned(ctx context.Context, supplierID int64, a
 		SetNillableReviewedBy(account.ReviewedBy).
 		SetNillableReviewNote(account.ReviewNote).
 		SetNillableExpiresAt(account.ExpiresAt).
+		SetNillableProxyID(account.ProxyID).
+		SetConcurrency(account.Concurrency).
+		SetPriority(account.Priority).
+		SetNillableLoadFactor(account.LoadFactor).
+		SetAutoPauseOnExpired(account.AutoPauseOnExpired).
 		SetNillableSupplierExternalID(account.SupplierExternalID)
 	if account.Notes == nil {
 		update.ClearNotes()

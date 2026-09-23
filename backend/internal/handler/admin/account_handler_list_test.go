@@ -79,6 +79,29 @@ func TestAccountHandlerListLiteUsesCompactDTOAndETag(t *testing.T) {
 	require.Contains(t, fullPayload.Data.Items[0], "account_groups")
 }
 
+func TestAccountHandlerListSupplierFilter(t *testing.T) {
+	for _, tc := range []struct {
+		filter string
+		wantID int64
+		status int
+	}{
+		{"owned", service.AccountListSupplierOwned, http.StatusOK},
+		{"23", 23, http.StatusOK},
+		{"invalid", 0, http.StatusBadRequest},
+	} {
+		router, adminSvc := setupAccountListRouter()
+		rec := httptest.NewRecorder()
+		req := httptest.NewRequest(http.MethodGet, "/api/v1/admin/accounts?supplier_id="+tc.filter, nil)
+		router.ServeHTTP(rec, req)
+		require.Equal(t, tc.status, rec.Code)
+		if tc.status == http.StatusOK {
+			require.Equal(t, tc.wantID, adminSvc.lastListAccounts.supplierID)
+		} else {
+			require.Equal(t, 0, adminSvc.lastListAccounts.calls)
+		}
+	}
+}
+
 func TestAccountHandlerListLiteStaysBelowResponseBudget(t *testing.T) {
 	router, adminSvc := setupAccountListRouter()
 	now := time.Now().UTC()

@@ -20,6 +20,12 @@ export interface AdminSupplierAccount {
   reviewed_by?: number | null
   review_note?: string | null
   credentials_status?: Record<string, boolean>
+  credentials?: Record<string, unknown>
+  proxy_id?: number | null
+  concurrency?: number
+  priority?: number
+  load_factor?: number | null
+  auto_pause_on_expired?: boolean
   status: 'active' | 'disabled'
   schedulable: boolean
   error_message?: string
@@ -35,6 +41,8 @@ export interface AdminSupplier {
   status: 'active' | 'disabled'
   notes: string | null
   allowed_account_kinds: SupplierAccountKind[]
+  review_required: boolean
+  auto_approve_groups: Record<string, number>
   access_token: SupplierTokenStatus
   stats: SupplierStats
   created_at: string
@@ -42,11 +50,13 @@ export interface AdminSupplier {
 }
 
 export interface SupplierWriteInput {
-  code: string
+  code?: string
   name: string
   status?: 'active' | 'disabled'
   notes?: string | null
   allowed_account_kinds: SupplierAccountKind[]
+  review_required: boolean
+  auto_approve_groups: Record<string, number>
 }
 
 export interface SupplierMemberInput {
@@ -131,6 +141,16 @@ export async function listAccounts(
   return data
 }
 
+export async function getAccount(id: number, accountId: number): Promise<AdminSupplierAccount> {
+  const { data } = await apiClient.get<AdminSupplierAccount>(`/admin/suppliers/${id}/accounts/${accountId}`)
+  return data
+}
+
+export async function revealAccountPassword(id: number, accountId: number): Promise<string> {
+  const { data } = await apiClient.get<{ password: string }>(`/admin/suppliers/${id}/accounts/${accountId}/password`)
+  return data.password
+}
+
 async function review(id: number, action: 'approve' | 'reject' | 'pause', input: SupplierReviewInput): Promise<void> {
   await apiClient.post(`/admin/suppliers/${id}/accounts/${action}`, input)
 }
@@ -152,6 +172,8 @@ export default {
   regenerateAccessToken,
   revokeAccessToken,
   listAccounts,
+  getAccount,
+  revealAccountPassword,
   approveAccounts,
   rejectAccounts,
   pauseAccounts,

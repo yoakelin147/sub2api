@@ -3,7 +3,7 @@ import type { SupplierAccountInput } from '@/api/supplier'
 export type SupplierImportFormat = 'json' | 'csv' | 'text'
 
 const MAX_BATCH_SIZE = 500
-const ACCOUNT_FIELDS = new Set(['external_id', 'name', 'notes', 'platform', 'type', 'credentials', 'expires_at'])
+const ACCOUNT_FIELDS = new Set(['external_id', 'name', 'notes', 'platform', 'type', 'credentials', 'expires_at', 'proxy_id', 'concurrency', 'priority', 'load_factor', 'auto_pause_on_expired'])
 
 function asAccount(value: unknown, source: string): SupplierAccountInput {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
@@ -25,7 +25,20 @@ function asAccount(value: unknown, source: string): SupplierAccountInput {
   ) {
     throw new Error(`${source}: name, platform, type and credentials are required`)
   }
-  const account: SupplierAccountInput = { name, platform, type, credentials: credentials as Record<string, unknown> }
+  const proxyId = Number(record.proxy_id || 0)
+  if (!Number.isSafeInteger(proxyId) || proxyId < 0) throw new Error(`${source}: proxy_id must be a positive integer`)
+  const account: SupplierAccountInput = { name, platform, type, credentials: credentials as Record<string, unknown>, proxy_id: proxyId }
+  for (const field of ['concurrency', 'priority', 'load_factor'] as const) {
+    if (record[field] !== undefined && record[field] !== '') {
+      const value = Number(record[field])
+      if (!Number.isSafeInteger(value)) throw new Error(`${source}: ${field} must be an integer`)
+      account[field] = value
+    }
+  }
+  if (record.auto_pause_on_expired !== undefined && record.auto_pause_on_expired !== '') {
+    if (record.auto_pause_on_expired !== true && record.auto_pause_on_expired !== false && record.auto_pause_on_expired !== 'true' && record.auto_pause_on_expired !== 'false') throw new Error(`${source}: auto_pause_on_expired must be a boolean`)
+    account.auto_pause_on_expired = record.auto_pause_on_expired === true || record.auto_pause_on_expired === 'true'
+  }
   if (typeof record.external_id === 'string' && record.external_id.trim()) account.external_id = record.external_id.trim()
   if (typeof record.notes === 'string') account.notes = record.notes.trim() || null
   if (record.expires_at !== undefined && record.expires_at !== null && record.expires_at !== '') {

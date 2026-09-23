@@ -43,6 +43,36 @@ func TestSupplierServiceCreateNormalizesInput(t *testing.T) {
 	require.Equal(t, []SupplierAccountKind{{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}}, created.AllowedAccountKinds)
 }
 
+func TestSupplierServiceCreateGeneratesCode(t *testing.T) {
+	svc := NewSupplierService(&supplierRepositoryStub{})
+	first, err := svc.Create(context.Background(), CreateSupplierInput{Name: "First"})
+	require.NoError(t, err)
+	second, err := svc.Create(context.Background(), CreateSupplierInput{Name: "Second"})
+	require.NoError(t, err)
+	require.Regexp(t, `^supplier-[a-f0-9]{24}$`, first.Code)
+	require.Regexp(t, `^supplier-[a-f0-9]{24}$`, second.Code)
+	require.NotEqual(t, first.Code, second.Code)
+}
+
+func TestParseAccountSupplierFilter(t *testing.T) {
+	for _, tc := range []struct {
+		input string
+		want  int64
+		valid bool
+	}{
+		{"", 0, true}, {"  ", 0, true}, {"owned", AccountListSupplierOwned, true},
+		{" 42 ", 42, true}, {"0", 0, false}, {"-1", 0, false}, {"invalid", 0, false},
+	} {
+		got, err := ParseAccountSupplierFilter(tc.input)
+		if tc.valid {
+			require.NoError(t, err)
+			require.Equal(t, tc.want, got)
+		} else {
+			require.Error(t, err)
+		}
+	}
+}
+
 func TestSupplierServiceCreateRejectsInvalidCodeAndStatus(t *testing.T) {
 	svc := NewSupplierService(&supplierRepositoryStub{})
 

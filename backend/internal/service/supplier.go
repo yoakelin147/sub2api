@@ -2,6 +2,8 @@ package service
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"regexp"
 	"strings"
 	"time"
@@ -40,6 +42,8 @@ type Supplier struct {
 	Status              string
 	Notes               *string
 	AllowedAccountKinds []SupplierAccountKind
+	ReviewRequired      bool
+	AutoApproveGroups   map[string]int64
 	TokenSelector       *string
 	TokenHash           *string
 	TokenPrefix         *string
@@ -81,6 +85,8 @@ type CreateSupplierInput struct {
 	Status              string
 	Notes               *string
 	AllowedAccountKinds []SupplierAccountKind
+	ReviewRequired      *bool
+	AutoApproveGroups   map[string]int64
 }
 
 type UpdateSupplierInput struct {
@@ -88,6 +94,8 @@ type UpdateSupplierInput struct {
 	Status              *string
 	Notes               *string
 	AllowedAccountKinds *[]SupplierAccountKind
+	ReviewRequired      *bool
+	AutoApproveGroups   *map[string]int64
 }
 
 type SupplierService struct {
@@ -100,6 +108,13 @@ func NewSupplierService(repo SupplierRepository) *SupplierService {
 
 func (s *SupplierService) Create(ctx context.Context, input CreateSupplierInput) (*Supplier, error) {
 	code := strings.ToLower(strings.TrimSpace(input.Code))
+	if code == "" {
+		bytes := make([]byte, 12)
+		if _, err := rand.Read(bytes); err != nil {
+			return nil, err
+		}
+		code = "supplier-" + hex.EncodeToString(bytes)
+	}
 	if !supplierCodePattern.MatchString(code) {
 		return nil, ErrSupplierCodeInvalid
 	}
@@ -124,6 +139,14 @@ func (s *SupplierService) Create(ctx context.Context, input CreateSupplierInput)
 		Status:              status,
 		Notes:               normalizeSupplierNotes(input.Notes),
 		AllowedAccountKinds: kinds,
+		ReviewRequired:      input.ReviewRequired == nil || *input.ReviewRequired,
+		AutoApproveGroups:   input.AutoApproveGroups,
+	}
+	if supplier.AutoApproveGroups == nil {
+		supplier.AutoApproveGroups = map[string]int64{}
+	}
+	if err := validateSupplierReviewPolicy(supplier); err != nil {
+		return nil, err
 	}
 	if err := s.repo.Create(ctx, supplier); err != nil {
 		return nil, err
@@ -200,6 +223,15 @@ func (s *SupplierService) Update(ctx context.Context, id int64, input UpdateSupp
 		}
 		supplier.AllowedAccountKinds = kinds
 	}
+	if input.ReviewRequired != nil {
+		supplier.ReviewRequired = *input.ReviewRequired
+	}
+	if input.AutoApproveGroups != nil {
+		supplier.AutoApproveGroups = *input.AutoApproveGroups
+	}
+	if err := validateSupplierReviewPolicy(supplier); err != nil {
+		return nil, err
+	}
 	if err := s.repo.Update(ctx, supplier); err != nil {
 		return nil, err
 	}
@@ -208,6 +240,18 @@ func (s *SupplierService) Update(ctx context.Context, id int64, input UpdateSupp
 
 func (s *SupplierService) Delete(ctx context.Context, id int64) error {
 	return s.repo.Delete(ctx, id)
+}
+
+func validateSupplierReviewPolicy(supplier *Supplier) error {
+	if supplier.ReviewRequired {
+		return nil
+	}
+	for _, kind := range supplier.AllowedAccountKinds {
+		if supplier.AutoApproveGroups[kind.Platform] <= 0 {
+			return ErrSupplierAutoApproveGroupRequired
+		}
+	}
+	return nil
 }
 
 func validSupplierStatus(status string) bool {

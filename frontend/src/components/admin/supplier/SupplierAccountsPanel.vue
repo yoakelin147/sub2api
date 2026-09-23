@@ -44,10 +44,13 @@
             <th class="px-4 py-3">{{ t('supplier.accounts.platform') }}</th>
             <th class="px-4 py-3">{{ t('supplier.accounts.reviewStatus') }}</th>
             <th class="px-4 py-3">{{ t('supplier.accounts.runtimeStatus') }}</th>
+            <th class="px-4 py-3">{{ t('supplier.admin.loginEmail') }}</th>
+            <th class="px-4 py-3">{{ t('supplier.admin.loginPassword') }}</th>
+            <th class="px-4 py-3">{{ t('supplier.admin.configuration') }}</th>
           </tr>
         </thead>
         <tbody class="divide-y divide-gray-100 dark:divide-dark-700">
-          <tr v-if="loading"><td colspan="5" class="px-4 py-12 text-center text-gray-500">{{ t('common.loading') }}</td></tr>
+          <tr v-if="loading"><td colspan="8" class="px-4 py-12 text-center text-gray-500">{{ t('common.loading') }}</td></tr>
           <template v-else>
             <tr v-for="account in accounts" :key="account.id">
               <td class="px-4 py-3"><input v-model="selectedIds" type="checkbox" :value="account.id" :aria-label="account.name" /></td>
@@ -55,8 +58,18 @@
               <td class="px-4 py-3"><p>{{ t(`monitorCommon.providers.${account.platform}`) }}</p><p class="text-xs text-gray-500">{{ t(`supplier.admin.kindTypes.${account.type}`) }}</p></td>
               <td class="px-4 py-3"><span :class="account.review_status === 'approved' ? 'badge badge-success' : account.review_status === 'rejected' ? 'badge badge-danger' : 'badge badge-warning'">{{ t(`supplier.accounts.${account.review_status}`) }}</span><p v-if="account.review_note" class="mt-1 max-w-xs truncate text-xs text-gray-500" :title="account.review_note">{{ account.review_note }}</p></td>
               <td class="px-4 py-3"><span :class="account.status === 'active' ? 'badge badge-success' : 'badge badge-gray'">{{ account.status === 'active' ? t('common.active') : t('common.disabled') }}</span></td>
+              <td class="px-4 py-3">{{ account.credentials?.email || '—' }}</td>
+              <td class="px-4 py-3">
+                <template v-if="account.credentials_status?.has_login_password_encrypted">
+                  <span v-if="revealedPassword?.id === account.id" class="break-all">{{ revealedPassword.value }}</span>
+                  <span v-else>••••••</span>
+                  <button type="button" class="btn btn-secondary btn-sm ml-2" :disabled="revealingId === account.id" @click="togglePassword(account)">{{ t(revealedPassword?.id === account.id ? 'supplier.admin.hidePassword' : 'supplier.admin.showPassword') }}</button>
+                </template>
+                <span v-else>—</span>
+              </td>
+              <td class="px-4 py-3"><button type="button" class="btn btn-secondary btn-sm" @click="openDetail(account)">{{ t('supplier.admin.configuration') }}</button></td>
             </tr>
-            <tr v-if="accounts.length === 0"><td colspan="5" class="px-4 py-12 text-center text-gray-500">{{ t('common.noData') }}</td></tr>
+            <tr v-if="accounts.length === 0"><td colspan="8" class="px-4 py-12 text-center text-gray-500">{{ t('common.noData') }}</td></tr>
           </template>
         </tbody>
       </table>
@@ -86,6 +99,30 @@
         <button class="btn btn-secondary" :disabled="working" @click="reviewAction = null">{{ t('common.cancel') }}</button>
         <button type="submit" form="supplier-review-form" class="btn btn-primary" :disabled="!canReview">{{ working ? t('common.saving') : t('common.confirm') }}</button>
       </template>
+    </BaseDialog>
+    <BaseDialog :show="detailId !== null" :title="t('supplier.admin.configuration')" width="wide" @close="closeDetail">
+      <p v-if="detailLoading" role="status">{{ t('common.loading') }}</p>
+      <p v-else-if="detailError" role="alert" class="text-red-600">{{ detailError }}</p>
+      <div v-else-if="detail" class="space-y-3 text-sm">
+        <p><strong>{{ detail.name }}</strong> · {{ detail.platform }} / {{ detail.type }}</p>
+        <dl class="grid grid-cols-2 gap-2 rounded-lg bg-gray-50 p-3 dark:bg-dark-800">
+          <dt>{{ t('supplier.accounts.proxy') }}</dt><dd>{{ detail.proxy_id ?? '—' }}</dd>
+          <dt>{{ t('supplier.accounts.concurrency') }}</dt><dd>{{ detail.concurrency ?? '—' }}</dd>
+          <dt>{{ t('supplier.accounts.priority') }}</dt><dd>{{ detail.priority ?? '—' }}</dd>
+          <dt>{{ t('supplier.accounts.loadFactor') }}</dt><dd>{{ detail.load_factor ?? '—' }}</dd>
+          <dt>{{ t('supplier.accounts.autoPauseOnExpired') }}</dt><dd>{{ detail.auto_pause_on_expired ? '✓' : '—' }}</dd>
+          <dt>{{ t('supplier.accounts.expiresAt') }}</dt><dd>{{ detail.expires_at ? new Date(detail.expires_at * 1000).toLocaleString() : '—' }}</dd>
+          <dt>{{ t('supplier.accounts.notes') }}</dt><dd>{{ detail.notes || '—' }}</dd>
+        </dl>
+        <p>{{ t('supplier.admin.credentialSummary') }}</p>
+        <pre class="max-h-60 overflow-auto rounded-lg bg-gray-50 p-3 dark:bg-dark-800">{{ JSON.stringify(detail.credentials || {}, null, 2) }}</pre>
+        <p v-if="detail.credentials_status">{{ t('supplier.admin.secretStatus') }}: {{ Object.keys(detail.credentials_status).filter(key => detail?.credentials_status?.[key]).map(key => key.replace(/^has_/, '')).join(', ') }}</p>
+        <p v-if="detail.credentials_status?.has_login_password_encrypted">
+          {{ t('supplier.admin.loginPassword') }}:
+          <span v-if="revealedPassword?.id === detail.id" class="break-all">{{ revealedPassword.value }}</span><span v-else>••••••</span>
+          <button type="button" class="btn btn-secondary btn-sm ml-2" :disabled="revealingId === detail.id" @click="togglePassword(detail)">{{ t(revealedPassword?.id === detail.id ? 'supplier.admin.hidePassword' : 'supplier.admin.showPassword') }}</button>
+        </p>
+      </div>
     </BaseDialog>
   </div>
 </template>
@@ -122,9 +159,51 @@ const selectedGroupIds = ref<number[]>([])
 const reviewNote = ref('')
 const reviewAction = ref<'approve' | 'reject' | 'pause' | null>(null)
 const working = ref(false)
+const detailId = ref<number | null>(null)
+const detail = ref<AdminSupplierAccount | null>(null)
+const detailLoading = ref(false)
+const detailError = ref('')
+const revealedPassword = ref<{ id: number; value: string } | null>(null)
+const revealingId = ref<number | null>(null)
 let requestId = 0
 let disposed = false
-onBeforeUnmount(() => { disposed = true; requestId++ })
+onBeforeUnmount(() => { disposed = true; requestId++; revealedPassword.value = null })
+
+async function openDetail(account: AdminSupplierAccount) {
+  detailId.value = account.id
+  detail.value = null
+  detailError.value = ''
+  detailLoading.value = true
+  try {
+    const result = await suppliersAPI.getAccount(props.supplierId, account.id)
+    if (detailId.value === account.id) detail.value = result
+  } catch (err) {
+    if (detailId.value === account.id) detailError.value = (err as Error).message || t('supplier.admin.loadFailed')
+  } finally {
+    if (detailId.value === account.id) detailLoading.value = false
+  }
+}
+
+function closeDetail() {
+  detailId.value = null
+  detail.value = null
+  revealedPassword.value = null
+}
+
+async function togglePassword(account: AdminSupplierAccount) {
+  if (revealedPassword.value?.id === account.id) { revealedPassword.value = null; return }
+  const openedDetail = detailId.value
+  revealingId.value = account.id
+  revealedPassword.value = null
+  try {
+    const value = await suppliersAPI.revealAccountPassword(props.supplierId, account.id)
+    if (!disposed && revealingId.value === account.id && detailId.value === openedDetail) revealedPassword.value = { id: account.id, value }
+  } catch (err) {
+    appStore.showError((err as Error).message || t('supplier.admin.loadFailed'))
+  } finally {
+    revealingId.value = null
+  }
+}
 
 // Include historical account types even when a supplier can no longer submit them.
 const platforms = [...new Set(SUPPLIER_ACCOUNT_KINDS.map(kind => kind.platform))]
@@ -139,6 +218,7 @@ async function load() {
   loading.value = true
   error.value = ''
   selectedIds.value = []
+  revealedPassword.value = null
   reviewAction.value = null
   try {
     const result = await suppliersAPI.listAccounts(props.supplierId, page.value, pageSize.value, { ...filters })

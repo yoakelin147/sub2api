@@ -66,16 +66,24 @@ type GenerateAuthURLResult struct {
 
 // GenerateAuthURL generates an OAuth authorization URL with full scope
 func (s *OAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64) (*GenerateAuthURLResult, error) {
-	return s.generateAuthURLWithScope(ctx, oauth.ScopeOAuth, proxyID)
+	return s.generateAuthURLWithScope(ctx, oauth.ScopeOAuth, proxyID, 0)
 }
 
 // GenerateSetupTokenURL generates an OAuth authorization URL for setup token (inference only)
 func (s *OAuthService) GenerateSetupTokenURL(ctx context.Context, proxyID *int64) (*GenerateAuthURLResult, error) {
 	scope := oauth.ScopeInference
-	return s.generateAuthURLWithScope(ctx, scope, proxyID)
+	return s.generateAuthURLWithScope(ctx, scope, proxyID, 0)
 }
 
-func (s *OAuthService) generateAuthURLWithScope(ctx context.Context, scope string, proxyID *int64) (*GenerateAuthURLResult, error) {
+func (s *OAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID, proxyID int64, setupToken bool) (*GenerateAuthURLResult, error) {
+	scope := oauth.ScopeOAuth
+	if setupToken {
+		scope = oauth.ScopeInference
+	}
+	return s.generateAuthURLWithScope(ctx, scope, &proxyID, supplierID)
+}
+
+func (s *OAuthService) generateAuthURLWithScope(ctx context.Context, scope string, proxyID *int64, supplierID int64) (*GenerateAuthURLResult, error) {
 	// Generate PKCE values
 	state, err := oauth.GenerateState()
 	if err != nil {
@@ -106,6 +114,7 @@ func (s *OAuthService) generateAuthURLWithScope(ctx context.Context, scope strin
 
 	// Store session
 	session := &oauth.OAuthSession{
+		SupplierID:   supplierID,
 		State:        state,
 		CodeVerifier: codeVerifier,
 		Scope:        scope,
@@ -145,9 +154,21 @@ type TokenInfo struct {
 
 // ExchangeCode exchanges authorization code for tokens
 func (s *OAuthService) ExchangeCode(ctx context.Context, input *ExchangeCodeInput) (*TokenInfo, error) {
+	return s.exchangeCode(ctx, input, 0, "")
+}
+
+func (s *OAuthService) ExchangeSupplierCode(ctx context.Context, supplierID int64, setupToken bool, input *ExchangeCodeInput) (*TokenInfo, error) {
+	scope := oauth.ScopeOAuth
+	if setupToken {
+		scope = oauth.ScopeInference
+	}
+	return s.exchangeCode(ctx, input, supplierID, scope)
+}
+
+func (s *OAuthService) exchangeCode(ctx context.Context, input *ExchangeCodeInput, supplierID int64, scope string) (*TokenInfo, error) {
 	// Get session
 	session, ok := s.sessionStore.Get(input.SessionID)
-	if !ok {
+	if !ok || session.SupplierID != supplierID || (scope != "" && session.Scope != scope) || (supplierID > 0 && input.ProxyID != nil) {
 		return nil, fmt.Errorf("session not found or expired")
 	}
 

@@ -56,6 +56,8 @@ func (r *supplierRepository) Create(ctx context.Context, model *service.Supplier
 		SetName(model.Name).
 		SetStatus(model.Status).
 		SetAllowedAccountKinds(model.AllowedAccountKinds).
+		SetReviewRequired(model.ReviewRequired).
+		SetAutoApproveGroups(model.AutoApproveGroups).
 		SetNillableNotes(model.Notes).
 		SetNillableTokenSelector(model.TokenSelector).
 		SetNillableTokenHash(model.TokenHash).
@@ -95,6 +97,8 @@ func (r *supplierRepository) Update(ctx context.Context, model *service.Supplier
 		SetName(model.Name).
 		SetStatus(model.Status).
 		SetAllowedAccountKinds(model.AllowedAccountKinds).
+		SetReviewRequired(model.ReviewRequired).
+		SetAutoApproveGroups(model.AutoApproveGroups).
 		SetNillableNotes(model.Notes)
 
 	if model.Notes == nil {
@@ -180,6 +184,8 @@ func applySupplierEntityToService(model *service.Supplier, row *dbent.Supplier) 
 		Status:              row.Status,
 		Notes:               row.Notes,
 		AllowedAccountKinds: append([]service.SupplierAccountKind(nil), row.AllowedAccountKinds...),
+		ReviewRequired:      row.ReviewRequired,
+		AutoApproveGroups:   row.AutoApproveGroups,
 		TokenSelector:       row.TokenSelector,
 		TokenHash:           row.TokenHash,
 		TokenPrefix:         row.TokenPrefix,

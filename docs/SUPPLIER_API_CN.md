@@ -1,22 +1,22 @@
 # 供应商账号 API 接入指南
 
-本文档面向已由平台管理员开通的号池供应商。供应商 API 只允许管理当前供应商自己提交的上游账号，不具备用户、余额、订阅、支付、分组、代理、优先级、倍率、并发或管理员配置权限。
+本文档面向已由平台管理员开通的号池供应商。供应商 API 只允许管理当前供应商自己提交的上游账号，不具备用户、余额、订阅、支付、分组、倍率或管理员配置权限；可以选择库存代理并设置并发、优先级等账号参数。
 
 网页中的“系统令牌”页面已内置操作指南，可选择账号类型并复制 Bash/cURL 或 PowerShell 示例。示例中的系统令牌和账号凭据都是占位符，必须替换后自行执行；脱敏令牌不能直接调用接口。
 
 ## 0. 正确的供应商操作流程
 
 1. 管理员开通供应商并允许所需平台/类型。
-2. 供应商在“供应账号 → 添加账号”填写名称、真实的认证信息；默认使用普通输入项，高级字段仍可填写 JSON。批量操作也可使用 API。
-3. 提交成功表示账号已保存为待审核，不代表上游凭据已经通过连接测试。
-4. 管理员按需要配置网络代理、分组和运营参数，并完成审核。
+2. 供应商先通过 `GET /supplier/proxies` 获取库存代理，在“供应账号 → 添加账号”绑定代理并填写真实认证信息；OAuth / Setup Token 还要提供网页登录邮箱和密码。批量操作也可使用 API。
+3. 默认提交后待审核；长期可信供应商由管理员配置免审及平台分组后可自动审核启用。提交不代表上游连接测试成功。
+4. 管理员查看提交的配置（秘密默认隐藏），按需要分配分组并审核。
 5. 连接测试只有收到明确成功结果才算通过；账号是否进入调度还取决于审核及启用状态。
 
 **Antigravity 注意事项**：`apikey` 对应上游中转服务，必须同时提供该服务的 `api_key` 和 `base_url`；真实 Antigravity 账号 Token 应选择 `oauth` 并提供 `access_token`，可附带 `refresh_token` 等字段。仅填写 API Key 缺少地址会被拒绝，不应把任意字符串当作可用凭据。
 
-**三种地址/权限要分清**：平台 API 根地址用于调用本系统；`credentials.base_url` 是账号指向的上游服务；网络代理由管理员单独配置。自定义上游地址必须是 HTTPS 且满足管理员白名单，供应商不能用 JSON 绕过此限制。
+**三种地址/权限要分清**：平台 API 根地址用于调用本系统；`credentials.base_url` 是账号指向的上游服务；`proxy_id` 只能引用平台已配置且启用、未过期的库存代理。自定义上游地址必须是 HTTPS 且满足管理员白名单。
 
-当前供应账号的运营默认值为无代理、无分组、并发 1、优先级 50、倍率 1、到期自动暂停；审核与调度状态见第 4 节。供应商负责凭据及基础资料，不能完成管理员所有运营配置。
+代理为必填项，库存为空时无法提交；其余运营默认值为无分组、并发 1、优先级 50、倍率 1、到期自动暂停。分组及计费倍率仍由管理员管理。
 
 ## 1. 基础约定
 
@@ -52,6 +52,11 @@ curl -X POST "https://example.com/api/v1/supplier/access-token/regenerate" \
 | 方法 | 路径 | 说明 |
 |---|---|---|
 | `GET` | `/supplier/me` | 当前供应商、允许类型、令牌状态和账号统计 |
+| `GET` | `/supplier/proxies` | 可选的库存代理 ID 和名称（不返回代理密钥） |
+| `POST` | `/supplier/oauth/:platform/auth-url` | 以 `proxy_id`、`type` 发起本人 OAuth 授权；Gemini 可加 `oauth_type`、`project_id`、`tier_id` |
+| `POST` | `/supplier/oauth/:platform/exchange-code` | 以 `type`、`session_id`、`code`、`state` 换取本人 Token，不接收代理和重定向覆盖 |
+| `POST` | `/supplier/oauth/:platform/credential-exchange` | Claude Cookie、Grok SSO 或平台启用的 Grok 邮箱密码登录换票 |
+| `GET` | `/supplier/oauth/grok/capabilities` | 查询 Grok 密码授权是否启用 |
 | `GET` | `/supplier/accounts` | 分页查询自己的账号 |
 | `POST` | `/supplier/accounts` | 创建一个待审核账号，要求幂等键 |
 | `POST` | `/supplier/accounts/batch` | 批量创建，要求幂等键 |
@@ -71,6 +76,8 @@ curl -X POST "https://example.com/api/v1/supplier/access-token/regenerate" \
 
 ## 4. 创建一个账号
 
+`external_id` 是可选的供应商自有系统编号，只用于与自己的系统映射和租户内防重；不填时数据库自动生成平台账号 `id`，创建响应中的 `data.id` 即该编号。不要为没有自有系统编号的账号额外编造编号。
+
 ```bash
 curl -X POST "https://example.com/api/v1/supplier/accounts" \
   -H "x-api-key: supplier_REPLACE_ME" \
@@ -82,6 +89,7 @@ curl -X POST "https://example.com/api/v1/supplier/accounts" \
     "notes": "供应商内部批次 2026-09",
     "platform": "openai",
     "type": "apikey",
+    "proxy_id": 123,
     "credentials": {"api_key": "sk-REPLACE_ME"},
     "expires_at": 1790000000
   }'
@@ -99,6 +107,7 @@ $body = @{
   name = 'OpenAI Key 10001'
   platform = 'openai'
   type = 'apikey'
+  proxy_id = 123
   credentials = @{ api_key = 'sk-REPLACE_ME' }
 } | ConvertTo-Json -Depth 8
 
@@ -107,14 +116,16 @@ Invoke-RestMethod -Method Post `
   -Headers $headers -ContentType 'application/json' -Body $body
 ```
 
-新账号固定创建为：
+默认审核供应商的新账号创建为：
 
 - `review_status=pending`
 - `status=disabled`
 - `schedulable=false`
 - 无分组
 
-供应商不能在请求中提供 `supplier_id`、`group_ids`、`proxy_id`、`priority`、`concurrency`、`load_factor`、`rate_multiplier`、`schedulable`、`review_status` 或 `extra`。出现未知或管理员字段时整项返回 422，不会静默忽略。
+免审供应商必须由管理员预先指定同平台启用分组，创建时才自动审核并启用；否则拒绝提交。供应商必须提供库存 `proxy_id`，可选 `concurrency`、`priority`、`load_factor`、`auto_pause_on_expired`；不能提交 `supplier_id`、`group_ids`、`rate_multiplier`、`schedulable`、`review_status` 或 `extra`。
+
+OAuth / Setup Token 的 `credentials` 还必须包含 `access_token`、`email`、`password`（网页登录密码）。例如：`{"access_token":"TOKEN", "email":"name@example.com", "password":"WEB_LOGIN_PASSWORD"}`。服务端加密保存密码；只允许管理员按需查看，供应商的列表、详情、创建和更新响应均不回显密码或其他敏感凭据。请通过 HTTPS 提交，且服务器须配置稳定的 `totp.encryption_key`，否则这类账号会拒绝保存。
 
 ## 5. 批量创建
 
@@ -136,6 +147,7 @@ curl -X POST "https://example.com/api/v1/supplier/accounts/batch" \
         "name": "OpenAI Key 10002",
         "platform": "openai",
         "type": "apikey",
+        "proxy_id": 123,
         "credentials": {"api_key": "sk-REPLACE_ME"}
       },
       {
@@ -143,6 +155,7 @@ curl -X POST "https://example.com/api/v1/supplier/accounts/batch" \
         "name": "Anthropic Key 10003",
         "platform": "anthropic",
         "type": "apikey",
+        "proxy_id": 123,
         "credentials": {"api_key": "sk-ant-REPLACE_ME"}
       }
     ]
@@ -179,7 +192,7 @@ curl -X PUT "https://example.com/api/v1/supplier/accounts/123" \
 {"status":"disabled"}
 ```
 
-只有已审核通过账号可以设置为 `active`。更新 `credentials` 会立即把账号重置为 `pending + disabled + schedulable=false`，必须重新审核；仅修改名称、备注或外部编号不会重置审核。
+只有已审核通过账号可以设置为 `active`。需要编辑 OAuth 登录信息时，必须完整重新提交 token、邮箱及密码，已有秘密不可读取。默认审核供应商更新 `credentials` 或变更代理会重置为 `pending + disabled + schedulable=false`；仅修改名称、备注或外部编号不重置审核。免审策略不允许自行启用被驳回账号。
 
 测试账号：
 
@@ -200,22 +213,26 @@ curl -X POST "https://example.com/api/v1/supplier/accounts/123/test" \
 |---|---|---|
 | `openai` | `apikey` | `api_key` |
 | `openai` | `upstream` | `api_key`, `base_url` |
-| `openai` | `oauth` / `setup-token` | `access_token` |
+| `openai` | `oauth` / `setup-token` | `access_token`, `email`, `password` |
 | `anthropic` | `apikey` | `api_key` |
 | `anthropic` | `upstream` | `api_key`, `base_url` |
-| `anthropic` | `oauth` / `setup-token` | `access_token` |
+| `anthropic` | `oauth` / `setup-token` | `access_token`, `email`, `password` |
 | `anthropic` | `bedrock` | `auth_mode`, `aws_region`，并按模式提供 SigV4 或 API Key |
 | `anthropic` | `service_account` | `service_account_json`, `location` |
 | `gemini` | `apikey` | `api_key` |
-| `gemini` | `oauth` | `access_token` |
+| `gemini` | `oauth` | `access_token`, `email`, `password` |
 | `gemini` | `service_account` | `service_account_json`, `location` |
-| `antigravity` | `oauth` | `access_token` |
+| `antigravity` | `oauth` | `access_token`, `email`, `password` |
 | `antigravity` | `apikey` | `api_key`, `base_url` |
 | `grok` | `apikey` | `api_key` |
-| `grok` | `oauth` | `access_token` |
+| `grok` | `oauth` | `access_token`, `email`, `password` |
 | `kimi` / `zhipu` / `deepseek` / `minimax` / `opencode_go` | `apikey` | `api_key`, `account_mode`, `api_protocol` |
 
-OAuth 只接受已经取得的 token bundle，不开放授权码、SSO、Cookie 或密码换票。Composite、影子账号、任意请求头覆写和管理员调度字段均不支持。
+OAuth 账号创建接口仍接受已经取得的 token bundle，不接收授权码、SSO 或 Cookie。供应商后台复用管理员授权界面，支持 OpenAI、Claude、Gemini、Antigravity、Grok OAuth 和 Claude Setup Token。调用 `POST /supplier/oauth/:platform/auth-url`，提交 `{ "proxy_id": 123, "type": "oauth" }`（Claude Setup Token 填 `setup-token`；Gemini 可选 `oauth_type` 为 `code_assist`、`google_one` 或 `ai_studio`，并可填 `project_id`、`tier_id`），返回 `auth_url` 和 `session_id`；打开地址登录，再把 `code`、`session_id`、适用的 `state` 提交到 `POST /supplier/oauth/:platform/exchange-code`。会话绑定当前供应商和库存代理，30 分钟有效且成功后失效，不允许换票时覆盖代理或重定向地址。所有接口需 `X-API-Key` 或供应商后台登录态，换票不会自动创建或审核账号。
+
+Claude 还可通过 `POST /supplier/oauth/anthropic/credential-exchange` 提交 `{ "type": "oauth", "proxy_id": 123, "method": "cookie", "session_key": "..." }`（Setup Token 改为 `type: "setup-token"`）；Grok 可通过 `/supplier/oauth/grok/credential-exchange` 使用 `method: "sso"` + `sso_token`，或平台启用密码授权时使用 `method: "password"` + `email`、`password`。先查询 `/supplier/oauth/grok/capabilities` 的 `password_auth_enabled`。换得 Token 后仍须通过账号创建/更新接口提交。Composite、影子账号、任意请求头覆写和管理员调度字段均不支持。
+
+以上 OAuth / Setup Token 凭据中的 `refresh_token` 可选；网页登录 `email`、`password` 可能不会由换票接口提供，提交账号时仍需填写。供应商“系统令牌”页面可分别选“查询可用库存代理”“生成授权地址”“授权码换 Token”复制完整 cURL / PowerShell 示例；授权/换票接口不要求 `Idempotency-Key`，创建/批量创建账号仍要求。
 
 自定义 `base_url`：
 

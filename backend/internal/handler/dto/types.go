@@ -337,11 +337,12 @@ type Account struct {
 // repeated account_groups and groups object graphs. Fetch /admin/accounts/:id
 // for the complete Account DTO when editing or inspecting an account.
 type AccountListItem struct {
-	ID       int64   `json:"id"`
-	Name     string  `json:"name"`
-	Notes    *string `json:"notes"`
-	Platform string  `json:"platform"`
-	Type     string  `json:"type"`
+	SupplierID *int64  `json:"supplier_id,omitempty"`
+	ID         int64   `json:"id"`
+	Name       string  `json:"name"`
+	Notes      *string `json:"notes"`
+	Platform   string  `json:"platform"`
+	Type       string  `json:"type"`
 
 	Credentials       map[string]any                 `json:"credentials,omitempty"`
 	CredentialsStatus map[string]bool                `json:"credentials_status,omitempty"`

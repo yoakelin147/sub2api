@@ -43,6 +43,14 @@ type OpenAIAuthURLResult struct {
 
 // GenerateAuthURL generates an OpenAI OAuth authorization URL
 func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, redirectURI, platform string) (*OpenAIAuthURLResult, error) {
+	return s.generateAuthURL(ctx, proxyID, redirectURI, platform, 0)
+}
+
+func (s *OpenAIOAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID int64, proxyID int64) (*OpenAIAuthURLResult, error) {
+	return s.generateAuthURL(ctx, &proxyID, "", PlatformOpenAI, supplierID)
+}
+
+func (s *OpenAIOAuthService) generateAuthURL(ctx context.Context, proxyID *int64, redirectURI, platform string, supplierID int64) (*OpenAIAuthURLResult, error) {
 	// Generate PKCE values
 	state, err := openai.GenerateState()
 	if err != nil {
@@ -83,6 +91,7 @@ func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64
 
 	// Store session
 	session := &openai.OAuthSession{
+		SupplierID:   supplierID,
 		State:        state,
 		CodeVerifier: codeVerifier,
 		ClientID:     clientID,
@@ -131,10 +140,21 @@ type OpenAITokenInfo struct {
 
 // ExchangeCode exchanges authorization code for tokens
 func (s *OpenAIOAuthService) ExchangeCode(ctx context.Context, input *OpenAIExchangeCodeInput) (*OpenAITokenInfo, error) {
+	return s.exchangeCode(ctx, input, 0)
+}
+
+func (s *OpenAIOAuthService) ExchangeSupplierCode(ctx context.Context, supplierID int64, input *OpenAIExchangeCodeInput) (*OpenAITokenInfo, error) {
+	return s.exchangeCode(ctx, input, supplierID)
+}
+
+func (s *OpenAIOAuthService) exchangeCode(ctx context.Context, input *OpenAIExchangeCodeInput, supplierID int64) (*OpenAITokenInfo, error) {
 	// Get session
 	session, ok := s.sessionStore.Get(input.SessionID)
-	if !ok {
+	if !ok || session.SupplierID != supplierID || supplierID < 0 {
 		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_SESSION_NOT_FOUND", "session not found or expired")
+	}
+	if supplierID > 0 && (input.ProxyID != nil || input.RedirectURI != "") {
+		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_INVALID_REQUEST", "proxy and redirect overrides are not permitted")
 	}
 	if input.State == "" {
 		return nil, infraerrors.New(http.StatusBadRequest, "OPENAI_OAUTH_STATE_REQUIRED", "oauth state is required")

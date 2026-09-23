@@ -23,7 +23,15 @@ func persistAccountCredentials(ctx context.Context, repo AccountRepository, acco
 		return nil
 	}
 
-	account.Credentials = shallowCopyMap(credentials)
+	next := shallowCopyMap(credentials)
+	if account.SupplierID != nil {
+		if _, supplied := next["login_password_encrypted"]; !supplied {
+			if encrypted, ok := account.Credentials["login_password_encrypted"]; ok {
+				next["login_password_encrypted"] = encrypted
+			}
+		}
+	}
+	account.Credentials = next
 	if updater, ok := any(repo).(accountCredentialsUpdater); ok {
 		return updater.UpdateCredentials(ctx, account.ID, account.Credentials)
 	}

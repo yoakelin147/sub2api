@@ -66,6 +66,14 @@ type GrokAuthURLResult struct {
 }
 
 func (s *GrokOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, redirectURI string) (*GrokAuthURLResult, error) {
+	return s.generateAuthURL(ctx, proxyID, redirectURI, 0)
+}
+
+func (s *GrokOAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID, proxyID int64) (*GrokAuthURLResult, error) {
+	return s.generateAuthURL(ctx, &proxyID, "", supplierID)
+}
+
+func (s *GrokOAuthService) generateAuthURL(ctx context.Context, proxyID *int64, redirectURI string, supplierID int64) (*GrokAuthURLResult, error) {
 	state, err := xai.GenerateState()
 	if err != nil {
 		return nil, infraerrors.Newf(http.StatusInternalServerError, "GROK_OAUTH_STATE_FAILED", "failed to generate state: %v", err)
@@ -96,6 +104,7 @@ func (s *GrokOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, 
 	}
 
 	s.sessionStore.Set(sessionID, &xai.OAuthSession{
+		SupplierID:    supplierID,
 		State:         state,
 		CodeVerifier:  codeVerifier,
 		CodeChallenge: codeChallenge,
@@ -145,11 +154,19 @@ type GrokPasswordLoginResult struct {
 }
 
 func (s *GrokOAuthService) ExchangeCode(ctx context.Context, input *GrokExchangeCodeInput) (*GrokTokenInfo, error) {
+	return s.exchangeCode(ctx, input, 0)
+}
+
+func (s *GrokOAuthService) ExchangeSupplierCode(ctx context.Context, supplierID int64, input *GrokExchangeCodeInput) (*GrokTokenInfo, error) {
+	return s.exchangeCode(ctx, input, supplierID)
+}
+
+func (s *GrokOAuthService) exchangeCode(ctx context.Context, input *GrokExchangeCodeInput, supplierID int64) (*GrokTokenInfo, error) {
 	if input == nil {
 		return nil, infraerrors.New(http.StatusBadRequest, "GROK_OAUTH_INVALID_INPUT", "input is required")
 	}
 	session, ok := s.sessionStore.Get(input.SessionID)
-	if !ok {
+	if !ok || session.SupplierID != supplierID || (supplierID > 0 && (input.ProxyID != nil || input.RedirectURI != "")) {
 		return nil, infraerrors.New(http.StatusBadRequest, "GROK_OAUTH_SESSION_NOT_FOUND", "session not found or expired")
 	}
 

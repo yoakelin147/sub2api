@@ -10,10 +10,15 @@ import (
 )
 
 type SupplierHandler struct {
-	suppliers *service.SupplierService
-	tokens    *service.SupplierTokenService
-	accounts  *service.SupplierAccountService
-	tester    *service.AccountTestService
+	suppliers        *service.SupplierService
+	tokens           *service.SupplierTokenService
+	accounts         *service.SupplierAccountService
+	tester           *service.AccountTestService
+	openAIOAuth      *service.OpenAIOAuthService
+	claudeOAuth      *service.OAuthService
+	geminiOAuth      *service.GeminiOAuthService
+	antigravityOAuth *service.AntigravityOAuthService
+	grokOAuth        *service.GrokOAuthService
 }
 
 func NewSupplierHandler(
@@ -21,8 +26,13 @@ func NewSupplierHandler(
 	tokens *service.SupplierTokenService,
 	accounts *service.SupplierAccountService,
 	tester *service.AccountTestService,
+	openAIOAuth *service.OpenAIOAuthService,
+	claudeOAuth *service.OAuthService,
+	geminiOAuth *service.GeminiOAuthService,
+	antigravityOAuth *service.AntigravityOAuthService,
+	grokOAuth *service.GrokOAuthService,
 ) *SupplierHandler {
-	return &SupplierHandler{suppliers: suppliers, tokens: tokens, accounts: accounts, tester: tester}
+	return &SupplierHandler{suppliers: suppliers, tokens: tokens, accounts: accounts, tester: tester, openAIOAuth: openAIOAuth, claudeOAuth: claudeOAuth, geminiOAuth: geminiOAuth, antigravityOAuth: antigravityOAuth, grokOAuth: grokOAuth}
 }
 
 func (h *SupplierHandler) Me(c *gin.Context) {
@@ -97,6 +107,7 @@ func supplierResponse(supplier *service.Supplier) gin.H {
 		"name":                  supplier.Name,
 		"status":                supplier.Status,
 		"allowed_account_kinds": supplier.AllowedAccountKinds,
+		"review_required":       supplier.ReviewRequired,
 		"access_token":          tokenStatusResponse(supplier),
 		"stats":                 supplier.Stats,
 	}

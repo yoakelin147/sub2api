@@ -42608,6 +42608,8 @@ type SupplierMutation struct {
 	notes                       *string
 	allowed_account_kinds       *[]domain.SupplierAccountKind
 	appendallowed_account_kinds []domain.SupplierAccountKind
+	review_required             *bool
+	auto_approve_groups         *map[string]int64
 	token_selector              *string
 	token_hash                  *string
 	token_prefix                *string
@@ -43052,6 +43054,78 @@ func (m *SupplierMutation) ResetAllowedAccountKinds() {
 	m.appendallowed_account_kinds = nil
 }
 
+// SetReviewRequired sets the "review_required" field.
+func (m *SupplierMutation) SetReviewRequired(b bool) {
+	m.review_required = &b
+}
+
+// ReviewRequired returns the value of the "review_required" field in the mutation.
+func (m *SupplierMutation) ReviewRequired() (r bool, exists bool) {
+	v := m.review_required
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldReviewRequired returns the old "review_required" field's value of the Supplier entity.
+// If the Supplier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierMutation) OldReviewRequired(ctx context.Context) (v bool, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldReviewRequired is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldReviewRequired requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldReviewRequired: %w", err)
+	}
+	return oldValue.ReviewRequired, nil
+}
+
+// ResetReviewRequired resets all changes to the "review_required" field.
+func (m *SupplierMutation) ResetReviewRequired() {
+	m.review_required = nil
+}
+
+// SetAutoApproveGroups sets the "auto_approve_groups" field.
+func (m *SupplierMutation) SetAutoApproveGroups(value map[string]int64) {
+	m.auto_approve_groups = &value
+}
+
+// AutoApproveGroups returns the value of the "auto_approve_groups" field in the mutation.
+func (m *SupplierMutation) AutoApproveGroups() (r map[string]int64, exists bool) {
+	v := m.auto_approve_groups
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldAutoApproveGroups returns the old "auto_approve_groups" field's value of the Supplier entity.
+// If the Supplier object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *SupplierMutation) OldAutoApproveGroups(ctx context.Context) (v map[string]int64, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldAutoApproveGroups is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldAutoApproveGroups requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldAutoApproveGroups: %w", err)
+	}
+	return oldValue.AutoApproveGroups, nil
+}
+
+// ResetAutoApproveGroups resets all changes to the "auto_approve_groups" field.
+func (m *SupplierMutation) ResetAutoApproveGroups() {
+	m.auto_approve_groups = nil
+}
+
 // SetTokenSelector sets the "token_selector" field.
 func (m *SupplierMutation) SetTokenSelector(s string) {
 	m.token_selector = &s
@@ -43439,7 +43513,7 @@ func (m *SupplierMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *SupplierMutation) Fields() []string {
-	fields := make([]string, 0, 13)
+	fields := make([]string, 0, 15)
 	if m.created_at != nil {
 		fields = append(fields, supplier.FieldCreatedAt)
 	}
@@ -43463,6 +43537,12 @@ func (m *SupplierMutation) Fields() []string {
 	}
 	if m.allowed_account_kinds != nil {
 		fields = append(fields, supplier.FieldAllowedAccountKinds)
+	}
+	if m.review_required != nil {
+		fields = append(fields, supplier.FieldReviewRequired)
+	}
+	if m.auto_approve_groups != nil {
+		fields = append(fields, supplier.FieldAutoApproveGroups)
 	}
 	if m.token_selector != nil {
 		fields = append(fields, supplier.FieldTokenSelector)
@@ -43503,6 +43583,10 @@ func (m *SupplierMutation) Field(name string) (ent.Value, bool) {
 		return m.Notes()
 	case supplier.FieldAllowedAccountKinds:
 		return m.AllowedAccountKinds()
+	case supplier.FieldReviewRequired:
+		return m.ReviewRequired()
+	case supplier.FieldAutoApproveGroups:
+		return m.AutoApproveGroups()
 	case supplier.FieldTokenSelector:
 		return m.TokenSelector()
 	case supplier.FieldTokenHash:
@@ -43538,6 +43622,10 @@ func (m *SupplierMutation) OldField(ctx context.Context, name string) (ent.Value
 		return m.OldNotes(ctx)
 	case supplier.FieldAllowedAccountKinds:
 		return m.OldAllowedAccountKinds(ctx)
+	case supplier.FieldReviewRequired:
+		return m.OldReviewRequired(ctx)
+	case supplier.FieldAutoApproveGroups:
+		return m.OldAutoApproveGroups(ctx)
 	case supplier.FieldTokenSelector:
 		return m.OldTokenSelector(ctx)
 	case supplier.FieldTokenHash:
@@ -43612,6 +43700,20 @@ func (m *SupplierMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetAllowedAccountKinds(v)
+		return nil
+	case supplier.FieldReviewRequired:
+		v, ok := value.(bool)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetReviewRequired(v)
+		return nil
+	case supplier.FieldAutoApproveGroups:
+		v, ok := value.(map[string]int64)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetAutoApproveGroups(v)
 		return nil
 	case supplier.FieldTokenSelector:
 		v, ok := value.(string)
@@ -43765,6 +43867,12 @@ func (m *SupplierMutation) ResetField(name string) error {
 		return nil
 	case supplier.FieldAllowedAccountKinds:
 		m.ResetAllowedAccountKinds()
+		return nil
+	case supplier.FieldReviewRequired:
+		m.ResetReviewRequired()
+		return nil
+	case supplier.FieldAutoApproveGroups:
+		m.ResetAutoApproveGroups()
 		return nil
 	case supplier.FieldTokenSelector:
 		m.ResetTokenSelector()

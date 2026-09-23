@@ -12,14 +12,15 @@ import (
 
 func TestSupplierAccountServiceBatchCreateReturnsPerItemResults(t *testing.T) {
 	supplierRepo := &supplierTokenRepositoryStub{supplier: &Supplier{
-		ID: 7, Status: domain.SupplierStatusActive,
+		ID: 7, Status: domain.SupplierStatusActive, ReviewRequired: true,
 		AllowedAccountKinds: []SupplierAccountKind{{Platform: PlatformOpenAI, Type: AccountTypeAPIKey}},
 	}}
 	accountRepo := &supplierAccountRepositoryStub{}
-	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), nil, &config.Config{})
+	proxyID := int64(11)
+	svc := NewSupplierAccountService(accountRepo, NewSupplierService(supplierRepo), nil, NewProxyService(&supplierProxyRepoStub{proxy: &Proxy{ID: proxyID, Status: StatusActive}}), &config.Config{}, nil)
 
 	result, err := svc.BatchCreate(context.Background(), 7, []CreateSupplierAccountInput{
-		{ExternalID: "good", Name: "Good", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "secret"}},
+		{ExternalID: "good", Name: "Good", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "secret"}, ProxyID: &proxyID},
 		{ExternalID: "bad", Name: "Bad", Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{}},
 	})
 	require.NoError(t, err)
@@ -31,7 +32,7 @@ func TestSupplierAccountServiceBatchCreateReturnsPerItemResults(t *testing.T) {
 }
 
 func TestSupplierAccountServiceBatchCreateRejectsMoreThanLimit(t *testing.T) {
-	svc := NewSupplierAccountService(&supplierAccountRepositoryStub{}, NewSupplierService(&supplierTokenRepositoryStub{}), nil, &config.Config{})
+	svc := NewSupplierAccountService(&supplierAccountRepositoryStub{}, NewSupplierService(&supplierTokenRepositoryStub{}), nil, nil, &config.Config{}, nil)
 	items := make([]CreateSupplierAccountInput, MaxSupplierAccountBatchSize+1)
 	for i := range items {
 		items[i].ExternalID = fmt.Sprintf("item-%d", i)

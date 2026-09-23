@@ -87,4 +87,12 @@ describe('locale key completeness', () => {
     expect(missingKeys(usedKeys, enKeys), 'English locale is missing referenced keys').toEqual([])
     expect(missingKeys(usedKeys, zhKeys), 'Chinese locale is missing referenced keys').toEqual([])
   })
+
+  it('translates every backend account status used by the status indicator', () => {
+    for (const status of ['active', 'inactive', 'disabled', 'error']) {
+      const key = `admin.accounts.status.${status}`
+      expect(enKeys.has(key), `English locale is missing ${key}`).toBe(true)
+      expect(zhKeys.has(key), `Chinese locale is missing ${key}`).toBe(true)
+    }
+  })
 })

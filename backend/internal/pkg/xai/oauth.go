@@ -55,6 +55,7 @@ var (
 
 // OAuthSession stores one PKCE OAuth flow.
 type OAuthSession struct {
+	SupplierID    int64     `json:"supplier_id,omitempty"`
 	State         string    `json:"state"`
 	CodeVerifier  string    `json:"code_verifier"`
 	CodeChallenge string    `json:"code_challenge"`

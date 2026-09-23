@@ -86,6 +86,8 @@ export default {
       allTypes: '全部类型',
       allStatus: '全部状态',
       allGroups: '全部分组',
+      allSuppliers: '全部来源',
+      platformOwned: '平台自建',
       ungroupedGroup: '未分配分组',
       oauthType: 'OAuth',
       // Schedulable toggle
@@ -402,6 +404,7 @@ export default {
       status: {
         active: '正常',
         inactive: '停用',
+        disabled: '停用',
         expired: '已过期',
         error: '错误',
         cooldown: '冷却中',

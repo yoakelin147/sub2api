@@ -105,8 +105,8 @@
       </section>
     </div>
 
-    <SupplierAccountForm :show="showForm" :kinds="allowedKinds" :account="editingAccount" :saving="saving" :server-error="saveError" @close="showForm = false" @submit="save" />
-    <SupplierBatchImportDialog :show="showBatch" @close="showBatch = false" @completed="batchCompleted" />
+    <SupplierAccountForm :show="showForm" :kinds="allowedKinds" :proxies="proxies" :account="editingAccount" :saving="saving" :server-error="saveError" @close="showForm = false" @submit="save" />
+    <SupplierBatchImportDialog :show="showBatch" :proxies="proxies" @close="showBatch = false" @completed="batchCompleted" />
   </AppLayout>
 </template>
 
@@ -124,6 +124,7 @@ import {
   deleteAccount,
   getProfile,
   listAccounts,
+  listProxies,
   testAccount,
   updateAccount,
   type SupplierAccount,
@@ -132,12 +133,15 @@ import {
   type SupplierAccountKind,
   type SupplierAccountUpdateInput,
   type SupplierStats,
+  type SupplierProxyOption,
 } from '@/api/supplier'
 
 const { t } = useI18n()
 const appStore = useAppStore()
 const accounts = ref<SupplierAccount[]>([])
 const allowedKinds = ref<SupplierAccountKind[]>([])
+const reviewRequired = ref(true)
+const proxies = ref<SupplierProxyOption[]>([])
 const stats = ref<SupplierStats | null>(null)
 const loading = ref(true)
 const saving = ref(false)
@@ -210,7 +214,7 @@ async function save(accountId: number | null, input: SupplierAccountInput | Supp
       appStore.showSuccess(t('supplier.accounts.updated'))
     } else {
       await createAccount(input as SupplierAccountInput)
-      appStore.showSuccess(t('supplier.accounts.created'))
+      appStore.showSuccess(t(reviewRequired.value ? 'supplier.accounts.created' : 'supplier.accounts.createdAutoApproved'))
     }
     showForm.value = false
     await load()
@@ -272,7 +276,9 @@ onMounted(async () => {
   try {
     const profile = await getProfile()
     allowedKinds.value = profile.allowed_account_kinds
+    reviewRequired.value = profile.review_required
     stats.value = profile.stats
+    proxies.value = await listProxies()
   } catch (error) {
     appStore.showError((error as { message?: string }).message || t('supplier.accounts.loadFailed'))
   }

@@ -275,6 +275,7 @@ func (u *URLAvailability) GetAvailableURLsWithBase(baseURLs []string) []string {
 
 // OAuthSession 保存 OAuth 授权流程的临时状态
 type OAuthSession struct {
+	SupplierID   int64     `json:"supplier_id,omitempty"`
 	State        string    `json:"state"`
 	CodeVerifier string    `json:"code_verifier"`
 	ProxyURL     string    `json:"proxy_url,omitempty"`

@@ -1610,6 +1610,8 @@ var (
 		{Name: "status", Type: field.TypeString, Size: 20, Default: "active"},
 		{Name: "notes", Type: field.TypeString, Nullable: true, SchemaType: map[string]string{"postgres": "text"}},
 		{Name: "allowed_account_kinds", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
+		{Name: "review_required", Type: field.TypeBool, Default: true},
+		{Name: "auto_approve_groups", Type: field.TypeJSON, SchemaType: map[string]string{"postgres": "jsonb"}},
 		{Name: "token_selector", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "token_hash", Type: field.TypeString, Nullable: true, Size: 64},
 		{Name: "token_prefix", Type: field.TypeString, Nullable: true, Size: 32},
@@ -1635,7 +1637,7 @@ var (
 			{
 				Name:    "supplier_token_selector",
 				Unique:  false,
-				Columns: []*schema.Column{SuppliersColumns[9]},
+				Columns: []*schema.Column{SuppliersColumns[11]},
 			},
 			{
 				Name:    "supplier_deleted_at",

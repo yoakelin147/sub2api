@@ -1,0 +1,3 @@
+ALTER TABLE suppliers
+    ADD COLUMN IF NOT EXISTS review_required BOOLEAN NOT NULL DEFAULT TRUE,
+    ADD COLUMN IF NOT EXISTS auto_approve_groups JSONB NOT NULL DEFAULT '{}'::jsonb;

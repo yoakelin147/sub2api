@@ -31,6 +31,14 @@ type AntigravityAuthURLResult struct {
 
 // GenerateAuthURL 生成 Google OAuth 授权链接
 func (s *AntigravityOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64) (*AntigravityAuthURLResult, error) {
+	return s.generateAuthURL(ctx, proxyID, 0)
+}
+
+func (s *AntigravityOAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID, proxyID int64) (*AntigravityAuthURLResult, error) {
+	return s.generateAuthURL(ctx, &proxyID, supplierID)
+}
+
+func (s *AntigravityOAuthService) generateAuthURL(ctx context.Context, proxyID *int64, supplierID int64) (*AntigravityAuthURLResult, error) {
 	state, err := antigravity.GenerateState()
 	if err != nil {
 		return nil, fmt.Errorf("生成 state 失败: %w", err)
@@ -55,6 +63,7 @@ func (s *AntigravityOAuthService) GenerateAuthURL(ctx context.Context, proxyID *
 	}
 
 	session := &antigravity.OAuthSession{
+		SupplierID:   supplierID,
 		State:        state,
 		CodeVerifier: codeVerifier,
 		ProxyURL:     proxyURL,
@@ -96,8 +105,16 @@ type AntigravityTokenInfo struct {
 
 // ExchangeCode 用 authorization code 交换 token
 func (s *AntigravityOAuthService) ExchangeCode(ctx context.Context, input *AntigravityExchangeCodeInput) (*AntigravityTokenInfo, error) {
+	return s.exchangeCode(ctx, input, 0)
+}
+
+func (s *AntigravityOAuthService) ExchangeSupplierCode(ctx context.Context, supplierID int64, input *AntigravityExchangeCodeInput) (*AntigravityTokenInfo, error) {
+	return s.exchangeCode(ctx, input, supplierID)
+}
+
+func (s *AntigravityOAuthService) exchangeCode(ctx context.Context, input *AntigravityExchangeCodeInput, supplierID int64) (*AntigravityTokenInfo, error) {
 	session, ok := s.sessionStore.Get(input.SessionID)
-	if !ok {
+	if !ok || session.SupplierID != supplierID || (supplierID > 0 && input.ProxyID != nil) {
 		return nil, fmt.Errorf("session 不存在或已过期")
 	}
 
