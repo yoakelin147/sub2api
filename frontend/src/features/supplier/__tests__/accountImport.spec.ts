@@ -67,4 +67,10 @@ describe('parseSupplierAccountImport', () => {
 
     expect(() => parseSupplierAccountImport('json', JSON.stringify(accounts))).toThrow('500')
   })
+
+  it('keeps advanced settings and rejects unsupported JSON fields', () => {
+    const account = { name: 'A', platform: 'openai', type: 'apikey', credentials: { api_key: 'key' }, extra: { openai_compact_mode: 'auto' }, group_ids: [42] }
+    expect(parseSupplierAccountImport('json', JSON.stringify([account]))[0]).toMatchObject({ extra: account.extra, group_ids: [42] })
+    expect(() => parseSupplierAccountImport('json', JSON.stringify([{ ...account, rate_multiplier: 2 }]))).toThrow('unsupported field rate_multiplier')
+  })
 })

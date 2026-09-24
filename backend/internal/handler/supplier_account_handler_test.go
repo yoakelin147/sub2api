@@ -52,12 +52,20 @@ func TestSupplierAccountResponseNeverExposesCredentialsOrExtra(t *testing.T) {
 	require.Contains(t, string(payload), "vendor-1")
 }
 
+func TestSupplierProfileOnlyExposesAuthorizedGroupsWhenAvailable(t *testing.T) {
+	supplier := &service.Supplier{ReviewRequired: true, AutoApproveGroups: map[string][]int64{"openai": {42}}}
+	require.Equal(t, []service.SupplierAccountKind{}, supplierResponse(supplier)["allowed_account_kinds"])
+	require.Empty(t, supplierResponse(supplier)["auto_approve_groups"])
+	supplier.ReviewRequired = false
+	require.Equal(t, supplier.AutoApproveGroups, supplierResponse(supplier)["auto_approve_groups"])
+}
+
 func TestDecodeStrictSupplierJSONRejectsAdminFields(t *testing.T) {
 	recorder := httptest.NewRecorder()
 	ctx, _ := gin.CreateTestContext(recorder)
 	ctx.Request = httptest.NewRequest("POST", "/api/v1/supplier/accounts", bytes.NewBufferString(`{
 		"name":"account","platform":"openai","type":"apikey",
-		"credentials":{"api_key":"secret"},"group_ids":[1]
+		"credentials":{"api_key":"secret"},"rate_multiplier":2
 	}`))
 	var request supplierAccountRequest
 	require.Error(t, decodeStrictSupplierJSON(ctx, &request))

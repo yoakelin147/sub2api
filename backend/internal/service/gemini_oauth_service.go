@@ -103,7 +103,7 @@ func (s *GeminiOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64
 }
 
 func (s *GeminiOAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID, proxyID int64, projectID, oauthType, tierID string) (*GeminiAuthURLResult, error) {
-	return s.generateAuthURL(ctx, &proxyID, "", projectID, oauthType, tierID, supplierID)
+	return s.generateAuthURL(ctx, normalizeSupplierProxyID(&proxyID), "", projectID, oauthType, tierID, supplierID)
 }
 
 func (s *GeminiOAuthService) generateAuthURL(ctx context.Context, proxyID *int64, redirectURI, projectID, oauthType, tierID string, supplierID int64) (*GeminiAuthURLResult, error) {

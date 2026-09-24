@@ -63,6 +63,36 @@ var supplierCredentialSpecs = map[SupplierAccountKind]supplierCredentialSpec{
 	{Platform: PlatformOpenCodeGo, Type: AccountTypeAPIKey}:        credentialSpec([]string{"api_key", "account_mode", "api_protocol"}, "base_url", "api_base_urls", "protocol_rules"),
 }
 
+var supplierConnectionCredentialKeys = map[string]struct{}{
+	"api_key": {}, "access_token": {}, "refresh_token": {}, "id_token": {}, "expires_at": {},
+	"email": {}, "password": {}, "base_url": {}, "api_base_urls": {}, "auth_scheme": {},
+	"auth_mode": {}, "aws_region": {}, "aws_access_key_id": {}, "aws_secret_access_key": {},
+	"aws_session_token": {}, "service_account_json": {}, "location": {}, "project_id": {},
+	"client_email": {}, "account_mode": {}, "api_protocol": {}, "chatgpt_account_id": {},
+	"chatgpt_user_id": {}, "organization_id": {}, "client_id": {}, "token_type": {},
+	"scope": {}, "oauth_type": {}, "aws_force_global": {}, "zhipu_organization": {},
+	"zhipu_project": {},
+}
+
+func validateSupplierCredentialPermissions(platform, accountType string, credentials map[string]any, reviewRequired bool) error {
+	if !reviewRequired {
+		return nil
+	}
+	spec, ok := supplierCredentialSpecs[SupplierAccountKind{Platform: platform, Type: accountType}]
+	if !ok {
+		return ErrSupplierCredentialsInvalid
+	}
+	for key := range credentials {
+		if _, allowed := spec.allowed[key]; !allowed {
+			return ErrSupplierCredentialsInvalid
+		}
+		if _, allowed := supplierConnectionCredentialKeys[key]; !allowed {
+			return ErrSupplierCredentialsInvalid
+		}
+	}
+	return nil
+}
+
 func ValidateSupplierAccountCredentials(cfg *config.Config, platform, accountType string, credentials map[string]any) (map[string]any, error) {
 	kind := SupplierAccountKind{Platform: strings.ToLower(strings.TrimSpace(platform)), Type: strings.ToLower(strings.TrimSpace(accountType))}
 	spec, ok := supplierCredentialSpecs[kind]
@@ -76,7 +106,12 @@ func ValidateSupplierAccountCredentials(cfg *config.Config, platform, accountTyp
 	normalized := make(map[string]any, len(credentials))
 	for key, value := range credentials {
 		if _, ok := spec.allowed[key]; !ok {
-			return nil, ErrSupplierCredentialsInvalid
+			if key != "model_mapping" && key != "compact_model_mapping" {
+				return nil, ErrSupplierCredentialsInvalid
+			}
+			if err := validateSupplierModelMapping(value); err != nil {
+				return nil, err
+			}
 		}
 		if text, ok := value.(string); ok {
 			if key != "password" {
@@ -103,10 +138,57 @@ func ValidateSupplierAccountCredentials(cfg *config.Config, platform, accountTyp
 			return nil, ErrSupplierCredentialsInvalid
 		}
 	}
+	if kind.Platform == PlatformOpenCodeGo {
+		if err := NormalizeOpenCodeGoProtocolRulesCredentials(normalized); err != nil {
+			return nil, ErrSupplierCredentialsInvalid.WithCause(err)
+		}
+	}
 	if err := validateSupplierCredentialConditions(cfg, kind, normalized); err != nil {
 		return nil, ErrSupplierCredentialsInvalid.WithCause(err)
 	}
 	return normalized, nil
+}
+
+func validateSupplierModelMapping(value any) error {
+	mapping, ok := value.(map[string]any)
+	if !ok || len(mapping) > 256 {
+		return ErrSupplierCredentialsInvalid
+	}
+	for source, target := range mapping {
+		model, ok := target.(string)
+		if strings.TrimSpace(source) == "" || len(source) > 256 || !ok || strings.TrimSpace(model) == "" || len(model) > 256 {
+			return ErrSupplierCredentialsInvalid
+		}
+	}
+	return nil
+}
+
+func validateSupplierExtra(platform, accountType string, extra map[string]any) error {
+	encoded, err := json.Marshal(extra)
+	if err != nil || len(encoded) > 1<<16 {
+		return ErrSupplierAccountInputInvalid
+	}
+	for key, value := range extra {
+		switch key {
+		case AccountExtraUpstreamRequestIDHeader:
+		case "openai_compact_mode":
+			mode, ok := value.(string)
+			if platform != PlatformOpenAI || !ok || mode != OpenAICompactModeAuto && mode != OpenAICompactModeForceOn && mode != OpenAICompactModeForceOff {
+				return ErrSupplierAccountInputInvalid
+			}
+		case featureKeyWebSearchEmulation:
+			mode, ok := value.(string)
+			if platform != PlatformAnthropic || accountType != AccountTypeAPIKey || !ok || mode != WebSearchModeDefault && mode != WebSearchModeEnabled && mode != WebSearchModeDisabled {
+				return ErrSupplierAccountInputInvalid
+			}
+		default:
+			return ErrSupplierAccountInputInvalid
+		}
+	}
+	if err := ValidateUpstreamRequestIDHeaderExtra(extra); err != nil {
+		return ErrSupplierAccountInputInvalid.WithCause(err)
+	}
+	return nil
 }
 
 func nonEmptyCredentialValue(value any) bool {

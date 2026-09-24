@@ -36,6 +36,95 @@ const BaseDialogStub = {
 }
 
 describe('SupplierAccountForm', () => {
+  it('offers platform-specific optional settings and sends their API values', async () => {
+    const global = { plugins: [createPinia(), i18n], stubs: { BaseDialog: BaseDialogStub } }
+    const proxies = [{ id: 3, name: 'Platform proxy' }]
+    const openai = mount(SupplierAccountForm, { props: {
+      show: true, kinds: [{ platform: 'openai', type: 'apikey' }], proxies,
+      approvedGroups: { openai: [3] }, groupOptions: [{ id: 3, name: 'OpenAI', description: '', platform: 'openai', require_oauth_only: false }],
+    }, global })
+    expect(openai.find('[data-test="supplier-web-search"]').exists()).toBe(false)
+    await openai.get('input[required]').setValue('OpenAI account')
+    await openai.get('[data-field="api_key"]').setValue('sk-test')
+    await openai.get('[data-test="supplier-compact-mode"]').setValue('force_off')
+    await openai.get('[data-test="supplier-request-id-header"]').setValue('X-Oneapi-Request-Id')
+    await openai.get('form').trigger('submit')
+    expect(openai.emitted('submit')?.[0]?.[1]).toMatchObject({ extra: { openai_compact_mode: 'force_off', upstream_request_id_header: 'X-Oneapi-Request-Id' } })
+    openai.unmount()
+
+    const anthropic = mount(SupplierAccountForm, { props: {
+      show: true, kinds: [{ platform: 'anthropic', type: 'apikey' }], proxies,
+      approvedGroups: { anthropic: [4] }, groupOptions: [{ id: 4, name: 'Anthropic', description: '', platform: 'anthropic', require_oauth_only: false }],
+    }, global })
+    expect(anthropic.find('[data-test="supplier-compact-mode"]').exists()).toBe(false)
+    await anthropic.get('input[required]').setValue('Anthropic account')
+    await anthropic.get('[data-field="api_key"]').setValue('sk-test')
+    await anthropic.get('[data-test="supplier-web-search"]').setValue('enabled')
+    await anthropic.get('form').trigger('submit')
+    expect(anthropic.emitted('submit')?.[0]?.[1]).toMatchObject({ extra: { web_search_emulation: 'enabled' } })
+    anthropic.unmount()
+  })
+
+  it('prefills optional settings and can clear them without re-entering credentials', async () => {
+    const wrapper = mount(SupplierAccountForm, { props: {
+      show: true, kinds: [{ platform: 'openai', type: 'apikey' }], proxies: [{ id: 3, name: 'Platform proxy' }],
+      approvedGroups: { openai: [3] }, groupOptions: [{ id: 3, name: 'OpenAI', description: '', platform: 'openai', require_oauth_only: false }],
+      account: {
+        id: 9, external_id: null, name: 'Existing', notes: null, platform: 'openai', type: 'apikey',
+        extra: { openai_compact_mode: 'force_on', upstream_request_id_header: 'X-Request-ID' },
+        group_ids: [3], credential_status: { api_key: true }, has_credentials: true,
+        status: 'active' as const, schedulable: true, review_status: 'approved' as const,
+        proxy_id: 3, concurrency: 1, priority: 50, load_factor: null, auto_pause_on_expired: true,
+        review_note: null, expires_at: null, last_used_at: null,
+        created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+      },
+    }, global: { plugins: [createPinia(), i18n], stubs: { BaseDialog: BaseDialogStub } } })
+    expect((wrapper.get('[data-test="supplier-compact-mode"]').element as HTMLSelectElement).value).toBe('force_on')
+    expect((wrapper.get('[data-test="supplier-request-id-header"]').element as HTMLInputElement).value).toBe('X-Request-ID')
+    await wrapper.get('[data-test="supplier-compact-mode"]').setValue('auto')
+    await wrapper.get('[data-test="supplier-request-id-header"]').setValue('')
+    await wrapper.get('form').trigger('submit')
+    expect(wrapper.emitted('submit')?.[0]?.[1]).toMatchObject({ extra: {} })
+    expect(wrapper.emitted('submit')?.[0]?.[1]).not.toHaveProperty('credentials')
+    wrapper.unmount()
+  })
+  it('submits several authorized groups and preserves their selection while editing', async () => {
+    const props = {
+      show: true, reviewRequired: false, kinds: [{ platform: 'openai', type: 'apikey' }],
+      proxies: [{ id: 3, name: 'Platform proxy' }], approvedGroups: { openai: [3, 4] },
+      groupOptions: [
+        { id: 3, name: 'Primary Pool', description: 'Standard traffic', platform: 'openai', require_oauth_only: false },
+        { id: 4, name: 'Priority Pool', description: 'Priority traffic', platform: 'openai', require_oauth_only: false },
+      ],
+    }
+    const global = { plugins: [createPinia(), i18n], stubs: { BaseDialog: BaseDialogStub } }
+    const create = mount(SupplierAccountForm, { props, global })
+    const dropdown = create.get('[data-test="supplier-group-dropdown"]')
+    expect((dropdown.element as HTMLDetailsElement).open).toBe(false)
+    expect(dropdown.get('summary').text()).toContain('Primary Pool')
+    expect(dropdown.text()).toContain('Priority traffic')
+    expect(dropdown.get('summary').text()).not.toContain('#3')
+    await create.get('input[required]').setValue('Vendor Account')
+    await create.get('[data-field="api_key"]').setValue('sk-test')
+    await create.get('input[type="checkbox"][value="4"]').setValue(true)
+    await create.get('form').trigger('submit')
+    expect(create.emitted('submit')?.[0]?.[1]).toMatchObject({ group_ids: [3, 4] })
+    create.unmount()
+
+    const edit = mount(SupplierAccountForm, { props: { ...props, account: {
+      id: 9, external_id: 'ext-9', name: 'Existing', notes: null, platform: 'openai', type: 'apikey',
+      group_ids: [3, 4], credential_status: { api_key: true }, has_credentials: true,
+      status: 'active' as const, schedulable: true, review_status: 'approved' as const,
+      proxy_id: 3, concurrency: 1, priority: 50, load_factor: null, auto_pause_on_expired: true,
+      review_note: null, expires_at: null, last_used_at: null,
+      created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
+    } }, global })
+    expect((edit.get('input[type="checkbox"][value="4"]').element as HTMLInputElement).checked).toBe(true)
+    await edit.get('input[type="checkbox"][value="3"]').setValue(false)
+    await edit.get('form').trigger('submit')
+    expect(edit.emitted('submit')?.[0]?.[1]).toMatchObject({ group_ids: [4] })
+    edit.unmount()
+  })
   it('lets the supplier authorize OpenAI and fills tokens without bypassing login credentials', async () => {
     generateSupplierOAuthURL.mockResolvedValue({ auth_url: 'https://auth.example.test/authorize?state=expected', session_id: 'owned-session' })
     exchangeSupplierOAuthCode.mockResolvedValue({ access_token: 'access-from-oauth', refresh_token: 'refresh-from-oauth', email: 'supplier@example.test' })
@@ -129,7 +218,7 @@ describe('SupplierAccountForm', () => {
   })
   it('emits only the supplier-safe create contract', async () => {
     const wrapper = mount(SupplierAccountForm, {
-      props: { show: true, kinds: [{ platform: 'openai', type: 'apikey' }], proxies: [{ id: 3, name: 'Platform proxy' }] },
+      props: { show: true, kinds: [{ platform: 'openai', type: 'apikey' }], proxies: [{ id: 3, name: 'Platform proxy' }], approvedGroups: { openai: [3] }, groupOptions: [{ id: 3, name: 'Primary Pool', description: '', platform: 'openai', require_oauth_only: false }] },
       global: { plugins: [createPinia(), i18n], stubs: { BaseDialog: BaseDialogStub } },
     })
 
@@ -145,13 +234,14 @@ describe('SupplierAccountForm', () => {
       platform: 'openai',
       type: 'apikey',
       credentials: { api_key: 'sk-test' },
+      group_ids: [3],
       expires_at: null,
       proxy_id: 3,
       concurrency: 1,
       priority: 50,
       auto_pause_on_expired: true,
     })
-    expect(JSON.stringify(payload)).not.toMatch(/supplier_id|group_ids|rate_multiplier|schedulable|review_status|extra/)
+    expect(JSON.stringify(payload)).not.toMatch(/supplier_id|rate_multiplier|schedulable|review_status|extra/)
   })
 
   it('does not require or refill credentials while editing', async () => {

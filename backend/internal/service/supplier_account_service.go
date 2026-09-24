@@ -1,8 +1,14 @@
 package service
 
 import (
+	"cmp"
 	"context"
+	"encoding/json"
+	"errors"
+	"maps"
+	"math"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -39,12 +45,14 @@ type CreateSupplierAccountInput struct {
 	Platform           string
 	Type               string
 	Credentials        map[string]any
+	Extra              map[string]any
 	ExpiresAt          *time.Time
 	ProxyID            *int64
 	Concurrency        *int
 	Priority           *int
 	LoadFactor         *int
 	AutoPauseOnExpired *bool
+	GroupIDs           []int64
 }
 
 type UpdateSupplierAccountInput struct {
@@ -52,13 +60,18 @@ type UpdateSupplierAccountInput struct {
 	Name               *string
 	Notes              *string
 	Credentials        *map[string]any
+	Extra              *map[string]any
 	ExpiresAt          *time.Time
+	ClearExpiresAt     bool
 	Status             *string
 	ProxyID            *int64
 	Concurrency        *int
 	Priority           *int
 	LoadFactor         *int
+	ClearLoadFactor    bool
+	RateMultiplier     *float64
 	AutoPauseOnExpired *bool
+	GroupIDs           []int64
 }
 
 type SupplierProxyOption struct {
@@ -91,6 +104,42 @@ type SupplierAccountBatchResult struct {
 	Succeeded int                              `json:"succeeded"`
 	Failed    int                              `json:"failed"`
 	Results   []SupplierAccountBatchItemResult `json:"results"`
+}
+
+type SupplierGroupOption struct {
+	ID               int64  `json:"id"`
+	Name             string `json:"name"`
+	Description      string `json:"description"`
+	Platform         string `json:"platform"`
+	RequireOAuthOnly bool   `json:"require_oauth_only"`
+}
+
+func (s *SupplierAccountService) AuthorizedGroups(ctx context.Context, supplier *Supplier) ([]SupplierGroupOption, error) {
+	options := []SupplierGroupOption{}
+	if supplier.ReviewRequired || s.groups == nil {
+		return options, nil
+	}
+	for platform, ids := range supplier.AutoApproveGroups {
+		for _, id := range ids {
+			group, err := s.groups.GetByID(ctx, id)
+			if err != nil {
+				if errors.Is(err, ErrGroupNotFound) {
+					continue
+				}
+				return nil, err
+			}
+			if group != nil && group.Status == StatusActive && group.Platform == platform {
+				options = append(options, SupplierGroupOption{ID: group.ID, Name: group.Name, Description: group.Description, Platform: platform, RequireOAuthOnly: group.RequireOAuthOnly})
+			}
+		}
+	}
+	slices.SortFunc(options, func(first, second SupplierGroupOption) int {
+		if comparison := strings.Compare(first.Platform, second.Platform); comparison != 0 {
+			return comparison
+		}
+		return cmp.Compare(first.ID, second.ID)
+	})
+	return options, nil
 }
 
 func NewSupplierAccountService(
@@ -153,7 +202,22 @@ func (s *SupplierAccountService) AuthorizeOAuth(ctx context.Context, supplierID 
 }
 
 func (s *SupplierAccountService) validateProxy(ctx context.Context, proxyID *int64) error {
-	if proxyID == nil || *proxyID <= 0 || s.proxies == nil {
+	if s.proxies == nil {
+		return ErrSupplierProxyRequired
+	}
+	if proxyID == nil || *proxyID == 0 {
+		proxies, err := s.proxies.ListActive(ctx)
+		if err != nil {
+			return err
+		}
+		for _, proxy := range proxies {
+			if !proxy.IsExpired(time.Now()) {
+				return ErrSupplierProxyRequired
+			}
+		}
+		return nil
+	}
+	if *proxyID < 0 {
 		return ErrSupplierProxyRequired
 	}
 	proxy, err := s.proxies.GetByID(ctx, *proxyID)
@@ -161,6 +225,13 @@ func (s *SupplierAccountService) validateProxy(ctx context.Context, proxyID *int
 		return ErrSupplierProxyRequired
 	}
 	return nil
+}
+
+func normalizeSupplierProxyID(proxyID *int64) *int64 {
+	if proxyID == nil || *proxyID == 0 {
+		return nil
+	}
+	return proxyID
 }
 
 func (s *SupplierAccountService) Create(ctx context.Context, supplierID int64, input CreateSupplierAccountInput) (*Account, error) {
@@ -185,6 +256,15 @@ func (s *SupplierAccountService) createWithSupplier(ctx context.Context, supplie
 	if len(externalID) > 191 {
 		return nil, ErrSupplierAccountInputInvalid
 	}
+	if supplier.ReviewRequired && (input.Notes != nil || input.ExpiresAt != nil || input.Concurrency != nil || input.Priority != nil || input.LoadFactor != nil || input.AutoPauseOnExpired != nil || input.GroupIDs != nil || input.Extra != nil) {
+		return nil, ErrSupplierAccountInputInvalid
+	}
+	if err := validateSupplierExtra(platform, accountType, input.Extra); err != nil {
+		return nil, err
+	}
+	if err := validateSupplierCredentialPermissions(platform, accountType, input.Credentials, supplier.ReviewRequired); err != nil {
+		return nil, err
+	}
 	credentials, err := ValidateSupplierAccountCredentials(s.cfg, platform, accountType, input.Credentials)
 	if err != nil {
 		return nil, err
@@ -206,15 +286,10 @@ func (s *SupplierAccountService) createWithSupplier(ctx context.Context, supplie
 	}
 	groups := []AccountGroup(nil)
 	if !supplier.ReviewRequired {
-		groupID := supplier.AutoApproveGroups[platform]
-		if groupID <= 0 || s.groups == nil {
-			return nil, ErrSupplierAutoApproveGroupRequired
+		groups, err = s.authorizedGroup(ctx, supplier, platform, accountType, input.GroupIDs)
+		if err != nil {
+			return nil, err
 		}
-		group, err := s.groups.GetByID(ctx, groupID)
-		if err != nil || group == nil || group.Status != StatusActive || group.Platform != platform || (group.RequireOAuthOnly && accountType != AccountTypeOAuth) {
-			return nil, ErrSupplierAutoApproveGroupRequired
-		}
-		groups = []AccountGroup{{GroupID: groupID, Priority: 1}}
 	}
 	rateMultiplier := 1.0
 	account := &Account{
@@ -223,7 +298,7 @@ func (s *SupplierAccountService) createWithSupplier(ctx context.Context, supplie
 		Platform:           platform,
 		Type:               accountType,
 		Credentials:        SanitizeStoredCredentials(platform, credentials),
-		Extra:              map[string]any{},
+		Extra:              input.Extra,
 		Concurrency:        normalizeAccountConcurrency(platform, accountType, 1),
 		Priority:           50,
 		RateMultiplier:     &rateMultiplier,
@@ -232,7 +307,7 @@ func (s *SupplierAccountService) createWithSupplier(ctx context.Context, supplie
 		ReviewStatus:       AccountReviewStatusPending,
 		ExpiresAt:          input.ExpiresAt,
 		AutoPauseOnExpired: true,
-		ProxyID:            input.ProxyID,
+		ProxyID:            normalizeSupplierProxyID(input.ProxyID),
 	}
 	if input.Concurrency != nil {
 		account.Concurrency = normalizeAccountConcurrency(platform, accountType, *input.Concurrency)
@@ -346,20 +421,85 @@ func (s *SupplierAccountService) Update(ctx context.Context, supplierID, account
 	if err != nil {
 		return nil, err
 	}
+	return s.updateOwned(ctx, supplierID, accountID, input, supplier, false)
+}
+
+func (s *SupplierAccountService) UpdateForAdmin(ctx context.Context, supplierID, accountID int64, input UpdateSupplierAccountInput) (*Account, error) {
+	if input.Status != nil {
+		return nil, ErrSupplierAccountInputInvalid
+	}
+	supplier, err := s.suppliers.GetByID(ctx, supplierID)
+	if err != nil {
+		return nil, err
+	}
+	return s.updateOwned(ctx, supplierID, accountID, input, supplier, true)
+}
+
+func (s *SupplierAccountService) updateOwned(ctx context.Context, supplierID, accountID int64, input UpdateSupplierAccountInput, supplier *Supplier, admin bool) (*Account, error) {
 	account, err := s.repo.GetOwnedByID(ctx, supplierID, accountID)
 	if err != nil {
 		return nil, err
 	}
+	if !admin && (input.RateMultiplier != nil || input.ClearExpiresAt || input.ClearLoadFactor || supplier.ReviewRequired && (input.Notes != nil || input.ExpiresAt != nil || input.Concurrency != nil || input.Priority != nil || input.LoadFactor != nil || input.AutoPauseOnExpired != nil || input.Extra != nil || input.GroupIDs != nil)) || admin && input.GroupIDs != nil {
+		return nil, ErrSupplierAccountInputInvalid
+	}
+	var groups []AccountGroup
+	if !admin && !supplier.ReviewRequired && input.GroupIDs != nil {
+		groups, err = s.authorizedGroup(ctx, supplier, account.Platform, account.Type, input.GroupIDs)
+		if err != nil {
+			return nil, err
+		}
+	}
+	if input.Extra != nil {
+		if admin {
+			encoded, err := json.Marshal(*input.Extra)
+			if err != nil || len(encoded) > maxSupplierCredentialBytes {
+				return nil, ErrSupplierAccountInputInvalid
+			}
+			if err := ValidateOpenAILongContextBillingExtra(account.Platform, *input.Extra); err != nil {
+				return nil, ErrSupplierAccountInputInvalid.WithCause(err)
+			}
+			if err := ValidateUpstreamRequestIDHeaderExtra(*input.Extra); err != nil {
+				return nil, ErrSupplierAccountInputInvalid.WithCause(err)
+			}
+			for _, key := range []string{OllamaCloudUsageSessionExtraKey, OllamaCloudUsageAutoRefreshExtraKey, OllamaCloudUsageSnapshotExtraKey} {
+				if _, exists := (*input.Extra)[key]; !exists {
+					if value, stored := account.Extra[key]; stored {
+						(*input.Extra)[key] = value
+					}
+				}
+			}
+			account.Extra = *input.Extra
+		} else {
+			if err := validateSupplierExtra(account.Platform, account.Type, *input.Extra); err != nil {
+				return nil, err
+			}
+			if account.Extra == nil {
+				account.Extra = make(map[string]any)
+			}
+			for _, key := range []string{AccountExtraUpstreamRequestIDHeader, "openai_compact_mode", featureKeyWebSearchEmulation} {
+				delete(account.Extra, key)
+			}
+			for key, value := range *input.Extra {
+				account.Extra[key] = value
+			}
+		}
+	}
+	if !admin && input.Credentials != nil {
+		if err := validateSupplierCredentialPermissions(account.Platform, account.Type, *input.Credentials, supplier.ReviewRequired); err != nil {
+			return nil, err
+		}
+	}
 	proxyID := account.ProxyID
 	proxyChanged := input.ProxyID != nil && (proxyID == nil || *proxyID != *input.ProxyID)
 	if input.ProxyID != nil {
-		proxyID = input.ProxyID
+		proxyID = normalizeSupplierProxyID(input.ProxyID)
 	}
 	if err := s.validateProxy(ctx, proxyID); err != nil {
 		return nil, err
 	}
 	if input.ProxyID != nil {
-		account.ProxyID = input.ProxyID
+		account.ProxyID = proxyID
 	}
 	if input.Concurrency != nil {
 		if *input.Concurrency < 1 || *input.Concurrency > 10000 {
@@ -373,11 +513,19 @@ func (s *SupplierAccountService) Update(ctx context.Context, supplierID, account
 		}
 		account.Priority = *input.Priority
 	}
-	if input.LoadFactor != nil {
+	if admin && input.ClearLoadFactor {
+		account.LoadFactor = nil
+	} else if input.LoadFactor != nil {
 		if *input.LoadFactor < 1 || *input.LoadFactor > 10000 {
 			return nil, ErrSupplierAccountInputInvalid
 		}
 		account.LoadFactor = input.LoadFactor
+	}
+	if admin && input.RateMultiplier != nil {
+		if math.IsNaN(*input.RateMultiplier) || *input.RateMultiplier < 0 || *input.RateMultiplier > 10000 {
+			return nil, ErrSupplierAccountInputInvalid
+		}
+		account.RateMultiplier = input.RateMultiplier
 	}
 	if input.AutoPauseOnExpired != nil {
 		account.AutoPauseOnExpired = *input.AutoPauseOnExpired
@@ -404,16 +552,57 @@ func (s *SupplierAccountService) Update(ctx context.Context, supplierID, account
 	}
 	if input.Credentials != nil || proxyChanged {
 		if input.Credentials != nil {
-			credentials, err := ValidateSupplierAccountCredentials(s.cfg, account.Platform, account.Type, *input.Credentials)
-			if err != nil {
-				return nil, err
+			if admin {
+				credentials, err := s.adminCredentials(account, *input.Credentials)
+				if err != nil {
+					return nil, err
+				}
+				account.Credentials = credentials
+			} else {
+				configurationOnly := !supplier.ReviewRequired && len(*input.Credentials) > 0
+				for key := range *input.Credentials {
+					if key != "model_mapping" && key != "compact_model_mapping" && key != "protocol_rules" {
+						configurationOnly = false
+					}
+				}
+				if configurationOnly {
+					if len(account.Credentials) == 0 {
+						return nil, ErrSupplierCredentialsInvalid
+					}
+					encoded, err := json.Marshal(*input.Credentials)
+					if err != nil || len(encoded) > maxSupplierCredentialBytes {
+						return nil, ErrSupplierCredentialsInvalid
+					}
+					credentials := maps.Clone(account.Credentials)
+					for key, value := range *input.Credentials {
+						if key == "protocol_rules" {
+							if account.Platform != PlatformOpenCodeGo {
+								return nil, ErrSupplierCredentialsInvalid
+							}
+						} else if err := validateSupplierModelMapping(value); err != nil {
+							return nil, err
+						}
+						credentials[key] = value
+					}
+					if account.Platform == PlatformOpenCodeGo {
+						if err := NormalizeOpenCodeGoProtocolRulesCredentials(credentials); err != nil {
+							return nil, ErrSupplierCredentialsInvalid.WithCause(err)
+						}
+					}
+					account.Credentials = credentials
+				} else {
+					credentials, err := ValidateSupplierAccountCredentials(s.cfg, account.Platform, account.Type, *input.Credentials)
+					if err != nil {
+						return nil, err
+					}
+					if err := s.secureLoginPassword(credentials); err != nil {
+						return nil, err
+					}
+					account.Credentials = SanitizeStoredCredentials(account.Platform, credentials)
+				}
 			}
-			if err := s.secureLoginPassword(credentials); err != nil {
-				return nil, err
-			}
-			account.Credentials = SanitizeStoredCredentials(account.Platform, credentials)
 		}
-		if supplier.ReviewRequired {
+		if !admin && supplier.ReviewRequired {
 			account.ReviewStatus = AccountReviewStatusPending
 			account.Status = StatusDisabled
 			account.Schedulable = false
@@ -422,7 +611,9 @@ func (s *SupplierAccountService) Update(ctx context.Context, supplierID, account
 			account.ReviewNote = nil
 		}
 	}
-	if input.ExpiresAt != nil {
+	if admin && input.ClearExpiresAt {
+		account.ExpiresAt = nil
+	} else if input.ExpiresAt != nil {
 		account.ExpiresAt = input.ExpiresAt
 	}
 	if input.Status != nil {
@@ -431,7 +622,7 @@ func (s *SupplierAccountService) Update(ctx context.Context, supplierID, account
 			account.Status = StatusDisabled
 			account.Schedulable = false
 		case StatusActive:
-			if account.ReviewStatus != AccountReviewStatusApproved {
+			if account.ReviewStatus != AccountReviewStatusApproved || !admin && supplier.ReviewRequired {
 				return nil, ErrSupplierAccountInputInvalid
 			}
 			account.Status = StatusActive
@@ -440,10 +631,99 @@ func (s *SupplierAccountService) Update(ctx context.Context, supplierID, account
 			return nil, ErrSupplierAccountInputInvalid
 		}
 	}
-	if err := s.repo.UpdateOwned(ctx, supplierID, account); err != nil {
+	if err := s.repo.UpdateOwned(ctx, supplierID, account, groups); err != nil {
 		return nil, err
 	}
+	if groups != nil {
+		account.AccountGroups = groups
+		account.GroupIDs = make([]int64, 0, len(groups))
+		for _, group := range groups {
+			account.GroupIDs = append(account.GroupIDs, group.GroupID)
+		}
+	}
 	return account, nil
+}
+
+func (s *SupplierAccountService) authorizedGroup(ctx context.Context, supplier *Supplier, platform, accountType string, requested []int64) ([]AccountGroup, error) {
+	allowed := supplier.AutoApproveGroups[platform]
+	if len(allowed) == 0 || s.groups == nil {
+		return nil, ErrSupplierAutoApproveGroupRequired
+	}
+	if len(requested) == 0 {
+		for _, groupID := range allowed {
+			group, err := s.groups.GetByID(ctx, groupID)
+			if err == nil && group != nil && group.Status == StatusActive && group.Platform == platform && (!group.RequireOAuthOnly || accountType == AccountTypeOAuth) {
+				return []AccountGroup{{GroupID: groupID, Priority: 1}}, nil
+			}
+		}
+		return nil, ErrSupplierAutoApproveGroupRequired
+	}
+	groups := make([]AccountGroup, 0, len(requested))
+	seen := make(map[int64]bool, len(requested))
+	for _, groupID := range requested {
+		if groupID <= 0 || seen[groupID] || !slices.Contains(allowed, groupID) {
+			return nil, ErrSupplierAutoApproveGroupRequired
+		}
+		seen[groupID] = true
+		group, err := s.groups.GetByID(ctx, groupID)
+		if err != nil || group == nil || group.Status != StatusActive || group.Platform != platform || group.RequireOAuthOnly && accountType != AccountTypeOAuth {
+			return nil, ErrSupplierAutoApproveGroupRequired
+		}
+		groups = append(groups, AccountGroup{GroupID: groupID, Priority: 1})
+	}
+	return groups, nil
+}
+
+func (s *SupplierAccountService) adminCredentials(account *Account, input map[string]any) (map[string]any, error) {
+	encoded, err := json.Marshal(input)
+	if err != nil || len(encoded) > maxSupplierCredentialBytes {
+		return nil, ErrSupplierCredentialsInvalid
+	}
+	spec := supplierCredentialSpecs[SupplierAccountKind{Platform: account.Platform, Type: account.Type}]
+	for key := range input {
+		if IsSensitiveCredentialKey(key) {
+			return nil, ErrSupplierCredentialsInvalid
+		}
+		if key == "model_mapping" || key == "compact_model_mapping" {
+			if err := validateSupplierModelMapping(input[key]); err != nil {
+				return nil, err
+			}
+		}
+		if _, allowed := spec.allowed[key]; !allowed {
+			switch key {
+			case "model_mapping", "compact_model_mapping", "pool_mode", "pool_mode_retry_count", "pool_mode_retry_status_codes":
+			default:
+				if _, exists := account.Credentials[key]; !exists {
+					return nil, ErrSupplierCredentialsInvalid
+				}
+			}
+		}
+	}
+	for key := range spec.required {
+		if _, existed := account.Credentials[key]; existed && !IsSensitiveCredentialKey(key) && !nonEmptyCredentialValue(input[key]) {
+			return nil, ErrSupplierCredentialsInvalid
+		}
+	}
+	credentials := MergePreservingSensitiveCreds(account.Credentials, input)
+	if account.Platform == PlatformOpenCodeGo {
+		if err := NormalizeOpenCodeGoProtocolRulesCredentials(credentials); err != nil {
+			return nil, ErrSupplierCredentialsInvalid.WithCause(err)
+		}
+	}
+	if rawURL, exists := credentials["base_url"]; exists {
+		if _, ok := rawURL.(string); !ok {
+			return nil, ErrSupplierCredentialsInvalid
+		}
+	}
+	if rawURLs, exists := credentials["api_base_urls"]; exists {
+		if _, ok := rawURLs.(map[string]any); !ok {
+			return nil, ErrSupplierCredentialsInvalid
+		}
+	}
+	if err := validateSupplierCredentialConditions(s.cfg, SupplierAccountKind{Platform: account.Platform, Type: account.Type}, credentials); err != nil {
+		return nil, ErrSupplierCredentialsInvalid.WithCause(err)
+	}
+	return credentials, nil
 }
 
 func (s *SupplierAccountService) activeSupplier(ctx context.Context, supplierID int64) (*Supplier, error) {

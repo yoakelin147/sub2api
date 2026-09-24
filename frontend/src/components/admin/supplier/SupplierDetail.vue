@@ -42,8 +42,8 @@
             <p v-if="supplier.notes" class="mt-2 max-h-24 overflow-auto break-words text-sm text-gray-600 dark:text-gray-300">{{ supplier.notes }}</p>
             <p class="mb-2 mt-4 text-sm text-gray-500">{{ t('supplier.admin.allowedKinds') }}</p>
             <div class="flex max-h-48 flex-wrap gap-2 overflow-auto">
-              <span v-for="kind in supplier.allowed_account_kinds" :key="kind.platform + ':' + kind.type" class="badge badge-gray">{{ t('monitorCommon.providers.' + kind.platform) }} / {{ t('supplier.admin.kindTypes.' + kind.type) }}</span>
-              <p v-if="supplier.allowed_account_kinds.length === 0" class="text-sm text-amber-600">{{ t('supplier.admin.noPermission') }}</p>
+              <span v-for="kind in supplier.allowed_account_kinds ?? []" :key="kind.platform + ':' + kind.type" class="badge badge-gray">{{ t('monitorCommon.providers.' + kind.platform) }} / {{ t('supplier.admin.kindTypes.' + kind.type) }}</span>
+              <p v-if="!supplier.allowed_account_kinds?.length" class="text-sm text-amber-600">{{ t('supplier.admin.noPermission') }}</p>
             </div>
           </section>
           <section class="min-w-0 border-t border-gray-100 pt-4 dark:border-dark-700 lg:border-l lg:border-t-0 lg:pl-6 lg:pt-0">

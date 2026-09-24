@@ -31,12 +31,14 @@ type supplierAccountRequest struct {
 	Platform           string         `json:"platform"`
 	Type               string         `json:"type"`
 	Credentials        map[string]any `json:"credentials"`
+	Extra              map[string]any `json:"extra"`
 	ExpiresAt          *int64         `json:"expires_at"`
 	ProxyID            *int64         `json:"proxy_id"`
 	Concurrency        *int           `json:"concurrency"`
 	Priority           *int           `json:"priority"`
 	LoadFactor         *int           `json:"load_factor"`
 	AutoPauseOnExpired *bool          `json:"auto_pause_on_expired"`
+	GroupIDs           []int64        `json:"group_ids"`
 }
 
 type supplierAccountUpdateRequest struct {
@@ -44,6 +46,7 @@ type supplierAccountUpdateRequest struct {
 	Name               *string         `json:"name"`
 	Notes              *string         `json:"notes"`
 	Credentials        *map[string]any `json:"credentials"`
+	Extra              *map[string]any `json:"extra"`
 	ExpiresAt          *int64          `json:"expires_at"`
 	Status             *string         `json:"status"`
 	ProxyID            *int64          `json:"proxy_id"`
@@ -51,6 +54,7 @@ type supplierAccountUpdateRequest struct {
 	Priority           *int            `json:"priority"`
 	LoadFactor         *int            `json:"load_factor"`
 	AutoPauseOnExpired *bool           `json:"auto_pause_on_expired"`
+	GroupIDs           []int64         `json:"group_ids"`
 }
 
 type supplierAccountBatchRequest struct {
@@ -127,10 +131,10 @@ func (h *SupplierHandler) CreateAccount(c *gin.Context) {
 		}
 		account, err := h.accounts.Create(ctx, supplierID, service.CreateSupplierAccountInput{
 			ExternalID: request.ExternalID, Name: request.Name, Notes: request.Notes,
-			Platform: request.Platform, Type: request.Type, Credentials: request.Credentials,
+			Platform: request.Platform, Type: request.Type, Credentials: request.Credentials, Extra: request.Extra,
 			ExpiresAt: unixTime(request.ExpiresAt),
 			ProxyID:   request.ProxyID, Concurrency: request.Concurrency, Priority: request.Priority,
-			LoadFactor: request.LoadFactor, AutoPauseOnExpired: request.AutoPauseOnExpired,
+			LoadFactor: request.LoadFactor, AutoPauseOnExpired: request.AutoPauseOnExpired, GroupIDs: request.GroupIDs,
 		})
 		if err != nil {
 			return nil, err
@@ -154,10 +158,10 @@ func (h *SupplierHandler) BatchCreateAccounts(c *gin.Context) {
 	for _, item := range request.Accounts {
 		inputs = append(inputs, service.CreateSupplierAccountInput{
 			ExternalID: item.ExternalID, Name: item.Name, Notes: item.Notes,
-			Platform: item.Platform, Type: item.Type, Credentials: item.Credentials,
+			Platform: item.Platform, Type: item.Type, Credentials: item.Credentials, Extra: item.Extra,
 			ExpiresAt: unixTime(item.ExpiresAt),
 			ProxyID:   item.ProxyID, Concurrency: item.Concurrency, Priority: item.Priority,
-			LoadFactor: item.LoadFactor, AutoPauseOnExpired: item.AutoPauseOnExpired,
+			LoadFactor: item.LoadFactor, AutoPauseOnExpired: item.AutoPauseOnExpired, GroupIDs: item.GroupIDs,
 		})
 	}
 	executeSupplierIdempotentJSON(c, "supplier.accounts.batch_create", request, service.DefaultWriteIdempotencyTTL(), func(ctx context.Context) (any, error) {
@@ -194,9 +198,9 @@ func (h *SupplierHandler) UpdateAccount(c *gin.Context) {
 	}
 	account, err := h.accounts.Update(c.Request.Context(), supplierID, accountID, service.UpdateSupplierAccountInput{
 		ExternalID: request.ExternalID, Name: request.Name, Notes: request.Notes,
-		Credentials: request.Credentials, ExpiresAt: unixTime(request.ExpiresAt), Status: request.Status,
+		Credentials: request.Credentials, Extra: request.Extra, ExpiresAt: unixTime(request.ExpiresAt), Status: request.Status,
 		ProxyID: request.ProxyID, Concurrency: request.Concurrency, Priority: request.Priority,
-		LoadFactor: request.LoadFactor, AutoPauseOnExpired: request.AutoPauseOnExpired,
+		LoadFactor: request.LoadFactor, AutoPauseOnExpired: request.AutoPauseOnExpired, GroupIDs: request.GroupIDs,
 	})
 	if err != nil {
 		response.ErrorFrom(c, err)
@@ -285,13 +289,21 @@ func unixTime(value *int64) *time.Time {
 
 func supplierAccountResponse(account *service.Account) gin.H {
 	_, credentialStatus := dto.RedactCredentials(account.Credentials)
+	visibleExtra := make(map[string]any)
+	for _, key := range []string{service.AccountExtraUpstreamRequestIDHeader, "openai_compact_mode", "web_search_emulation"} {
+		if value, ok := account.Extra[key].(string); ok {
+			visibleExtra[key] = value
+		}
+	}
 	return gin.H{
 		"id": account.ID, "external_id": account.SupplierExternalID, "name": account.Name,
 		"notes": account.Notes, "platform": account.Platform, "type": account.Type,
+		"extra":             visibleExtra,
 		"credential_status": credentialStatus, "has_credentials": len(credentialStatus) > 0,
 		"status": account.Status, "schedulable": account.Schedulable,
 		"proxy_id": account.ProxyID, "concurrency": account.Concurrency,
-		"priority": account.Priority, "load_factor": account.LoadFactor,
+		"group_ids": account.GroupIDs,
+		"priority":  account.Priority, "load_factor": account.LoadFactor,
 		"auto_pause_on_expired": account.AutoPauseOnExpired,
 		"review_status":         account.ReviewStatus, "review_note": account.ReviewNote,
 		"expires_at": account.ExpiresAt, "last_used_at": account.LastUsedAt,

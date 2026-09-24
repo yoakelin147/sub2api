@@ -298,6 +298,15 @@ func TestMarshalSchedulerCacheAccountKeepsEncodingJSONWireFormat(t *testing.T) {
 	}
 }
 
+func TestBuildSchedulerMetadataAccount_KeepsSupplierReviewGate(t *testing.T) {
+	supplierID := int64(7)
+	account := service.Account{SupplierID: &supplierID, ReviewStatus: service.AccountReviewStatusPending, Status: service.StatusActive, Schedulable: true}
+	metadata := buildSchedulerMetadataAccount(account)
+	require.False(t, metadata.IsSchedulable())
+	metadata.ReviewStatus = service.AccountReviewStatusApproved
+	require.True(t, metadata.IsSchedulable())
+}
+
 func TestBuildSchedulerMetadataAccount_KeepsOpenAIWSFlags(t *testing.T) {
 	account := service.Account{
 		ID:       42,

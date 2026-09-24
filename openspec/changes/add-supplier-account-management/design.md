@@ -49,6 +49,8 @@ updated_at                 timestamptz
 deleted_at                 timestamptz nullable
 ```
 
+`auto_approve_groups` 结构：`{"openai": [3, 4]}`；旧单个分组 ID 通过迁移包装为数组。关闭审核但未授权任何账号类型时允许空对象。
+
 `allowed_account_kinds` 结构：
 
 ```json

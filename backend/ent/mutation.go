@@ -42609,7 +42609,7 @@ type SupplierMutation struct {
 	allowed_account_kinds       *[]domain.SupplierAccountKind
 	appendallowed_account_kinds []domain.SupplierAccountKind
 	review_required             *bool
-	auto_approve_groups         *map[string]int64
+	auto_approve_groups         *map[string][]int64
 	token_selector              *string
 	token_hash                  *string
 	token_prefix                *string
@@ -43091,12 +43091,12 @@ func (m *SupplierMutation) ResetReviewRequired() {
 }
 
 // SetAutoApproveGroups sets the "auto_approve_groups" field.
-func (m *SupplierMutation) SetAutoApproveGroups(value map[string]int64) {
+func (m *SupplierMutation) SetAutoApproveGroups(value map[string][]int64) {
 	m.auto_approve_groups = &value
 }
 
 // AutoApproveGroups returns the value of the "auto_approve_groups" field in the mutation.
-func (m *SupplierMutation) AutoApproveGroups() (r map[string]int64, exists bool) {
+func (m *SupplierMutation) AutoApproveGroups() (r map[string][]int64, exists bool) {
 	v := m.auto_approve_groups
 	if v == nil {
 		return
@@ -43107,7 +43107,7 @@ func (m *SupplierMutation) AutoApproveGroups() (r map[string]int64, exists bool)
 // OldAutoApproveGroups returns the old "auto_approve_groups" field's value of the Supplier entity.
 // If the Supplier object wasn't provided to the builder, the object is fetched from the database.
 // An error is returned if the mutation operation is not UpdateOne, or the database query fails.
-func (m *SupplierMutation) OldAutoApproveGroups(ctx context.Context) (v map[string]int64, err error) {
+func (m *SupplierMutation) OldAutoApproveGroups(ctx context.Context) (v map[string][]int64, err error) {
 	if !m.op.Is(OpUpdateOne) {
 		return v, errors.New("OldAutoApproveGroups is only allowed on UpdateOne operations")
 	}
@@ -43709,7 +43709,7 @@ func (m *SupplierMutation) SetField(name string, value ent.Value) error {
 		m.SetReviewRequired(v)
 		return nil
 	case supplier.FieldAutoApproveGroups:
-		v, ok := value.(map[string]int64)
+		v, ok := value.(map[string][]int64)
 		if !ok {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}

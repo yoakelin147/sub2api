@@ -88,7 +88,7 @@
                     <button class="btn btn-ghost btn-sm" :title="t('common.edit')" @click="openEdit(account)"><Icon name="edit" size="sm" /></button>
                     <button
                       class="btn btn-ghost btn-sm"
-                      :disabled="account.status !== 'active' && account.review_status !== 'approved'"
+                      :disabled="account.status !== 'active' && (account.review_status !== 'approved' || reviewRequired)"
                       :title="account.status === 'active' ? t('supplier.accounts.pause') : t('supplier.accounts.enable')"
                       @click="toggleStatus(account)"
                     >
@@ -105,8 +105,8 @@
       </section>
     </div>
 
-    <SupplierAccountForm :show="showForm" :kinds="allowedKinds" :proxies="proxies" :account="editingAccount" :saving="saving" :server-error="saveError" @close="showForm = false" @submit="save" />
-    <SupplierBatchImportDialog :show="showBatch" :proxies="proxies" @close="showBatch = false" @completed="batchCompleted" />
+    <SupplierAccountForm :show="showForm" :kinds="allowedKinds" :proxies="proxies" :review-required="reviewRequired" :approved-groups="approvedGroups" :group-options="groupOptions" :account="editingAccount" :saving="saving" :server-error="saveError" @close="showForm = false" @submit="save" />
+    <SupplierBatchImportDialog :show="showBatch" :proxies="proxies" :review-required="reviewRequired" :approved-groups="approvedGroups" @close="showBatch = false" @completed="batchCompleted" />
   </AppLayout>
 </template>
 
@@ -134,6 +134,7 @@ import {
   type SupplierAccountUpdateInput,
   type SupplierStats,
   type SupplierProxyOption,
+  type SupplierGroupOption,
 } from '@/api/supplier'
 
 const { t } = useI18n()
@@ -141,6 +142,8 @@ const appStore = useAppStore()
 const accounts = ref<SupplierAccount[]>([])
 const allowedKinds = ref<SupplierAccountKind[]>([])
 const reviewRequired = ref(true)
+const approvedGroups = ref<Record<string, number[]>>({})
+const groupOptions = ref<SupplierGroupOption[]>([])
 const proxies = ref<SupplierProxyOption[]>([])
 const stats = ref<SupplierStats | null>(null)
 const loading = ref(true)
@@ -275,8 +278,10 @@ const formatDate = (value: string | null) => value ? new Date(value).toLocaleStr
 onMounted(async () => {
   try {
     const profile = await getProfile()
-    allowedKinds.value = profile.allowed_account_kinds
+    allowedKinds.value = profile.allowed_account_kinds ?? []
     reviewRequired.value = profile.review_required
+    approvedGroups.value = profile.auto_approve_groups || {}
+    groupOptions.value = profile.authorized_groups ?? []
     stats.value = profile.stats
     proxies.value = await listProxies()
   } catch (error) {

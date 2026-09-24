@@ -1,9 +1,12 @@
 package admin
 
 import (
+	"encoding/json"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/handler/dto"
@@ -32,7 +35,7 @@ type supplierWriteRequest struct {
 	Notes               *string                      `json:"notes"`
 	AllowedAccountKinds []domain.SupplierAccountKind `json:"allowed_account_kinds"`
 	ReviewRequired      *bool                        `json:"review_required"`
-	AutoApproveGroups   map[string]int64             `json:"auto_approve_groups"`
+	AutoApproveGroups   map[string][]int64           `json:"auto_approve_groups"`
 }
 
 type supplierMemberRequest struct {
@@ -240,7 +243,7 @@ func adminSupplierResponse(supplier *service.Supplier) gin.H {
 	return gin.H{
 		"id": supplier.ID, "code": supplier.Code, "name": supplier.Name,
 		"status": supplier.Status, "notes": supplier.Notes,
-		"allowed_account_kinds": supplier.AllowedAccountKinds,
+		"allowed_account_kinds": append([]domain.SupplierAccountKind{}, supplier.AllowedAccountKinds...),
 		"review_required":       supplier.ReviewRequired, "auto_approve_groups": supplier.AutoApproveGroups,
 		"access_token": gin.H{
 			"exists": supplier.TokenHash != nil, "masked_key": supplier.TokenPrefix,
@@ -312,6 +315,59 @@ func (h *SupplierHandler) GetAccount(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
+	c.Header("Cache-Control", "no-store")
+	response.Success(c, dto.AccountFromServiceShallow(account))
+}
+
+type adminSupplierAccountUpdateRequest struct {
+	ExternalID         *string         `json:"external_id"`
+	Name               *string         `json:"name"`
+	Notes              *string         `json:"notes"`
+	Credentials        *map[string]any `json:"credentials"`
+	Extra              *map[string]any `json:"extra"`
+	ExpiresAt          *int64          `json:"expires_at"`
+	ClearExpiresAt     bool            `json:"clear_expires_at"`
+	ProxyID            *int64          `json:"proxy_id"`
+	Concurrency        *int            `json:"concurrency"`
+	Priority           *int            `json:"priority"`
+	LoadFactor         *int            `json:"load_factor"`
+	ClearLoadFactor    bool            `json:"clear_load_factor"`
+	RateMultiplier     *float64        `json:"rate_multiplier"`
+	AutoPauseOnExpired *bool           `json:"auto_pause_on_expired"`
+}
+
+func (h *SupplierHandler) UpdateAccount(c *gin.Context) {
+	supplierID, accountID, ok := adminSupplierAccountIDs(c)
+	if !ok {
+		return
+	}
+	var request adminSupplierAccountUpdateRequest
+	decoder := json.NewDecoder(http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20))
+	decoder.DisallowUnknownFields()
+	if err := decoder.Decode(&request); err != nil {
+		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
+		return
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
+		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
+		return
+	}
+	var expiresAt *time.Time
+	if request.ExpiresAt != nil {
+		value := time.Unix(*request.ExpiresAt, 0).UTC()
+		expiresAt = &value
+	}
+	account, err := h.accounts.UpdateForAdmin(c.Request.Context(), supplierID, accountID, service.UpdateSupplierAccountInput{
+		ExternalID: request.ExternalID, Name: request.Name, Notes: request.Notes,
+		Credentials: request.Credentials, Extra: request.Extra, ExpiresAt: expiresAt, ClearExpiresAt: request.ClearExpiresAt,
+		ProxyID: request.ProxyID, Concurrency: request.Concurrency, Priority: request.Priority,
+		LoadFactor: request.LoadFactor, ClearLoadFactor: request.ClearLoadFactor, RateMultiplier: request.RateMultiplier, AutoPauseOnExpired: request.AutoPauseOnExpired,
+	})
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": accountID})
 	c.Header("Cache-Control", "no-store")
 	response.Success(c, dto.AccountFromServiceShallow(account))
 }

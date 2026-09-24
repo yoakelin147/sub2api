@@ -46,7 +46,14 @@ func (h *SupplierHandler) Me(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	response.Success(c, supplierResponse(supplier))
+	groups, err := h.accounts.AuthorizedGroups(c.Request.Context(), supplier)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	profile := supplierResponse(supplier)
+	profile["authorized_groups"] = groups
+	response.Success(c, profile)
 }
 
 func (h *SupplierHandler) AccessTokenStatus(c *gin.Context) {
@@ -101,13 +108,18 @@ func (h *SupplierHandler) currentSupplier(c *gin.Context) *service.Supplier {
 }
 
 func supplierResponse(supplier *service.Supplier) gin.H {
+	approvedGroups := map[string][]int64{}
+	if !supplier.ReviewRequired {
+		approvedGroups = supplier.AutoApproveGroups
+	}
 	return gin.H{
 		"id":                    supplier.ID,
 		"code":                  supplier.Code,
 		"name":                  supplier.Name,
 		"status":                supplier.Status,
-		"allowed_account_kinds": supplier.AllowedAccountKinds,
+		"allowed_account_kinds": append([]service.SupplierAccountKind{}, supplier.AllowedAccountKinds...),
 		"review_required":       supplier.ReviewRequired,
+		"auto_approve_groups":   approvedGroups,
 		"access_token":          tokenStatusResponse(supplier),
 		"stats":                 supplier.Stats,
 	}

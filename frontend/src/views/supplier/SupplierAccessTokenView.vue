@@ -51,7 +51,7 @@
           <button class="btn btn-secondary" @click="copyToken"><Icon name="copy" size="sm" />{{ t('common.copy') }}</button>
         </div>
       </section>
-      <SupplierApiGuide />
+      <SupplierApiGuide :profile="profile" />
     </div>
   </AppLayout>
 </template>
@@ -65,9 +65,11 @@ import SupplierApiGuide from '@/components/supplier/SupplierApiGuide.vue'
 import { useAppStore } from '@/stores/app'
 import {
   getAccessTokenStatus,
+  getProfile,
   regenerateAccessToken,
   revokeAccessToken,
   type SupplierTokenStatus,
+  type SupplierProfile,
 } from '@/api/supplier'
 
 const { t } = useI18n()
@@ -75,6 +77,7 @@ const appStore = useAppStore()
 const loading = ref(true)
 const working = ref(false)
 const status = ref<SupplierTokenStatus | null>(null)
+const profile = ref<SupplierProfile | null>(null)
 const plaintextToken = ref('')
 
 const formatDate = (value: string | null | undefined) => value ? new Date(value).toLocaleString() : t('common.notAvailable')
@@ -83,6 +86,7 @@ async function load() {
   loading.value = true
   try {
     status.value = await getAccessTokenStatus()
+    profile.value = await getProfile()
   } catch (error) {
     appStore.showError((error as { message?: string }).message || t('supplier.token.loadFailed'))
   } finally {

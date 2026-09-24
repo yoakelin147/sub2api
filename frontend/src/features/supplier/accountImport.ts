@@ -3,13 +3,16 @@ import type { SupplierAccountInput } from '@/api/supplier'
 export type SupplierImportFormat = 'json' | 'csv' | 'text'
 
 const MAX_BATCH_SIZE = 500
-const ACCOUNT_FIELDS = new Set(['external_id', 'name', 'notes', 'platform', 'type', 'credentials', 'expires_at', 'proxy_id', 'concurrency', 'priority', 'load_factor', 'auto_pause_on_expired'])
+const ACCOUNT_FIELDS = new Set(['external_id', 'name', 'notes', 'platform', 'type', 'credentials', 'extra', 'expires_at', 'proxy_id', 'concurrency', 'priority', 'load_factor', 'auto_pause_on_expired', 'group_ids'])
 
 function asAccount(value: unknown, source: string): SupplierAccountInput {
   if (!value || typeof value !== 'object' || Array.isArray(value)) {
     throw new Error(`${source}: account must be an object`)
   }
   const record = value as Record<string, unknown>
+  for (const field of Object.keys(record)) {
+    if (!ACCOUNT_FIELDS.has(field)) throw new Error(`${source}: unsupported field ${field}`)
+  }
   const name = typeof record.name === 'string' ? record.name.trim() : ''
   const platform = typeof record.platform === 'string' ? record.platform.trim().toLowerCase() : ''
   const type = typeof record.type === 'string' ? record.type.trim().toLowerCase() : ''
@@ -28,6 +31,14 @@ function asAccount(value: unknown, source: string): SupplierAccountInput {
   const proxyId = Number(record.proxy_id || 0)
   if (!Number.isSafeInteger(proxyId) || proxyId < 0) throw new Error(`${source}: proxy_id must be a positive integer`)
   const account: SupplierAccountInput = { name, platform, type, credentials: credentials as Record<string, unknown>, proxy_id: proxyId }
+  if (record.extra !== undefined) {
+    if (!record.extra || typeof record.extra !== 'object' || Array.isArray(record.extra)) throw new Error(`${source}: extra must be an object`)
+    account.extra = record.extra as Record<string, unknown>
+  }
+  if (record.group_ids !== undefined) {
+    if (!Array.isArray(record.group_ids) || !record.group_ids.every(id => Number.isSafeInteger(id) && id > 0)) throw new Error(`${source}: group_ids must be positive integers`)
+    account.group_ids = record.group_ids as number[]
+  }
   for (const field of ['concurrency', 'priority', 'load_factor'] as const) {
     if (record[field] !== undefined && record[field] !== '') {
       const value = Number(record[field])
@@ -102,17 +113,22 @@ function parseCSV(input: string): SupplierAccountInput[] {
     headers.forEach((header, columnIndex) => {
       const value = cells[columnIndex] ?? ''
       if (!value) return
-      if (header === 'credentials') {
+      if (header === 'credentials' || header === 'extra' || header === 'group_ids') {
         let parsed: unknown
         try {
           parsed = JSON.parse(value)
         } catch {
-          throw new Error(`CSV row ${rowIndex + 1}: credentials must be valid JSON`)
+          throw new Error(`CSV row ${rowIndex + 1}: ${header} must be valid JSON`)
         }
-        if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
+        if (header === 'group_ids') {
+          record[header] = parsed
+        } else if (!parsed || typeof parsed !== 'object' || Array.isArray(parsed)) {
           throw new Error(`CSV row ${rowIndex + 1}: credentials must be a JSON object`)
+        } else if (header === 'extra') {
+          record.extra = parsed
+        } else {
+          Object.assign(credentials, parsed)
         }
-        Object.assign(credentials, parsed)
       } else if (header.startsWith('credential.')) {
         credentials[header.slice('credential.'.length)] = value
       } else {

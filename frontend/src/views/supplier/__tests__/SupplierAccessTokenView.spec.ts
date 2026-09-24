@@ -5,11 +5,13 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import SupplierAccessTokenView from '../SupplierAccessTokenView.vue'
 
 const getStatus = vi.fn()
+const getProfile = vi.fn()
 const regenerate = vi.fn()
 const revoke = vi.fn()
 
 vi.mock('@/api/supplier', () => ({
   getAccessTokenStatus: (...args: unknown[]) => getStatus(...args),
+  getProfile: (...args: unknown[]) => getProfile(...args),
   regenerateAccessToken: (...args: unknown[]) => regenerate(...args),
   revokeAccessToken: (...args: unknown[]) => revoke(...args),
 }))
@@ -28,6 +30,7 @@ describe('SupplierAccessTokenView', () => {
   beforeEach(() => {
     localStorage.clear()
     getStatus.mockResolvedValue({ exists: false, masked_key: null, created_at: null, last_used_at: null })
+    getProfile.mockResolvedValue({ review_required: true, auto_approve_groups: {} })
     regenerate.mockResolvedValue({ key: 'supplier_selector_secret' })
     revoke.mockResolvedValue(undefined)
   })

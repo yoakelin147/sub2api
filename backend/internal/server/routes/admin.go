@@ -150,6 +150,7 @@ func registerSupplierAdminRoutes(admin *gin.RouterGroup, h *handler.Handlers) {
 	suppliers.DELETE("/:id/members/:user_id", h.Admin.Supplier.RemoveMember)
 	suppliers.GET("/:id/accounts", h.Admin.Supplier.ListAccounts)
 	suppliers.GET("/:id/accounts/:account_id", h.Admin.Supplier.GetAccount)
+	suppliers.PUT("/:id/accounts/:account_id", h.Admin.Supplier.UpdateAccount)
 	suppliers.GET("/:id/accounts/:account_id/password", h.Admin.Supplier.RevealAccountPassword)
 	suppliers.POST("/:id/accounts/approve", h.Admin.Supplier.ApproveAccounts)
 	suppliers.POST("/:id/accounts/reject", h.Admin.Supplier.RejectAccounts)

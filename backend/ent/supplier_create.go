@@ -128,7 +128,7 @@ func (_c *SupplierCreate) SetNillableReviewRequired(v *bool) *SupplierCreate {
 }
 
 // SetAutoApproveGroups sets the "auto_approve_groups" field.
-func (_c *SupplierCreate) SetAutoApproveGroups(v map[string]int64) *SupplierCreate {
+func (_c *SupplierCreate) SetAutoApproveGroups(v map[string][]int64) *SupplierCreate {
 	_c.mutation.SetAutoApproveGroups(v)
 	return _c
 }
@@ -645,7 +645,7 @@ func (u *SupplierUpsert) UpdateReviewRequired() *SupplierUpsert {
 }
 
 // SetAutoApproveGroups sets the "auto_approve_groups" field.
-func (u *SupplierUpsert) SetAutoApproveGroups(v map[string]int64) *SupplierUpsert {
+func (u *SupplierUpsert) SetAutoApproveGroups(v map[string][]int64) *SupplierUpsert {
 	u.Set(supplier.FieldAutoApproveGroups, v)
 	return u
 }
@@ -918,7 +918,7 @@ func (u *SupplierUpsertOne) UpdateReviewRequired() *SupplierUpsertOne {
 }
 
 // SetAutoApproveGroups sets the "auto_approve_groups" field.
-func (u *SupplierUpsertOne) SetAutoApproveGroups(v map[string]int64) *SupplierUpsertOne {
+func (u *SupplierUpsertOne) SetAutoApproveGroups(v map[string][]int64) *SupplierUpsertOne {
 	return u.Update(func(s *SupplierUpsert) {
 		s.SetAutoApproveGroups(v)
 	})
@@ -1374,7 +1374,7 @@ func (u *SupplierUpsertBulk) UpdateReviewRequired() *SupplierUpsertBulk {
 }
 
 // SetAutoApproveGroups sets the "auto_approve_groups" field.
-func (u *SupplierUpsertBulk) SetAutoApproveGroups(v map[string]int64) *SupplierUpsertBulk {
+func (u *SupplierUpsertBulk) SetAutoApproveGroups(v map[string][]int64) *SupplierUpsertBulk {
 	return u.Update(func(s *SupplierUpsert) {
 		s.SetAutoApproveGroups(v)
 	})

@@ -183,7 +183,7 @@ func applySupplierEntityToService(model *service.Supplier, row *dbent.Supplier) 
 		Name:                row.Name,
 		Status:              row.Status,
 		Notes:               row.Notes,
-		AllowedAccountKinds: append([]service.SupplierAccountKind(nil), row.AllowedAccountKinds...),
+		AllowedAccountKinds: append([]service.SupplierAccountKind{}, row.AllowedAccountKinds...),
 		ReviewRequired:      row.ReviewRequired,
 		AutoApproveGroups:   row.AutoApproveGroups,
 		TokenSelector:       row.TokenSelector,

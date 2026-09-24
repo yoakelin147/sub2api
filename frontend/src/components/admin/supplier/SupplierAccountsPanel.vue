@@ -67,7 +67,7 @@
                 </template>
                 <span v-else>—</span>
               </td>
-              <td class="px-4 py-3"><button type="button" class="btn btn-secondary btn-sm" @click="openDetail(account)">{{ t('supplier.admin.configuration') }}</button></td>
+              <td class="px-4 py-3"><div class="flex gap-2"><button type="button" class="btn btn-secondary btn-sm" @click="openDetail(account)">{{ t('supplier.admin.configuration') }}</button><button type="button" class="btn btn-secondary btn-sm" @click="testingAccount = account">{{ t('supplier.admin.testBeforeReview') }}</button></div></td>
             </tr>
             <tr v-if="accounts.length === 0"><td colspan="8" class="px-4 py-12 text-center text-gray-500">{{ t('common.noData') }}</td></tr>
           </template>
@@ -81,6 +81,7 @@
     <BaseDialog :show="reviewAction !== null" :title="reviewAction ? t(`supplier.admin.${reviewAction}`) : ''" width="normal" :close-on-escape="!working" :show-close-button="!working" @close="reviewAction = null">
       <form id="supplier-review-form" class="space-y-4" @submit.prevent="review">
         <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('supplier.admin.reviewSelection', { count: selectedIds.length }) }}</p>
+        <p v-if="reviewAction === 'approve'" class="text-sm text-amber-700 dark:text-amber-300">{{ t('supplier.admin.reviewTestHint') }}</p>
         <fieldset v-if="reviewAction === 'approve'">
           <legend class="input-label">{{ t('supplier.admin.groupIds') }}</legend>
           <p v-if="groupsLoading" role="status" class="py-4 text-sm text-gray-500">{{ t('common.loading') }}</p>
@@ -105,25 +106,47 @@
       <p v-else-if="detailError" role="alert" class="text-red-600">{{ detailError }}</p>
       <div v-else-if="detail" class="space-y-3 text-sm">
         <p><strong>{{ detail.name }}</strong> · {{ detail.platform }} / {{ detail.type }}</p>
-        <dl class="grid grid-cols-2 gap-2 rounded-lg bg-gray-50 p-3 dark:bg-dark-800">
+        <form v-if="editing" id="supplier-admin-account-edit" class="space-y-3" @submit.prevent="saveDetail">
+          <div class="grid gap-3 sm:grid-cols-2">
+            <label><span class="input-label">{{ t('common.name') }}</span><input v-model.trim="edit.name" class="input" required maxlength="100" /></label>
+            <label><span class="input-label">{{ t('supplier.accounts.externalId') }}</span><input v-model.trim="edit.external_id" class="input" maxlength="191" /></label>
+            <label><span class="input-label">{{ t('supplier.accounts.proxy') }}</span><select v-model.number="edit.proxy_id" class="input" required><option :value="0">{{ proxies.length ? t('supplier.accounts.selectProxy') : t('supplier.accounts.directConnection') }}</option><option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">{{ proxy.name }}</option></select></label>
+            <label><span class="input-label">{{ t('supplier.accounts.concurrency') }}</span><input v-model.number="edit.concurrency" class="input" type="number" min="1" max="10000" required /></label>
+            <label><span class="input-label">{{ t('supplier.accounts.priority') }}</span><input v-model.number="edit.priority" class="input" type="number" min="0" max="10000" required /></label>
+            <label><span class="input-label">{{ t('supplier.accounts.loadFactor') }}</span><input v-model.number="edit.load_factor" class="input" type="number" min="1" max="10000" /></label>
+            <label><span class="input-label">{{ t('admin.accounts.billingRateMultiplier') }}</span><input v-model.number="edit.rate_multiplier" class="input" type="number" min="0" max="10000" step="0.01" required /></label>
+            <label><span class="input-label">{{ t('supplier.accounts.expiresAt') }}</span><input v-model="edit.expires_at" class="input" type="datetime-local" /></label>
+          </div>
+          <label class="flex items-center gap-2"><input v-model="edit.auto_pause_on_expired" type="checkbox" />{{ t('supplier.accounts.autoPauseOnExpired') }}</label>
+          <label class="block"><span class="input-label">{{ t('supplier.accounts.notes') }}</span><textarea v-model="edit.notes" class="input" maxlength="2000" rows="2" /></label>
+          <label class="block"><span class="input-label">{{ t('supplier.admin.credentialSummary') }}</span><textarea v-model="edit.credentials" class="input font-mono" rows="8" spellcheck="false" /></label>
+          <label class="block"><span class="input-label">{{ t('supplier.accounts.advancedOptions') }}</span><textarea v-model="edit.extra" class="input font-mono" rows="4" spellcheck="false" /></label>
+          <p class="input-hint">{{ t('supplier.admin.secretEditHint') }}</p>
+          <p v-if="editError" role="alert" class="text-red-600">{{ editError }}</p>
+          <div class="flex gap-2"><button type="submit" class="btn btn-primary" :disabled="saving || proxiesLoading">{{ t('common.save') }}</button><button type="button" class="btn btn-secondary" :disabled="saving" @click="editing = false">{{ t('common.cancel') }}</button></div>
+        </form>
+        <dl v-else class="grid grid-cols-2 gap-2 rounded-lg bg-gray-50 p-3 dark:bg-dark-800">
           <dt>{{ t('supplier.accounts.proxy') }}</dt><dd>{{ detail.proxy_id ?? '—' }}</dd>
           <dt>{{ t('supplier.accounts.concurrency') }}</dt><dd>{{ detail.concurrency ?? '—' }}</dd>
           <dt>{{ t('supplier.accounts.priority') }}</dt><dd>{{ detail.priority ?? '—' }}</dd>
           <dt>{{ t('supplier.accounts.loadFactor') }}</dt><dd>{{ detail.load_factor ?? '—' }}</dd>
+          <dt>{{ t('admin.accounts.billingRateMultiplier') }}</dt><dd>{{ detail.rate_multiplier ?? 1 }}</dd>
           <dt>{{ t('supplier.accounts.autoPauseOnExpired') }}</dt><dd>{{ detail.auto_pause_on_expired ? '✓' : '—' }}</dd>
           <dt>{{ t('supplier.accounts.expiresAt') }}</dt><dd>{{ detail.expires_at ? new Date(detail.expires_at * 1000).toLocaleString() : '—' }}</dd>
           <dt>{{ t('supplier.accounts.notes') }}</dt><dd>{{ detail.notes || '—' }}</dd>
         </dl>
-        <p>{{ t('supplier.admin.credentialSummary') }}</p>
-        <pre class="max-h-60 overflow-auto rounded-lg bg-gray-50 p-3 dark:bg-dark-800">{{ JSON.stringify(detail.credentials || {}, null, 2) }}</pre>
+        <template v-if="!editing"><p>{{ t('supplier.admin.credentialSummary') }}</p><pre class="max-h-60 overflow-auto rounded-lg bg-gray-50 p-3 dark:bg-dark-800">{{ JSON.stringify(detail.credentials || {}, null, 2) }}</pre></template>
+        <template v-if="!editing"><p>{{ t('supplier.accounts.advancedOptions') }}</p><pre class="max-h-60 overflow-auto rounded-lg bg-gray-50 p-3 dark:bg-dark-800">{{ JSON.stringify(detail.extra || {}, null, 2) }}</pre></template>
         <p v-if="detail.credentials_status">{{ t('supplier.admin.secretStatus') }}: {{ Object.keys(detail.credentials_status).filter(key => detail?.credentials_status?.[key]).map(key => key.replace(/^has_/, '')).join(', ') }}</p>
         <p v-if="detail.credentials_status?.has_login_password_encrypted">
           {{ t('supplier.admin.loginPassword') }}:
           <span v-if="revealedPassword?.id === detail.id" class="break-all">{{ revealedPassword.value }}</span><span v-else>••••••</span>
           <button type="button" class="btn btn-secondary btn-sm ml-2" :disabled="revealingId === detail.id" @click="togglePassword(detail)">{{ t(revealedPassword?.id === detail.id ? 'supplier.admin.hidePassword' : 'supplier.admin.showPassword') }}</button>
         </p>
+        <div class="flex gap-2"><button type="button" class="btn btn-secondary" @click="testingAccount = detail">{{ t('supplier.admin.testBeforeReview') }}</button><button v-if="!editing" type="button" class="btn btn-secondary" @click="startEdit">{{ t('common.edit') }}</button></div>
       </div>
     </BaseDialog>
+    <AccountTestModal :show="testingAccount !== null" :account="testingAccount as unknown as Account | null" @close="testingAccount = null" />
   </div>
 </template>
 
@@ -133,11 +156,14 @@ import { useI18n } from 'vue-i18n'
 import Icon from '@/components/icons/Icon.vue'
 import BaseDialog from '@/components/common/BaseDialog.vue'
 import Pagination from '@/components/common/Pagination.vue'
+import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
 import { useAppStore } from '@/stores/app'
 import groupsAPI from '@/api/admin/groups'
+import proxiesAPI from '@/api/admin/proxies'
 import suppliersAPI, { type AdminSupplierAccount } from '@/api/admin/suppliers'
 import { SUPPLIER_ACCOUNT_KINDS } from '@/features/supplier/accountKinds'
-import type { AdminGroup } from '@/types'
+import type { Account, AdminGroup, Proxy } from '@/types'
+import { formatDateTimeLocalInput, parseDateTimeLocalInput } from '@/utils/format'
 
 const props = defineProps<{ supplierId: number }>()
 const emit = defineEmits<{ (event: 'changed'): void }>()
@@ -165,11 +191,19 @@ const detailLoading = ref(false)
 const detailError = ref('')
 const revealedPassword = ref<{ id: number; value: string } | null>(null)
 const revealingId = ref<number | null>(null)
+const testingAccount = ref<AdminSupplierAccount | null>(null)
+const editing = ref(false)
+const saving = ref(false)
+const editError = ref('')
+const proxies = ref<Proxy[]>([])
+const proxiesLoading = ref(false)
+const edit = reactive({ name: '', external_id: '', notes: '', proxy_id: 0, concurrency: 1, priority: 50, load_factor: '' as number | '', rate_multiplier: 1, auto_pause_on_expired: true, expires_at: '', credentials: '{}', extra: '{}' })
 let requestId = 0
 let disposed = false
 onBeforeUnmount(() => { disposed = true; requestId++; revealedPassword.value = null })
 
 async function openDetail(account: AdminSupplierAccount) {
+  editing.value = false
   detailId.value = account.id
   detail.value = null
   detailError.value = ''
@@ -188,6 +222,51 @@ function closeDetail() {
   detailId.value = null
   detail.value = null
   revealedPassword.value = null
+  editing.value = false
+}
+
+async function startEdit() {
+  if (!detail.value) return
+  const account = detail.value
+  Object.assign(edit, {
+    name: account.name, external_id: account.supplier_external_id || '', notes: account.notes || '',
+    proxy_id: account.proxy_id || 0, concurrency: account.concurrency || 1, priority: account.priority ?? 50,
+    load_factor: account.load_factor ?? '', rate_multiplier: account.rate_multiplier ?? 1, auto_pause_on_expired: account.auto_pause_on_expired ?? true,
+    expires_at: formatDateTimeLocalInput(account.expires_at ?? null), credentials: JSON.stringify(account.credentials || {}, null, 2), extra: JSON.stringify(account.extra || {}, null, 2),
+  })
+  editing.value = true
+  editError.value = ''
+  proxiesLoading.value = true
+  try { proxies.value = await proxiesAPI.getAll() }
+  catch (err) { editError.value = (err as Error).message || t('supplier.admin.loadFailed') }
+  finally { proxiesLoading.value = false }
+}
+
+async function saveDetail() {
+  if (!detail.value || saving.value || proxiesLoading.value) return
+  const accountId = detail.value.id
+  try {
+    const credentials = JSON.parse(edit.credentials)
+    const extra = JSON.parse(edit.extra)
+    if (!credentials || typeof credentials !== 'object' || Array.isArray(credentials)) throw new Error(t('supplier.accounts.invalidCredentials'))
+    if (!extra || typeof extra !== 'object' || Array.isArray(extra)) throw new Error(t('supplier.accounts.invalidCredentials'))
+    if (proxies.value.length ? !proxies.value.some(proxy => proxy.id === edit.proxy_id) : edit.proxy_id !== 0) throw new Error(t('supplier.accounts.noProxy'))
+    editError.value = ''
+    saving.value = true
+    const expiresAt = parseDateTimeLocalInput(edit.expires_at)
+    const result = await suppliersAPI.updateAccount(props.supplierId, accountId, {
+      name: edit.name, external_id: edit.external_id, notes: edit.notes, proxy_id: edit.proxy_id,
+      concurrency: edit.concurrency, priority: edit.priority, rate_multiplier: edit.rate_multiplier, auto_pause_on_expired: edit.auto_pause_on_expired,
+      ...(edit.load_factor !== '' ? { load_factor: edit.load_factor } : { clear_load_factor: true }),
+      ...(expiresAt !== null ? { expires_at: expiresAt } : { clear_expires_at: true }), credentials, extra,
+    })
+    if (detailId.value !== accountId || disposed) return
+    detail.value = result
+    editing.value = false
+    await load()
+    if (!disposed) emit('changed')
+  } catch (err) { editError.value = (err as Error).message || t('common.unknownError') }
+  finally { saving.value = false }
 }
 
 async function togglePassword(account: AdminSupplierAccount) {

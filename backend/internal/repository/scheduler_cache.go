@@ -865,6 +865,8 @@ func (c *schedulerCache) mgetChunked(ctx context.Context, keys []string) ([]any,
 func buildSchedulerMetadataAccount(account service.Account) service.Account {
 	return service.Account{
 		ID:                      account.ID,
+		SupplierID:              account.SupplierID,
+		ReviewStatus:            account.ReviewStatus,
 		Name:                    account.Name,
 		Platform:                account.Platform,
 		Type:                    account.Type,

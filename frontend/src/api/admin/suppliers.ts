@@ -21,10 +21,12 @@ export interface AdminSupplierAccount {
   review_note?: string | null
   credentials_status?: Record<string, boolean>
   credentials?: Record<string, unknown>
+  extra?: Record<string, unknown>
   proxy_id?: number | null
   concurrency?: number
   priority?: number
   load_factor?: number | null
+  rate_multiplier?: number
   auto_pause_on_expired?: boolean
   status: 'active' | 'disabled'
   schedulable: boolean
@@ -42,7 +44,7 @@ export interface AdminSupplier {
   notes: string | null
   allowed_account_kinds: SupplierAccountKind[]
   review_required: boolean
-  auto_approve_groups: Record<string, number>
+  auto_approve_groups: Record<string, number[]>
   access_token: SupplierTokenStatus
   stats: SupplierStats
   created_at: string
@@ -56,7 +58,7 @@ export interface SupplierWriteInput {
   notes?: string | null
   allowed_account_kinds: SupplierAccountKind[]
   review_required: boolean
-  auto_approve_groups: Record<string, number>
+  auto_approve_groups: Record<string, number[]>
 }
 
 export interface SupplierMemberInput {
@@ -71,6 +73,23 @@ export interface SupplierReviewInput {
   account_ids: number[]
   group_ids?: number[]
   note?: string | null
+}
+
+export interface AdminSupplierAccountUpdateInput {
+  name: string
+  external_id: string
+  notes: string
+  proxy_id: number
+  concurrency: number
+  priority: number
+  load_factor?: number
+  clear_load_factor?: boolean
+  rate_multiplier?: number
+  auto_pause_on_expired: boolean
+  expires_at?: number
+  clear_expires_at?: boolean
+  credentials: Record<string, unknown>
+  extra?: Record<string, unknown>
 }
 
 export async function list(page = 1, pageSize = 20, filters: { status?: string; search?: string } = {}): Promise<PaginatedResponse<AdminSupplier>> {
@@ -146,6 +165,11 @@ export async function getAccount(id: number, accountId: number): Promise<AdminSu
   return data
 }
 
+export async function updateAccount(id: number, accountId: number, input: AdminSupplierAccountUpdateInput): Promise<AdminSupplierAccount> {
+  const { data } = await apiClient.put<AdminSupplierAccount>(`/admin/suppliers/${id}/accounts/${accountId}`, input)
+  return data
+}
+
 export async function revealAccountPassword(id: number, accountId: number): Promise<string> {
   const { data } = await apiClient.get<{ password: string }>(`/admin/suppliers/${id}/accounts/${accountId}/password`)
   return data.password
@@ -173,6 +197,7 @@ export default {
   revokeAccessToken,
   listAccounts,
   getAccount,
+  updateAccount,
   revealAccountPassword,
   approveAccounts,
   rejectAccounts,

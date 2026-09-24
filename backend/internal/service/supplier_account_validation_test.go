@@ -68,3 +68,19 @@ func TestValidateSupplierAccountCredentialsRequiresAdaptiveURLs(t *testing.T) {
 	})
 	require.Error(t, err)
 }
+
+func TestSupplierCredentialPermissionKeepsConnectionFieldsOnly(t *testing.T) {
+	credentials := map[string]any{"access_token": "token", "email": "user@example.com", "password": "secret", "refresh_token": "refresh", "plan_type": "plus"}
+	require.ErrorIs(t, validateSupplierCredentialPermissions(PlatformOpenAI, AccountTypeOAuth, credentials, true), ErrSupplierCredentialsInvalid)
+	delete(credentials, "plan_type")
+	require.NoError(t, validateSupplierCredentialPermissions(PlatformOpenAI, AccountTypeOAuth, credentials, true))
+	credentials["model_mapping"] = map[string]any{"gpt": "gpt"}
+	require.ErrorIs(t, validateSupplierCredentialPermissions(PlatformOpenAI, AccountTypeOAuth, credentials, true), ErrSupplierCredentialsInvalid)
+	require.NoError(t, validateSupplierCredentialPermissions(PlatformOpenAI, AccountTypeOAuth, credentials, false))
+}
+
+func TestSupplierOpenCodeProtocolRulesAreValidated(t *testing.T) {
+	credentials := map[string]any{"api_key": "secret", "account_mode": AccountModeGo, "api_protocol": APIProtocolAdaptive, "api_base_urls": map[string]any{"chat_completions": "https://opencode.ai"}, "protocol_rules": []any{map[string]any{"pattern": "bad**", "protocol": "responses"}}}
+	_, err := ValidateSupplierAccountCredentials(&config.Config{}, PlatformOpenCodeGo, AccountTypeAPIKey, credentials)
+	require.ErrorIs(t, err, ErrSupplierCredentialsInvalid)
+}

@@ -13,6 +13,7 @@ const addMember = vi.fn().mockResolvedValue(undefined)
 const removeMember = vi.fn().mockResolvedValue(undefined)
 const listMembers = vi.fn()
 const listAccounts = vi.fn()
+const updateAccount = vi.fn()
 const accountResult = {
   items: [{
     id: 11, name: 'Pending Account', notes: null, platform: 'openai', type: 'apikey', supplier_id: 7,
@@ -27,6 +28,7 @@ vi.mock('@/api/admin/suppliers', () => ({ default: {
   listMembers: (...args: unknown[]) => listMembers(...args),
   listAccounts: (...args: unknown[]) => listAccounts(...args),
   getAccount: vi.fn().mockResolvedValue({ id: 11, name: 'Pending Account', platform: 'openai', type: 'oauth', credentials: { email: 'login@example.test' }, credentials_status: { has_access_token: true, has_login_password_encrypted: true }, proxy_id: 3, concurrency: 1, priority: 50, auto_pause_on_expired: true }),
+  updateAccount: (...args: unknown[]) => updateAccount(...args),
   revealAccountPassword: vi.fn().mockResolvedValue('web-secret'),
   approveAccounts: (...args: unknown[]) => approveAccounts(...args),
   rejectAccounts: vi.fn(), pauseAccounts: vi.fn(), addMember: (...args: unknown[]) => addMember(...args), removeMember: (...args: unknown[]) => removeMember(...args),
@@ -37,6 +39,8 @@ vi.mock('@/api/admin/groups', () => ({ default: {
   getAll: vi.fn().mockResolvedValue([{ id: 3, name: 'OpenAI', platform: 'openai', status: 'active' }]),
 } }))
 
+vi.mock('@/api/admin/proxies', () => ({ default: { getAll: vi.fn().mockResolvedValue([{ id: 3, name: 'Proxy' }]) } }))
+
 const i18n = createI18n({ legacy: false, locale: 'en', messages: { en: {} }, missingWarn: false, fallbackWarn: false })
 const supplier = {
   id: 7, code: 'vendor-a', name: 'Vendor A', status: 'active' as const, notes: null,
@@ -45,14 +49,23 @@ const supplier = {
   stats: { member_count: 0, account_count: 1, pending_count: 1, schedulable_count: 0, error_count: 0 },
   created_at: '2026-01-01T00:00:00Z', updated_at: '2026-01-01T00:00:00Z',
 }
-const global = { plugins: [createPinia(), i18n], stubs: { Icon: true, Pagination: true, teleport: true } }
+const global = { plugins: [createPinia(), i18n], stubs: { Icon: true, Pagination: true, AccountTestModal: true, teleport: true } }
 enableAutoUnmount(afterEach)
 
 describe('SupplierDetail', () => {
+  it('keeps the edit action visible when no account types are permitted', async () => {
+    const wrapper = mount(SupplierDetail, { props: { supplier: { ...supplier, allowed_account_kinds: null, review_required: false, auto_approve_groups: {} } as never }, global })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.settings')!.trigger('click')
+    expect(wrapper.text()).toContain('supplier.admin.noPermission')
+    await wrapper.findAll('button').find(button => button.text() === 'common.edit')!.trigger('click')
+    expect(wrapper.emitted('edit')).toHaveLength(1)
+  })
   beforeEach(() => {
     vi.clearAllMocks()
     listMembers.mockReset().mockResolvedValue(memberResult)
     listAccounts.mockReset().mockResolvedValue(accountResult)
+    updateAccount.mockReset().mockResolvedValue({ ...accountResult.items[0], credentials: { email: 'login@example.test' } })
   })
 
   it('shows review configuration with a masked password until explicitly revealed', async () => {
@@ -70,6 +83,24 @@ describe('SupplierDetail', () => {
     expect(wrapper.text()).toContain('web-secret')
     await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.hidePassword')!.trigger('click')
     expect(wrapper.text()).not.toContain('web-secret')
+  })
+
+  it('tests pending accounts and edits only non-secret fields before approval', async () => {
+    const wrapper = mount(SupplierAccountsPanel, { props: { supplierId: 7 }, global })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.testBeforeReview')!.trigger('click')
+    expect(wrapper.findComponent({ name: 'AccountTestModal' }).exists()).toBe(true)
+    await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.configuration')!.trigger('click')
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text() === 'common.edit')!.trigger('click')
+    await flushPromises()
+    await wrapper.get('#supplier-admin-account-edit input[maxlength="100"]').setValue('Validated account')
+    await wrapper.get('#supplier-admin-account-edit').trigger('submit')
+    await flushPromises()
+    expect(updateAccount).toHaveBeenCalledWith(7, 11, expect.objectContaining({
+      name: 'Validated account', proxy_id: 3, credentials: { email: 'login@example.test' },
+    }))
+    expect(approveAccounts).not.toHaveBeenCalled()
   })
 
   it('approves only selected accounts with selected groups', async () => {

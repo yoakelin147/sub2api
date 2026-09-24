@@ -1975,7 +1975,7 @@ func init() {
 	// supplierDescAutoApproveGroups is the schema descriptor for auto_approve_groups field.
 	supplierDescAutoApproveGroups := supplierFields[6].Descriptor()
 	// supplier.DefaultAutoApproveGroups holds the default value on creation for the auto_approve_groups field.
-	supplier.DefaultAutoApproveGroups = supplierDescAutoApproveGroups.Default.(func() map[string]int64)
+	supplier.DefaultAutoApproveGroups = supplierDescAutoApproveGroups.Default.(func() map[string][]int64)
 	// supplierDescTokenSelector is the schema descriptor for token_selector field.
 	supplierDescTokenSelector := supplierFields[7].Descriptor()
 	// supplier.TokenSelectorValidator is a validator for the "token_selector" field. It is called by the builders before save.

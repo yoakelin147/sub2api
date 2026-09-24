@@ -28,8 +28,18 @@ export interface SupplierProfile {
   status: 'active' | 'disabled'
   allowed_account_kinds: SupplierAccountKind[]
   review_required: boolean
+  auto_approve_groups: Record<string, number[]>
+  authorized_groups: SupplierGroupOption[]
   access_token: SupplierTokenStatus
   stats: SupplierStats
+}
+
+export interface SupplierGroupOption {
+  id: number
+  name: string
+  description: string
+  platform: string
+  require_oauth_only: boolean
 }
 
 export interface SupplierAccount {
@@ -37,6 +47,7 @@ export interface SupplierAccount {
   external_id: string | null
   name: string
   notes: string | null
+  extra?: Record<string, unknown>
   platform: string
   type: string
   credential_status: Record<string, boolean>
@@ -45,6 +56,7 @@ export interface SupplierAccount {
   schedulable: boolean
   review_status: 'pending' | 'approved' | 'rejected'
   proxy_id: number | null
+  group_ids?: number[]
   concurrency: number
   priority: number
   load_factor: number | null
@@ -63,8 +75,10 @@ export interface SupplierAccountInput {
   platform: string
   type: string
   credentials: Record<string, unknown>
+  extra?: Record<string, unknown>
   expires_at?: number | null
-  proxy_id: number
+  proxy_id?: number
+  group_ids?: number[]
   concurrency?: number
   priority?: number
   load_factor?: number
@@ -76,6 +90,8 @@ export interface SupplierAccountUpdateInput {
   name?: string
   notes?: string | null
   credentials?: Record<string, unknown>
+  extra?: Record<string, unknown>
+  group_ids?: number[]
   expires_at?: number | null
   status?: 'active' | 'disabled'
   proxy_id?: number

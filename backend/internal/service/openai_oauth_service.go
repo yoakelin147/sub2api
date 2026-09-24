@@ -47,7 +47,7 @@ func (s *OpenAIOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64
 }
 
 func (s *OpenAIOAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID int64, proxyID int64) (*OpenAIAuthURLResult, error) {
-	return s.generateAuthURL(ctx, &proxyID, "", PlatformOpenAI, supplierID)
+	return s.generateAuthURL(ctx, normalizeSupplierProxyID(&proxyID), "", PlatformOpenAI, supplierID)
 }
 
 func (s *OpenAIOAuthService) generateAuthURL(ctx context.Context, proxyID *int64, redirectURI, platform string, supplierID int64) (*OpenAIAuthURLResult, error) {

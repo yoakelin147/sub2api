@@ -23,6 +23,9 @@ func TestSupplierAccountRepositoryGetOwnedByIDScopesQueryToSupplier(t *testing.T
 	mock.ExpectQuery(regexp.QuoteMeta(`SELECT "accounts".`)).
 		WithArgs(int64(27), int64(9)).
 		WillReturnRows(updatedAccountRows(27, `{}`))
+	mock.ExpectQuery(regexp.QuoteMeta(`FROM "account_groups" WHERE "account_groups"."account_id" IN ($1)`)).
+		WithArgs(int64(27)).
+		WillReturnRows(sqlmock.NewRows([]string{"account_id", "group_id", "priority", "created_at"}))
 
 	repo := newAccountRepositoryWithSQL(client, db, nil)
 	account, err := repo.GetOwnedByID(context.Background(), 9, 27)
@@ -32,3 +35,14 @@ func TestSupplierAccountRepositoryGetOwnedByIDScopesQueryToSupplier(t *testing.T
 }
 
 var _ sqlExecutor = (*sql.DB)(nil)
+
+func TestSupplierAccountEntityIncludesEveryAssignedGroup(t *testing.T) {
+	account := supplierAccountEntityToService(&dbent.Account{
+		ID: 27,
+		Edges: dbent.AccountEdges{AccountGroups: []*dbent.AccountGroup{
+			{AccountID: 27, GroupID: 3, Priority: 1},
+			{AccountID: 27, GroupID: 4, Priority: 1},
+		}},
+	})
+	require.Equal(t, []int64{3, 4}, account.GroupIDs)
+}

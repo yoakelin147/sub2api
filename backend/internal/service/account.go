@@ -188,6 +188,9 @@ func (a *Account) IsSchedulable() bool {
 	if !a.IsActive() || !a.Schedulable {
 		return false
 	}
+	if a.SupplierID != nil && a.ReviewStatus != AccountReviewStatusApproved {
+		return false
+	}
 	now := time.Now()
 	if a.AutoPauseOnExpired && a.ExpiresAt != nil && !now.Before(*a.ExpiresAt) {
 		return false

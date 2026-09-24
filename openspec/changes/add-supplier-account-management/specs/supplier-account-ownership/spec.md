@@ -75,13 +75,13 @@ review_status SHALL 只表示平台对凭据配置的审核结论；status 和 s
 
 ### Requirement: 凭据身份变化触发重新审核
 
-默认需要审核的供应商修改上游 Key、Base URL、代理或其他凭据身份字段时，系统 MUST 自动将账号置为 pending、inactive、schedulable=false。免审供应商的已审核账号修改后保持原运行状态；名称和备注变化 MUST NOT 触发重新审核。
+默认需要审核的供应商修改上游 Key、Base URL、代理或其他连接凭据字段时，系统 MUST 自动将账号置为 pending、disabled、schedulable=false。免审供应商的已审核账号修改后保持原运行状态；单独修改名称 MUST NOT 触发重新审核。需审核时供应商不得修改备注等非连接配置。
 
 #### Scenario: 修改 API Key
 - **WHEN** 供应商更新已审核账号的 api_key
 - **THEN** 系统 MUST 保存新凭据并立即停止该账号调度
 - **THEN** review_status MUST 变为 pending
 
-#### Scenario: 仅修改备注
-- **WHEN** 供应商只修改 name 或 notes
+#### Scenario: 仅修改名称
+- **WHEN** 供应商只修改 name
 - **THEN** 原审核状态和调度状态 MUST 保持不变

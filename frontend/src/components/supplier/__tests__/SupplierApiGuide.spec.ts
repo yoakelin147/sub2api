@@ -10,6 +10,17 @@ const i18n = createI18n({ legacy: false, locale: 'zh', messages: { zh: zhSupplie
 const options = { global: { plugins: [createPinia(), i18n], stubs: { Icon: true, RouterLink: { template: '<a><slot/></a>' } } } }
 
 describe('SupplierApiGuide', () => {
+  it('documents allowed account options with platform scope and accepted values', () => {
+    const wrapper = mount(SupplierApiGuide, { ...options, props: { profile: { review_required: false, auto_approve_groups: { openai: [42] } } as never } })
+    const optionsText = wrapper.get('[data-test="supplier-extra-guide"]').text()
+    expect(optionsText).toContain('openai_compact_mode')
+    expect(optionsText).toContain('force_on')
+    expect(optionsText).toContain('web_search_emulation')
+    expect(optionsText).toContain('enabled')
+    expect(optionsText).toContain('upstream_request_id_header')
+    wrapper.unmount()
+  })
+
   it('builds tenant API examples with full-token placeholders, required upstream fields and idempotency', async () => {
     const wrapper = mount(SupplierApiGuide, options)
     expect(wrapper.get('pre').text()).toContain('/supplier/me')
@@ -92,6 +103,26 @@ describe('SupplierApiGuide', () => {
     const body = JSON.parse(command.split("--data-raw '")[1].slice(0, -1))
     expect(body.credentials).toEqual({ email: 'REPLACE_WITH_EMAIL', password: 'REPLACE_WITH_PASSWORD', access_token: 'REPLACE_WITH_ACCESS_TOKEN' })
     expect(body).not.toHaveProperty('external_id')
+    wrapper.unmount()
+  })
+
+  it('shows only current permissions and uses PUT without create-only headers', async () => {
+    const wrapper = mount(SupplierApiGuide, { ...options, props: { profile: { review_required: false, auto_approve_groups: { openai: [42, 43] } } as never } })
+    await wrapper.get('[data-test="guide-operation"]').setValue('create')
+    const create = wrapper.get('pre').text()
+    const body = JSON.parse(create.split("--data-raw '")[1].slice(0, -1))
+    expect(body.group_ids).toEqual([42, 43])
+    expect(body.credentials.model_mapping).toEqual({ YOUR_MODEL: 'UPSTREAM_MODEL' })
+    expect(body.extra).toEqual({ openai_compact_mode: 'auto' })
+    expect(body).not.toHaveProperty('rate_multiplier')
+    await wrapper.get('[data-test="guide-operation"]').setValue('update')
+    const update = wrapper.get('pre').text()
+    expect(update).toContain(' -X PUT ')
+    expect(update).not.toContain('Idempotency-Key')
+    expect(JSON.parse(update.split("--data-raw '")[1].slice(0, -1)).group_ids).toEqual([42, 43])
+    expect(JSON.parse(update.split("--data-raw '")[1].slice(0, -1)).credentials).toEqual({ model_mapping: { YOUR_MODEL: 'UPSTREAM_MODEL' } })
+    await wrapper.get('[data-test="guide-language"]').setValue('powershell')
+    expect(wrapper.get('pre').text()).toContain('Invoke-RestMethod -Method Put')
     wrapper.unmount()
   })
 })

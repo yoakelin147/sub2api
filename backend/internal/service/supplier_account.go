@@ -26,7 +26,7 @@ type SupplierAccountRepository interface {
 	GetOwnedByID(ctx context.Context, supplierID, accountID int64) (*Account, error)
 	GetOwnedByIDs(ctx context.Context, supplierID int64, accountIDs []int64) ([]*Account, error)
 	ListOwned(ctx context.Context, supplierID int64, params pagination.PaginationParams, filters SupplierAccountFilters) ([]Account, *pagination.PaginationResult, error)
-	UpdateOwned(ctx context.Context, supplierID int64, account *Account) error
+	UpdateOwned(ctx context.Context, supplierID int64, account *Account, groups []AccountGroup) error
 	DeleteOwned(ctx context.Context, supplierID, accountID int64) error
 	ReviewOwned(ctx context.Context, supplierID int64, input SupplierAccountReviewInput) error
 }

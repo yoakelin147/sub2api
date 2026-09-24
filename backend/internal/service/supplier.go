@@ -43,7 +43,7 @@ type Supplier struct {
 	Notes               *string
 	AllowedAccountKinds []SupplierAccountKind
 	ReviewRequired      bool
-	AutoApproveGroups   map[string]int64
+	AutoApproveGroups   map[string][]int64
 	TokenSelector       *string
 	TokenHash           *string
 	TokenPrefix         *string
@@ -86,7 +86,7 @@ type CreateSupplierInput struct {
 	Notes               *string
 	AllowedAccountKinds []SupplierAccountKind
 	ReviewRequired      *bool
-	AutoApproveGroups   map[string]int64
+	AutoApproveGroups   map[string][]int64
 }
 
 type UpdateSupplierInput struct {
@@ -95,7 +95,7 @@ type UpdateSupplierInput struct {
 	Notes               *string
 	AllowedAccountKinds *[]SupplierAccountKind
 	ReviewRequired      *bool
-	AutoApproveGroups   *map[string]int64
+	AutoApproveGroups   *map[string][]int64
 }
 
 type SupplierService struct {
@@ -143,7 +143,7 @@ func (s *SupplierService) Create(ctx context.Context, input CreateSupplierInput)
 		AutoApproveGroups:   input.AutoApproveGroups,
 	}
 	if supplier.AutoApproveGroups == nil {
-		supplier.AutoApproveGroups = map[string]int64{}
+		supplier.AutoApproveGroups = map[string][]int64{}
 	}
 	if err := validateSupplierReviewPolicy(supplier); err != nil {
 		return nil, err
@@ -246,9 +246,13 @@ func validateSupplierReviewPolicy(supplier *Supplier) error {
 	if supplier.ReviewRequired {
 		return nil
 	}
-	for _, kind := range supplier.AllowedAccountKinds {
-		if supplier.AutoApproveGroups[kind.Platform] <= 0 {
-			return ErrSupplierAutoApproveGroupRequired
+	for _, groupIDs := range supplier.AutoApproveGroups {
+		seen := make(map[int64]bool)
+		for _, id := range groupIDs {
+			if id <= 0 || seen[id] {
+				return ErrSupplierAutoApproveGroupRequired
+			}
+			seen[id] = true
 		}
 	}
 	return nil

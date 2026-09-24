@@ -38,7 +38,7 @@ type Supplier struct {
 	// ReviewRequired holds the value of the "review_required" field.
 	ReviewRequired bool `json:"review_required,omitempty"`
 	// AutoApproveGroups holds the value of the "auto_approve_groups" field.
-	AutoApproveGroups map[string]int64 `json:"auto_approve_groups,omitempty"`
+	AutoApproveGroups map[string][]int64 `json:"auto_approve_groups,omitempty"`
 	// TokenSelector holds the value of the "token_selector" field.
 	TokenSelector *string `json:"token_selector,omitempty"`
 	// TokenHash holds the value of the "token_hash" field.

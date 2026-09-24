@@ -30,11 +30,12 @@ func (r *accountRepository) CreateOwned(ctx context.Context, supplierID int64, a
 func (r *accountRepository) GetOwnedByID(ctx context.Context, supplierID, accountID int64) (*service.Account, error) {
 	row, err := r.client.Account.Query().
 		Where(dbaccount.IDEQ(accountID), dbaccount.SupplierIDEQ(supplierID)).
+		WithAccountGroups(func(query *dbent.AccountGroupQuery) { query.Order(dbent.Asc(dbaccountgroup.FieldPriority)) }).
 		Only(ctx)
 	if err != nil {
 		return nil, translatePersistenceError(err, service.ErrSupplierAccountNotFound, nil)
 	}
-	return accountEntityToService(row), nil
+	return supplierAccountEntityToService(row), nil
 }
 
 func (r *accountRepository) GetOwnedByIDs(ctx context.Context, supplierID int64, accountIDs []int64) ([]*service.Account, error) {
@@ -85,18 +86,28 @@ func (r *accountRepository) ListOwned(
 		return nil, nil, err
 	}
 	rows, err := query.Order(dbent.Desc(dbaccount.FieldCreatedAt), dbent.Desc(dbaccount.FieldID)).
+		WithAccountGroups(func(query *dbent.AccountGroupQuery) { query.Order(dbent.Asc(dbaccountgroup.FieldPriority)) }).
 		Offset(params.Offset()).Limit(params.Limit()).All(ctx)
 	if err != nil {
 		return nil, nil, err
 	}
 	items := make([]service.Account, 0, len(rows))
 	for _, row := range rows {
-		items = append(items, *accountEntityToService(row))
+		items = append(items, *supplierAccountEntityToService(row))
 	}
 	return items, paginationResultFromTotal(int64(total), params), nil
 }
 
-func (r *accountRepository) UpdateOwned(ctx context.Context, supplierID int64, account *service.Account) error {
+func supplierAccountEntityToService(row *dbent.Account) *service.Account {
+	account := accountEntityToService(row)
+	for _, group := range row.Edges.AccountGroups {
+		account.GroupIDs = append(account.GroupIDs, group.GroupID)
+		account.AccountGroups = append(account.AccountGroups, service.AccountGroup{AccountID: group.AccountID, GroupID: group.GroupID, Priority: group.Priority})
+	}
+	return account
+}
+
+func (r *accountRepository) UpdateOwned(ctx context.Context, supplierID int64, account *service.Account, groups []service.AccountGroup) error {
 	baseCtx := ctx
 	client := r.client
 	var tx *dbent.Tx
@@ -119,6 +130,7 @@ func (r *accountRepository) UpdateOwned(ctx context.Context, supplierID int64, a
 		SetName(account.Name).
 		SetNillableNotes(account.Notes).
 		SetCredentials(normalizeJSONMap(account.Credentials)).
+		SetExtra(normalizeJSONMap(account.Extra)).
 		SetStatus(account.Status).
 		SetSchedulable(account.Schedulable).
 		SetReviewStatus(account.ReviewStatus).
@@ -130,6 +142,7 @@ func (r *accountRepository) UpdateOwned(ctx context.Context, supplierID int64, a
 		SetConcurrency(account.Concurrency).
 		SetPriority(account.Priority).
 		SetNillableLoadFactor(account.LoadFactor).
+		SetNillableRateMultiplier(account.RateMultiplier).
 		SetAutoPauseOnExpired(account.AutoPauseOnExpired).
 		SetNillableSupplierExternalID(account.SupplierExternalID)
 	if account.Notes == nil {
@@ -157,7 +170,26 @@ func (r *accountRepository) UpdateOwned(ctx context.Context, supplierID int64, a
 	if count == 0 {
 		return service.ErrSupplierAccountNotFound
 	}
-	if err := enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, nil); err != nil {
+	var groupPayload any
+	if groups != nil {
+		groupIDs := make([]int64, 0, len(groups))
+		for _, group := range groups {
+			groupIDs = append(groupIDs, group.GroupID)
+		}
+		if err := lockLiveGroups(ctx, client, groupIDs); err != nil {
+			return err
+		}
+		if _, err := client.AccountGroup.Delete().Where(dbaccountgroup.AccountIDEQ(account.ID)).Exec(ctx); err != nil {
+			return err
+		}
+		for _, group := range groups {
+			if _, err := client.AccountGroup.Create().SetAccountID(account.ID).SetGroupID(group.GroupID).SetPriority(group.Priority).Save(ctx); err != nil {
+				return err
+			}
+		}
+		groupPayload = buildSchedulerGroupPayload(groupIDs)
+	}
+	if err := enqueueSchedulerOutbox(ctx, client, service.SchedulerOutboxEventAccountChanged, &account.ID, nil, groupPayload); err != nil {
 		return err
 	}
 	if tx != nil {

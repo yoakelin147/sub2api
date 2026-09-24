@@ -18,7 +18,7 @@ func (h *SupplierHandler) GenerateSupplierOAuthURL(c *gin.Context) {
 		ProjectID string `json:"project_id"`
 		TierID    string `json:"tier_id"`
 	}
-	if err := decodeStrictSupplierJSON(c, &request); err != nil || request.ProxyID <= 0 {
+	if err := decodeStrictSupplierJSON(c, &request); err != nil || request.ProxyID < 0 {
 		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
 		return
 	}
@@ -49,7 +49,7 @@ func (h *SupplierHandler) GenerateSupplierOAuthURL(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	validProxy := false
+	validProxy := request.ProxyID == 0 && len(proxies) == 0
 	for _, proxy := range proxies {
 		if proxy.ID == request.ProxyID {
 			validProxy = true
@@ -168,7 +168,7 @@ func (h *SupplierHandler) ExchangeSupplierOAuthCredential(c *gin.Context) {
 		Email      string `json:"email"`
 		Password   string `json:"password"`
 	}
-	if err := decodeStrictSupplierJSON(c, &request); err != nil || request.ProxyID <= 0 {
+	if err := decodeStrictSupplierJSON(c, &request); err != nil || request.ProxyID < 0 {
 		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
 		return
 	}
@@ -198,7 +198,7 @@ func (h *SupplierHandler) ExchangeSupplierOAuthCredential(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	validProxy := false
+	validProxy := request.ProxyID == 0 && len(proxies) == 0
 	for _, proxy := range proxies {
 		if proxy.ID == request.ProxyID {
 			validProxy = true
@@ -211,17 +211,21 @@ func (h *SupplierHandler) ExchangeSupplierOAuthCredential(c *gin.Context) {
 	}
 	var result any
 	proxyID := request.ProxyID
+	var selectedProxyID *int64
+	if proxyID > 0 {
+		selectedProxyID = &proxyID
+	}
 	switch request.Method {
 	case "cookie":
 		scope := "full"
 		if accountType == service.AccountTypeSetupToken {
 			scope = "inference"
 		}
-		result, err = h.claudeOAuth.CookieAuth(c.Request.Context(), &service.CookieAuthInput{SessionKey: request.SessionKey, ProxyID: &proxyID, Scope: scope})
+		result, err = h.claudeOAuth.CookieAuth(c.Request.Context(), &service.CookieAuthInput{SessionKey: request.SessionKey, ProxyID: selectedProxyID, Scope: scope})
 	case "sso":
-		result, err = h.grokOAuth.ValidateSSOToken(c.Request.Context(), request.SSOToken, &proxyID)
+		result, err = h.grokOAuth.ValidateSSOToken(c.Request.Context(), request.SSOToken, selectedProxyID)
 	case "password":
-		result, err = h.grokOAuth.AuthorizePassword(c.Request.Context(), request.Email, request.Password, &proxyID)
+		result, err = h.grokOAuth.AuthorizePassword(c.Request.Context(), request.Email, request.Password, selectedProxyID)
 	}
 	if err != nil {
 		response.ErrorFrom(c, err)

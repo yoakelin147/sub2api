@@ -80,7 +80,7 @@ func (s *OAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID, 
 	if setupToken {
 		scope = oauth.ScopeInference
 	}
-	return s.generateAuthURLWithScope(ctx, scope, &proxyID, supplierID)
+	return s.generateAuthURLWithScope(ctx, scope, normalizeSupplierProxyID(&proxyID), supplierID)
 }
 
 func (s *OAuthService) generateAuthURLWithScope(ctx context.Context, scope string, proxyID *int64, supplierID int64) (*GenerateAuthURLResult, error) {

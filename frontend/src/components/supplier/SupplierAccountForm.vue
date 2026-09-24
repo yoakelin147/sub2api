@@ -18,25 +18,24 @@
         <label class="block">
           <span class="input-label">{{ t('supplier.accounts.proxy') }}</span>
           <select v-model.number="proxyId" class="input" :disabled="oauthBusy" required>
-            <option :value="0">{{ t('supplier.accounts.selectProxy') }}</option>
+            <option :value="0">{{ proxies.length ? t('supplier.accounts.selectProxy') : t('supplier.accounts.directConnection') }}</option>
             <option v-for="proxy in proxies" :key="proxy.id" :value="proxy.id">{{ proxy.name }}</option>
           </select>
         </label>
-        <label class="block">
+        <label v-if="!reviewRequired" class="block">
           <span class="input-label">{{ t('supplier.accounts.concurrency') }}</span>
           <input v-model.number="concurrency" class="input" type="number" min="1" max="10000" required />
         </label>
-        <label class="block">
+        <label v-if="!reviewRequired" class="block">
           <span class="input-label">{{ t('supplier.accounts.priority') }}</span>
           <input v-model.number="priority" class="input" type="number" min="0" max="10000" required />
         </label>
-        <label class="block">
+        <label v-if="!reviewRequired" class="block">
           <span class="input-label">{{ t('supplier.accounts.loadFactor') }}</span>
           <input v-model.number="loadFactor" class="input" type="number" min="1" max="10000" :placeholder="t('supplier.accounts.loadFactorHint')" />
         </label>
       </div>
-      <label class="flex items-center gap-2 text-sm"><input v-model="autoPauseOnExpired" type="checkbox" />{{ t('supplier.accounts.autoPauseOnExpired') }}</label>
-      <p v-if="proxies.length === 0" role="alert" class="text-sm text-amber-700 dark:text-amber-300">{{ t('supplier.accounts.noProxy') }}</p>
+      <label v-if="!reviewRequired" class="flex items-center gap-2 text-sm"><input v-model="autoPauseOnExpired" type="checkbox" />{{ t('supplier.accounts.autoPauseOnExpired') }}</label>
 
       <div class="grid gap-4 sm:grid-cols-2">
         <label class="block">
@@ -47,16 +46,33 @@
             </option>
           </select>
         </label>
-        <label class="block">
+        <label v-if="!reviewRequired" class="block">
           <span class="input-label">{{ t('supplier.accounts.expiresAt') }}</span>
           <input v-model="expiresAt" class="input" type="datetime-local" />
         </label>
       </div>
 
-      <label class="block">
+      <label v-if="!reviewRequired" class="block">
         <span class="input-label">{{ t('supplier.accounts.notes') }}</span>
         <textarea v-model="notes" class="input" rows="2" maxlength="2000"></textarea>
       </label>
+      <fieldset v-if="!reviewRequired">
+        <legend class="input-label">{{ t('supplier.accounts.group') }}</legend>
+        <details class="rounded-lg border border-gray-300 dark:border-dark-600" data-test="supplier-group-dropdown">
+          <summary class="flex cursor-pointer items-center gap-2 px-3 py-2 text-sm text-gray-800 dark:text-gray-200">
+            <span class="min-w-0 flex-1 truncate">{{ selectedGroupNames || t('supplier.accounts.selectGroup') }}</span>
+            <span class="text-xs text-gray-400">{{ selectedGroupIds.length }} / {{ availableGroups.length }}</span>
+            <span aria-hidden="true">▾</span>
+          </summary>
+          <div class="max-h-48 space-y-1 overflow-y-auto border-t border-gray-200 p-2 dark:border-dark-600">
+            <label v-for="group in availableGroups" :key="group.id" class="flex cursor-pointer items-start gap-2 rounded px-2 py-2 text-sm hover:bg-gray-50 dark:hover:bg-dark-700">
+              <input v-model="selectedGroupIds" type="checkbox" :value="group.id" class="mt-1" />
+              <span class="min-w-0"><span class="block break-words">{{ group.name }}</span><span v-if="group.description" class="block break-words text-xs text-gray-500 dark:text-gray-400">{{ group.description }}</span></span>
+            </label>
+            <p v-if="!availableGroups.length" class="px-2 py-2 text-sm text-gray-500">{{ t('supplier.accounts.noGroup') }}</p>
+          </div>
+        </details>
+      </fieldset>
 
       <div>
         <div class="mb-2 flex items-center justify-between gap-3">
@@ -113,6 +129,33 @@
         <p class="input-hint">{{ t('supplier.accounts.credentialsHint') }}</p>
         <p class="mt-2 text-sm text-gray-600 dark:text-gray-300">{{ t('supplier.accounts.requiredCredentials', { fields: requiredFields.join(', ') }) }}</p>
         <p v-if="requiredFields.includes('base_url')" class="mt-1 text-sm text-amber-700 dark:text-amber-300">{{ t('supplier.accounts.baseUrlHint') }}</p>
+        <fieldset v-if="!reviewRequired" class="mt-4 space-y-4 rounded-lg border border-gray-200 p-4 dark:border-dark-700">
+          <legend class="input-label px-1">{{ t('supplier.accounts.optionalFeatures') }}</legend>
+          <p class="text-sm text-gray-500 dark:text-gray-400">{{ t('supplier.accounts.optionalFeaturesHint') }}</p>
+          <label v-if="selectedKind()?.platform === 'openai'" class="block">
+            <span class="input-label">{{ t('supplier.accounts.compactMode') }} <code class="text-xs font-normal text-gray-500">openai_compact_mode</code></span>
+            <select v-model="compactMode" class="input" data-test="supplier-compact-mode" :disabled="saving">
+              <option value="auto">{{ t('supplier.accounts.compactAuto') }}</option>
+              <option value="force_on">{{ t('supplier.accounts.compactForceOn') }}</option>
+              <option value="force_off">{{ t('supplier.accounts.compactForceOff') }}</option>
+            </select>
+            <span class="input-hint">{{ t('supplier.accounts.compactModeHint') }}</span>
+          </label>
+          <label v-if="selectedKind()?.platform === 'anthropic' && selectedKind()?.type === 'apikey'" class="block">
+            <span class="input-label">{{ t('supplier.accounts.webSearch') }} <code class="text-xs font-normal text-gray-500">web_search_emulation</code></span>
+            <select v-model="webSearchMode" class="input" data-test="supplier-web-search" :disabled="saving">
+              <option value="default">{{ t('supplier.accounts.webSearchDefault') }}</option>
+              <option value="enabled">{{ t('supplier.accounts.webSearchEnabled') }}</option>
+              <option value="disabled">{{ t('supplier.accounts.webSearchDisabled') }}</option>
+            </select>
+            <span class="input-hint">{{ t('supplier.accounts.webSearchHint') }}</span>
+          </label>
+          <label class="block">
+            <span class="input-label">{{ t('supplier.accounts.upstreamRequestIdHeader') }} <code class="text-xs font-normal text-gray-500">upstream_request_id_header</code></span>
+            <input v-model.trim="upstreamRequestIDHeader" class="input" data-test="supplier-request-id-header" maxlength="64" autocomplete="off" :disabled="saving" :placeholder="t('supplier.accounts.upstreamRequestIdHeaderPlaceholder')" />
+            <span class="input-hint">{{ t('supplier.accounts.upstreamRequestIdHeaderHint') }}</span>
+          </label>
+        </fieldset>
         <p v-if="formError" role="alert" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ formError }}</p>
         <p v-else-if="serverError" role="alert" class="mt-2 text-sm text-red-600 dark:text-red-400">{{ serverError }}</p>
       </div>
@@ -120,7 +163,7 @@
 
     <template #footer>
       <button type="button" class="btn btn-secondary" :disabled="saving" @click="emit('close')">{{ t('common.cancel') }}</button>
-      <button type="submit" form="supplier-account-form" class="btn btn-primary" :disabled="saving || oauthBusy || kinds.length === 0 || proxies.length === 0">
+      <button type="submit" form="supplier-account-form" class="btn btn-primary" :disabled="saving || oauthBusy || kinds.length === 0 || (!reviewRequired && !selectedGroupIds.length)">
         {{ saving ? t('common.saving') : t('common.save') }}
       </button>
     </template>
@@ -144,12 +187,16 @@ import type {
   SupplierAccountKind,
   SupplierAccountUpdateInput,
   SupplierProxyOption,
+  SupplierGroupOption,
 } from '@/api/supplier'
 
 const props = defineProps<{
   show: boolean
   kinds: SupplierAccountKind[]
   proxies: SupplierProxyOption[]
+  reviewRequired?: boolean
+  approvedGroups?: Record<string, number[]>
+  groupOptions?: SupplierGroupOption[]
   account?: SupplierAccount | null
   saving?: boolean
   serverError?: string
@@ -161,12 +208,26 @@ const emit = defineEmits<{
 }>()
 
 const { t } = useI18n()
+const reviewRequired = computed(() => props.reviewRequired ?? false)
+const approvedGroups = computed(() => props.approvedGroups ?? {})
+const selectedGroupIds = ref<number[]>([])
+const availableGroups = computed(() => {
+  const kind = selectedKind()
+  if (!kind) return []
+  const allowed = approvedGroups.value[kind.platform] ?? []
+  return allowed.map(id => props.groupOptions?.find(group => group.id === id && group.platform === kind.platform))
+    .filter((group): group is SupplierGroupOption => group !== undefined && (!group.require_oauth_only || kind.type === 'oauth'))
+})
+const selectedGroupNames = computed(() => availableGroups.value.filter(group => selectedGroupIds.value.includes(group.id)).map(group => group.name).join(', '))
 const name = ref('')
 const externalId = ref('')
 const notes = ref('')
 const expiresAt = ref('')
 const kindKey = ref('')
 const credentialsText = ref('')
+const compactMode = ref<'auto' | 'force_on' | 'force_off'>('auto')
+const webSearchMode = ref<'default' | 'enabled' | 'disabled'>('default')
+const upstreamRequestIDHeader = ref('')
 const credentialMode = ref<'fields' | 'json'>('fields')
 const formError = ref('')
 const proxyId = ref(0)
@@ -227,6 +288,10 @@ function changeKind(event: Event) {
   const select = event.target as HTMLSelectElement
   if (!confirmReplaceCredentials()) { select.value = kindKey.value; return }
   kindKey.value = select.value
+  selectedGroupIds.value = availableGroups.value.slice(0, 1).map(group => group.id)
+  compactMode.value = 'auto'
+  webSearchMode.value = 'default'
+  upstreamRequestIDHeader.value = ''
   credentialsText.value = JSON.stringify(supplierCredentialTemplate(selectedKind()), null, 2)
   formError.value = ''
   oauthAuthURL.value = ''
@@ -236,7 +301,7 @@ function changeKind(event: Event) {
 }
 
 async function startSupplierOAuth() {
-  if (!props.proxies.some(proxy => proxy.id === proxyId.value)) {
+  if (props.proxies.length && !props.proxies.some(proxy => proxy.id === proxyId.value)) {
     formError.value = t('supplier.accounts.noProxy')
     return
   }
@@ -281,7 +346,7 @@ async function completeSupplierOAuth() {
 
 async function completeAlternateOAuth(method: 'cookie' | 'sso' | 'password', secret: string) {
   const kind = selectedKind()
-  if (!kind || !props.proxies.some(proxy => proxy.id === proxyId.value)) {
+  if (!kind || props.proxies.length && !props.proxies.some(proxy => proxy.id === proxyId.value)) {
     formError.value = t('supplier.accounts.noProxy')
     return
   }
@@ -316,7 +381,7 @@ function applyOAuthTokens(kind: SupplierAccountKind, tokens: Record<string, unkn
       : kind.platform === 'antigravity' ? ['access_token', 'refresh_token', 'token_type', 'expires_at', 'project_id', 'plan_type']
       : ['access_token', 'refresh_token', 'id_token', 'token_type', 'expires_at', 'client_id', 'scope', 'sub', 'team_id', 'subscription_tier', 'entitlement_status']
     for (const key of fields) {
-      if (tokens[key]) credentials[key] = tokens[key]
+      if (tokens[key] && !(reviewRequired.value && ['plan_type', 'subscription_expires_at', 'tier_id'].includes(key))) credentials[key] = tokens[key]
     }
     if (typeof tokens.email === 'string' && !credentials.email) credentials.email = tokens.email
     if (kind.platform === 'anthropic' && typeof tokens.email_address === 'string' && !credentials.email) credentials.email = tokens.email_address
@@ -340,7 +405,13 @@ function reset() {
   notes.value = account?.notes ?? ''
   expiresAt.value = account?.expires_at ? formatDateTimeLocalInput(new Date(account.expires_at).getTime() / 1000) : ''
   kindKey.value = account ? `${account.platform}:${account.type}` : props.kinds[0] ? kindValue(props.kinds[0]) : ''
+  selectedGroupIds.value = account?.group_ids?.filter(id => availableGroups.value.some(group => group.id === id)) ?? availableGroups.value.slice(0, 1).map(group => group.id)
   credentialsText.value = account ? '' : JSON.stringify(supplierCredentialTemplate(selectedKind()), null, 2)
+  const savedCompactMode = account?.extra?.openai_compact_mode
+  compactMode.value = savedCompactMode === 'force_on' || savedCompactMode === 'force_off' ? savedCompactMode : 'auto'
+  const savedWebSearchMode = account?.extra?.web_search_emulation
+  webSearchMode.value = savedWebSearchMode === 'enabled' || savedWebSearchMode === 'disabled' ? savedWebSearchMode : 'default'
+  upstreamRequestIDHeader.value = typeof account?.extra?.upstream_request_id_header === 'string' ? account.extra.upstream_request_id_header : ''
   credentialMode.value = 'fields'
   formError.value = ''
   proxyId.value = account?.proxy_id ?? props.proxies[0]?.id ?? 0
@@ -386,7 +457,8 @@ function parseCredentials(): Record<string, unknown> | undefined {
   const credentials = parsed as Record<string, unknown>
   const kind = selectedKind()
   if (!kind) throw new Error(t('supplier.accounts.invalidCredentials'))
-  const missing = supplierRequiredCredentials(kind, credentials).filter(field => {
+  const configurationOnly = props.account && !reviewRequired.value && Object.keys(credentials).length > 0 && Object.keys(credentials).every(key => ['model_mapping', 'compact_model_mapping', 'protocol_rules'].includes(key))
+  const missing = (configurationOnly ? [] : supplierRequiredCredentials(kind, credentials)).filter(field => {
     const value = credentials[field]
     return field === 'service_account_json'
       ? !(typeof value === 'string' ? value.trim() : value && typeof value === 'object' && !Array.isArray(value) && Object.keys(value).length)
@@ -406,39 +478,48 @@ function submit() {
   if (props.saving) return
   formError.value = ''
   try {
-    if (!props.proxies.some(proxy => proxy.id === proxyId.value)) throw new Error(t('supplier.accounts.noProxy'))
-    const operational = {
-      proxy_id: proxyId.value,
+    if (props.proxies.length && !props.proxies.some(proxy => proxy.id === proxyId.value)) throw new Error(t('supplier.accounts.noProxy'))
+    const operational = reviewRequired.value ? {} : {
       concurrency: concurrency.value,
       priority: priority.value,
       ...(loadFactor.value === '' ? {} : { load_factor: loadFactor.value }),
       auto_pause_on_expired: autoPauseOnExpired.value,
     }
+    const connection = proxyId.value ? { proxy_id: proxyId.value } : {}
     const credentials = props.account && Object.keys(credentialValues.value).length === 0 && credentialMode.value === 'fields' ? undefined : parseCredentials()
-    const expiry = parseDateTimeLocalInput(expiresAt.value)
+    const kind = selectedKind()
+    const extra: Record<string, string> = {}
+    if (!reviewRequired.value) {
+      if (kind?.platform === 'openai' && compactMode.value !== 'auto') extra.openai_compact_mode = compactMode.value
+      if (kind?.platform === 'anthropic' && kind.type === 'apikey' && webSearchMode.value !== 'default') extra.web_search_emulation = webSearchMode.value
+      if (upstreamRequestIDHeader.value) extra.upstream_request_id_header = upstreamRequestIDHeader.value
+    }
+    const extraPayload = !reviewRequired.value && (Object.keys(extra).length > 0 || props.account?.extra && Object.keys(props.account.extra).length > 0) ? { extra } : {}
+    const expiry = reviewRequired.value ? null : parseDateTimeLocalInput(expiresAt.value)
     if (props.account) {
       const input: SupplierAccountUpdateInput = {
         ...operational,
+        ...extraPayload,
+        ...connection,
         name: name.value,
         external_id: externalId.value,
-        notes: notes.value || null,
-        expires_at: expiry,
+        ...(!reviewRequired.value ? { notes: notes.value || null, expires_at: expiry, group_ids: selectedGroupIds.value } : {}),
       }
       if (credentials) input.credentials = credentials
       emit('submit', props.account.id, input)
       return
     }
-    const kind = selectedKind()
     if (!kind || !credentials) throw new Error(t('supplier.accounts.invalidCredentials'))
     emit('submit', null, {
       ...operational,
+      ...extraPayload,
+      ...connection,
       name: name.value,
       external_id: externalId.value,
-      notes: notes.value || null,
+      ...(!reviewRequired.value ? { notes: notes.value || null, expires_at: expiry, group_ids: selectedGroupIds.value } : {}),
       platform: kind.platform,
       type: kind.type,
       credentials,
-      expires_at: expiry,
     })
   } catch (error) {
     formError.value = error instanceof Error ? error.message : t('supplier.accounts.invalidCredentials')

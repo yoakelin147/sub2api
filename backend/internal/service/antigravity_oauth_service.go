@@ -35,7 +35,7 @@ func (s *AntigravityOAuthService) GenerateAuthURL(ctx context.Context, proxyID *
 }
 
 func (s *AntigravityOAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID, proxyID int64) (*AntigravityAuthURLResult, error) {
-	return s.generateAuthURL(ctx, &proxyID, supplierID)
+	return s.generateAuthURL(ctx, normalizeSupplierProxyID(&proxyID), supplierID)
 }
 
 func (s *AntigravityOAuthService) generateAuthURL(ctx context.Context, proxyID *int64, supplierID int64) (*AntigravityAuthURLResult, error) {

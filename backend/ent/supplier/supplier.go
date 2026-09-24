@@ -125,7 +125,7 @@ var (
 	// DefaultReviewRequired holds the default value on creation for the "review_required" field.
 	DefaultReviewRequired bool
 	// DefaultAutoApproveGroups holds the default value on creation for the "auto_approve_groups" field.
-	DefaultAutoApproveGroups func() map[string]int64
+	DefaultAutoApproveGroups func() map[string][]int64
 	// TokenSelectorValidator is a validator for the "token_selector" field. It is called by the builders before save.
 	TokenSelectorValidator func(string) error
 	// TokenHashValidator is a validator for the "token_hash" field. It is called by the builders before save.

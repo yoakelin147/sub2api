@@ -70,7 +70,7 @@ func (s *GrokOAuthService) GenerateAuthURL(ctx context.Context, proxyID *int64, 
 }
 
 func (s *GrokOAuthService) GenerateSupplierAuthURL(ctx context.Context, supplierID, proxyID int64) (*GrokAuthURLResult, error) {
-	return s.generateAuthURL(ctx, &proxyID, "", supplierID)
+	return s.generateAuthURL(ctx, normalizeSupplierProxyID(&proxyID), "", supplierID)
 }
 
 func (s *GrokOAuthService) generateAuthURL(ctx context.Context, proxyID *int64, redirectURI string, supplierID int64) (*GrokAuthURLResult, error) {
