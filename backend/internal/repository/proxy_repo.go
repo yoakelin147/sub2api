@@ -42,6 +42,9 @@ func (r *proxyRepository) Create(ctx context.Context, proxyIn *service.Proxy) er
 		SetStatus(proxyIn.Status).
 		SetFallbackMode(proxyIn.FallbackMode).
 		SetExpiryWarnDays(proxyIn.ExpiryWarnDays)
+	if proxyIn.ConnectionMode != "" {
+		builder.SetConnectionMode(proxyIn.ConnectionMode)
+	}
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	}
@@ -156,6 +159,9 @@ func updateProxyAndInvalidateProbeSnapshots(ctx context.Context, client *dbent.C
 		SetStatus(proxyIn.Status).
 		SetFallbackMode(proxyIn.FallbackMode).
 		SetExpiryWarnDays(proxyIn.ExpiryWarnDays)
+	if proxyIn.ConnectionMode != "" {
+		builder.SetConnectionMode(proxyIn.ConnectionMode)
+	}
 	if proxyIn.Username != "" {
 		builder.SetUsername(proxyIn.Username)
 	} else {
@@ -587,6 +593,7 @@ func proxyEntityToService(m *dbent.Proxy) *service.Proxy {
 		ID:             m.ID,
 		Name:           m.Name,
 		Protocol:       m.Protocol,
+		ConnectionMode: m.ConnectionMode,
 		Host:           m.Host,
 		Port:           m.Port,
 		Status:         m.Status,

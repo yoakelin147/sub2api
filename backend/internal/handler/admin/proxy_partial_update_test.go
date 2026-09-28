@@ -29,8 +29,10 @@ func TestProxyHandlerUpdatePreservesFieldPresence(t *testing.T) {
 	for _, tc := range []struct {
 		name, body       string
 		set, clear, warn bool
+		mode             string
 	}{
 		{name: "omitted", body: `{"status":"inactive"}`},
+		{name: "connection mode", body: `{"connection_mode":"per_request"}`, mode: "per_request"},
 		{name: "null clears", body: `{"expires_at":null,"backup_proxy_id":null,"fallback_mode":"none","expiry_warn_days":0}`, set: true, clear: true, warn: true},
 		{name: "zero clears expiry", body: `{"expires_at":0,"backup_proxy_id":null}`, set: true, clear: true},
 		{name: "values", body: `{"expires_at":1800000000,"backup_proxy_id":10,"fallback_mode":"proxy","expiry_warn_days":7}`, set: true, warn: true},
@@ -45,6 +47,7 @@ func TestProxyHandlerUpdatePreservesFieldPresence(t *testing.T) {
 			router.ServeHTTP(w, req)
 			require.Equal(t, http.StatusOK, w.Code, w.Body.String())
 			require.NotNil(t, svc.input)
+			require.Equal(t, tc.mode, svc.input.ConnectionMode)
 			require.Equal(t, tc.set, svc.input.ExpiresAt != nil || svc.input.ClearExpiresAt)
 			require.Equal(t, tc.set, svc.input.BackupProxyID != nil || svc.input.ClearBackupID)
 			require.Equal(t, tc.warn, svc.input.ExpiryWarnDays != nil)

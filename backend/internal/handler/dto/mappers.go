@@ -526,6 +526,7 @@ func ProxyFromService(p *service.Proxy) *Proxy {
 		ID:             p.ID,
 		Name:           p.Name,
 		Protocol:       p.Protocol,
+		ConnectionMode: p.ConnectionMode,
 		Host:           p.Host,
 		Port:           p.Port,
 		Username:       p.Username,

@@ -80,6 +80,11 @@ func Protocol(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldProtocol, v))
 }
 
+// ConnectionMode applies equality check predicate on the "connection_mode" field. It's identical to ConnectionModeEQ.
+func ConnectionMode(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldConnectionMode, v))
+}
+
 // Host applies equality check predicate on the "host" field. It's identical to HostEQ.
 func Host(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldEQ(FieldHost, v))
@@ -383,6 +388,71 @@ func ProtocolEqualFold(v string) predicate.Proxy {
 // ProtocolContainsFold applies the ContainsFold predicate on the "protocol" field.
 func ProtocolContainsFold(v string) predicate.Proxy {
 	return predicate.Proxy(sql.FieldContainsFold(FieldProtocol, v))
+}
+
+// ConnectionModeEQ applies the EQ predicate on the "connection_mode" field.
+func ConnectionModeEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEQ(FieldConnectionMode, v))
+}
+
+// ConnectionModeNEQ applies the NEQ predicate on the "connection_mode" field.
+func ConnectionModeNEQ(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNEQ(FieldConnectionMode, v))
+}
+
+// ConnectionModeIn applies the In predicate on the "connection_mode" field.
+func ConnectionModeIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldIn(FieldConnectionMode, vs...))
+}
+
+// ConnectionModeNotIn applies the NotIn predicate on the "connection_mode" field.
+func ConnectionModeNotIn(vs ...string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldNotIn(FieldConnectionMode, vs...))
+}
+
+// ConnectionModeGT applies the GT predicate on the "connection_mode" field.
+func ConnectionModeGT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGT(FieldConnectionMode, v))
+}
+
+// ConnectionModeGTE applies the GTE predicate on the "connection_mode" field.
+func ConnectionModeGTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldGTE(FieldConnectionMode, v))
+}
+
+// ConnectionModeLT applies the LT predicate on the "connection_mode" field.
+func ConnectionModeLT(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLT(FieldConnectionMode, v))
+}
+
+// ConnectionModeLTE applies the LTE predicate on the "connection_mode" field.
+func ConnectionModeLTE(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldLTE(FieldConnectionMode, v))
+}
+
+// ConnectionModeContains applies the Contains predicate on the "connection_mode" field.
+func ConnectionModeContains(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContains(FieldConnectionMode, v))
+}
+
+// ConnectionModeHasPrefix applies the HasPrefix predicate on the "connection_mode" field.
+func ConnectionModeHasPrefix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasPrefix(FieldConnectionMode, v))
+}
+
+// ConnectionModeHasSuffix applies the HasSuffix predicate on the "connection_mode" field.
+func ConnectionModeHasSuffix(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldHasSuffix(FieldConnectionMode, v))
+}
+
+// ConnectionModeEqualFold applies the EqualFold predicate on the "connection_mode" field.
+func ConnectionModeEqualFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldEqualFold(FieldConnectionMode, v))
+}
+
+// ConnectionModeContainsFold applies the ContainsFold predicate on the "connection_mode" field.
+func ConnectionModeContainsFold(v string) predicate.Proxy {
+	return predicate.Proxy(sql.FieldContainsFold(FieldConnectionMode, v))
 }
 
 // HostEQ applies the EQ predicate on the "host" field.

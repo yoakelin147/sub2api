@@ -15,6 +15,11 @@ const mountView = () => shallowMount(ProxiesView, {
     TablePageLayout: { template: '<div><slot name="table" /></div>' },
     DataTable: { props: ['data'], template: '<div v-for="row in data" :key="row.id"><slot name="cell-actions" :row="row" /></div>' },
     BaseDialog: { props: ['show'], template: '<div v-if="show"><slot /><slot name="footer" /></div>' },
+    Select: {
+      props: ['modelValue', 'options'],
+      emits: ['update:modelValue'],
+      template: '<select :value="modelValue" @change="$emit(\'update:modelValue\', $event.target.value)"><option v-for="option in options" :key="option.value" :value="option.value">{{ option.label }}</option></select>',
+    },
   } },
 })
 let wrapper: ReturnType<typeof mountView>
@@ -36,6 +41,29 @@ async function submit() {
 }
 
 describe('proxy credential updates', () => {
+  it('preserves the per-request connection mode on edit', async () => {
+    list.mockResolvedValueOnce({ items: [{ id: 9, name: 'proxy', protocol: 'https', connection_mode: 'per_request', host: 'proxy.example', port: 8080, username: 'old-user', status: 'active' }], total: 1, pages: 1 })
+    await edit()
+    expect((await submit()).connection_mode).toBe('per_request')
+  })
+
+  it('lets an admin select per-request mode', async () => {
+    await edit()
+    const mode = wrapper.findAll<HTMLSelectElement>('#edit-proxy-form select').find(select =>
+      Array.from(select.element.options).some(option => option.value === 'per_request'))!
+    await mode.setValue('per_request')
+    expect((await submit()).connection_mode).toBe('per_request')
+  })
+
+  it('uses reuse mode when switching the proxy to SOCKS5', async () => {
+    await edit()
+    const selects = wrapper.findAll<HTMLSelectElement>('#edit-proxy-form select')
+    const mode = selects.find(select => Array.from(select.element.options).some(option => option.value === 'per_request'))!
+    const protocol = selects.find(select => Array.from(select.element.options).some(option => option.value === 'socks5'))!
+    await mode.setValue('per_request')
+    await protocol.setValue('socks5')
+    expect((await submit()).connection_mode).toBe('reuse')
+  })
   it('sends an explicit empty username when cleared', async () => {
     await edit()
     const username = wrapper.findAll<HTMLInputElement>('#edit-proxy-form input').find(input => input.element.value === 'old-user')!

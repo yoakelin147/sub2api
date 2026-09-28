@@ -37,6 +37,9 @@ func (Proxy) Fields() []ent.Field {
 		field.String("protocol").
 			MaxLen(20).
 			NotEmpty(),
+		field.String("connection_mode").
+			MaxLen(20).
+			Default("reuse"),
 		field.String("host").
 			MaxLen(255).
 			NotEmpty(),

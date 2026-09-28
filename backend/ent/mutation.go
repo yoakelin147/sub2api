@@ -37900,6 +37900,7 @@ type ProxyMutation struct {
 	deleted_at             *time.Time
 	name                   *string
 	protocol               *string
+	connection_mode        *string
 	host                   *string
 	port                   *int
 	addport                *int
@@ -38213,6 +38214,42 @@ func (m *ProxyMutation) OldProtocol(ctx context.Context) (v string, err error) {
 // ResetProtocol resets all changes to the "protocol" field.
 func (m *ProxyMutation) ResetProtocol() {
 	m.protocol = nil
+}
+
+// SetConnectionMode sets the "connection_mode" field.
+func (m *ProxyMutation) SetConnectionMode(s string) {
+	m.connection_mode = &s
+}
+
+// ConnectionMode returns the value of the "connection_mode" field in the mutation.
+func (m *ProxyMutation) ConnectionMode() (r string, exists bool) {
+	v := m.connection_mode
+	if v == nil {
+		return
+	}
+	return *v, true
+}
+
+// OldConnectionMode returns the old "connection_mode" field's value of the Proxy entity.
+// If the Proxy object wasn't provided to the builder, the object is fetched from the database.
+// An error is returned if the mutation operation is not UpdateOne, or the database query fails.
+func (m *ProxyMutation) OldConnectionMode(ctx context.Context) (v string, err error) {
+	if !m.op.Is(OpUpdateOne) {
+		return v, errors.New("OldConnectionMode is only allowed on UpdateOne operations")
+	}
+	if m.id == nil || m.oldValue == nil {
+		return v, errors.New("OldConnectionMode requires an ID field in the mutation")
+	}
+	oldValue, err := m.oldValue(ctx)
+	if err != nil {
+		return v, fmt.Errorf("querying old value for OldConnectionMode: %w", err)
+	}
+	return oldValue.ConnectionMode, nil
+}
+
+// ResetConnectionMode resets all changes to the "connection_mode" field.
+func (m *ProxyMutation) ResetConnectionMode() {
+	m.connection_mode = nil
 }
 
 // SetHost sets the "host" field.
@@ -38800,7 +38837,7 @@ func (m *ProxyMutation) Type() string {
 // order to get all numeric fields that were incremented/decremented, call
 // AddedFields().
 func (m *ProxyMutation) Fields() []string {
-	fields := make([]string, 0, 14)
+	fields := make([]string, 0, 15)
 	if m.created_at != nil {
 		fields = append(fields, proxy.FieldCreatedAt)
 	}
@@ -38815,6 +38852,9 @@ func (m *ProxyMutation) Fields() []string {
 	}
 	if m.protocol != nil {
 		fields = append(fields, proxy.FieldProtocol)
+	}
+	if m.connection_mode != nil {
+		fields = append(fields, proxy.FieldConnectionMode)
 	}
 	if m.host != nil {
 		fields = append(fields, proxy.FieldHost)
@@ -38861,6 +38901,8 @@ func (m *ProxyMutation) Field(name string) (ent.Value, bool) {
 		return m.Name()
 	case proxy.FieldProtocol:
 		return m.Protocol()
+	case proxy.FieldConnectionMode:
+		return m.ConnectionMode()
 	case proxy.FieldHost:
 		return m.Host()
 	case proxy.FieldPort:
@@ -38898,6 +38940,8 @@ func (m *ProxyMutation) OldField(ctx context.Context, name string) (ent.Value, e
 		return m.OldName(ctx)
 	case proxy.FieldProtocol:
 		return m.OldProtocol(ctx)
+	case proxy.FieldConnectionMode:
+		return m.OldConnectionMode(ctx)
 	case proxy.FieldHost:
 		return m.OldHost(ctx)
 	case proxy.FieldPort:
@@ -38959,6 +39003,13 @@ func (m *ProxyMutation) SetField(name string, value ent.Value) error {
 			return fmt.Errorf("unexpected type %T for field %s", value, name)
 		}
 		m.SetProtocol(v)
+		return nil
+	case proxy.FieldConnectionMode:
+		v, ok := value.(string)
+		if !ok {
+			return fmt.Errorf("unexpected type %T for field %s", value, name)
+		}
+		m.SetConnectionMode(v)
 		return nil
 	case proxy.FieldHost:
 		v, ok := value.(string)
@@ -39146,6 +39197,9 @@ func (m *ProxyMutation) ResetField(name string) error {
 		return nil
 	case proxy.FieldProtocol:
 		m.ResetProtocol()
+		return nil
+	case proxy.FieldConnectionMode:
+		m.ResetConnectionMode()
 		return nil
 	case proxy.FieldHost:
 		m.ResetHost()

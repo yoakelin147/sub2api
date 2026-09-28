@@ -29,6 +29,7 @@ func NewProxyHandler(adminService service.AdminService) *ProxyHandler {
 type CreateProxyRequest struct {
 	Name           string `json:"name" binding:"required"`
 	Protocol       string `json:"protocol" binding:"required,oneof=http https socks5 socks5h"`
+	ConnectionMode string `json:"connection_mode" binding:"omitempty,oneof=reuse per_request"`
 	Host           string `json:"host" binding:"required"`
 	Port           int    `json:"port" binding:"required,min=1,max=65535"`
 	Username       string `json:"username"`
@@ -43,6 +44,7 @@ type CreateProxyRequest struct {
 type UpdateProxyRequest struct {
 	Name           string                 `json:"name"`
 	Protocol       string                 `json:"protocol" binding:"omitempty,oneof=http https socks5 socks5h"`
+	ConnectionMode string                 `json:"connection_mode" binding:"omitempty,oneof=reuse per_request"`
 	Host           string                 `json:"host"`
 	Port           int                    `json:"port" binding:"omitempty,min=1,max=65535"`
 	Username       *string                `json:"username"`
@@ -151,6 +153,7 @@ func (h *ProxyHandler) Create(c *gin.Context) {
 		proxy, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
 			Name:           strings.TrimSpace(req.Name),
 			Protocol:       strings.TrimSpace(req.Protocol),
+			ConnectionMode: req.ConnectionMode,
 			Host:           strings.TrimSpace(req.Host),
 			Port:           req.Port,
 			Username:       strings.TrimSpace(req.Username),
@@ -196,6 +199,7 @@ func (h *ProxyHandler) Update(c *gin.Context) {
 	proxy, err := h.adminService.UpdateProxy(c.Request.Context(), proxyID, &service.UpdateProxyInput{
 		Name:           strings.TrimSpace(req.Name),
 		Protocol:       strings.TrimSpace(req.Protocol),
+		ConnectionMode: req.ConnectionMode,
 		Host:           strings.TrimSpace(req.Host),
 		Port:           req.Port,
 		Username:       req.Username,

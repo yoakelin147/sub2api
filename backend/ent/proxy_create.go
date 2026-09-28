@@ -77,6 +77,20 @@ func (_c *ProxyCreate) SetProtocol(v string) *ProxyCreate {
 	return _c
 }
 
+// SetConnectionMode sets the "connection_mode" field.
+func (_c *ProxyCreate) SetConnectionMode(v string) *ProxyCreate {
+	_c.mutation.SetConnectionMode(v)
+	return _c
+}
+
+// SetNillableConnectionMode sets the "connection_mode" field if the given value is not nil.
+func (_c *ProxyCreate) SetNillableConnectionMode(v *string) *ProxyCreate {
+	if v != nil {
+		_c.SetConnectionMode(*v)
+	}
+	return _c
+}
+
 // SetHost sets the "host" field.
 func (_c *ProxyCreate) SetHost(v string) *ProxyCreate {
 	_c.mutation.SetHost(v)
@@ -273,6 +287,10 @@ func (_c *ProxyCreate) defaults() error {
 		v := proxy.DefaultUpdatedAt()
 		_c.mutation.SetUpdatedAt(v)
 	}
+	if _, ok := _c.mutation.ConnectionMode(); !ok {
+		v := proxy.DefaultConnectionMode
+		_c.mutation.SetConnectionMode(v)
+	}
 	if _, ok := _c.mutation.Status(); !ok {
 		v := proxy.DefaultStatus
 		_c.mutation.SetStatus(v)
@@ -310,6 +328,14 @@ func (_c *ProxyCreate) check() error {
 	if v, ok := _c.mutation.Protocol(); ok {
 		if err := proxy.ProtocolValidator(v); err != nil {
 			return &ValidationError{Name: "protocol", err: fmt.Errorf(`ent: validator failed for field "Proxy.protocol": %w`, err)}
+		}
+	}
+	if _, ok := _c.mutation.ConnectionMode(); !ok {
+		return &ValidationError{Name: "connection_mode", err: errors.New(`ent: missing required field "Proxy.connection_mode"`)}
+	}
+	if v, ok := _c.mutation.ConnectionMode(); ok {
+		if err := proxy.ConnectionModeValidator(v); err != nil {
+			return &ValidationError{Name: "connection_mode", err: fmt.Errorf(`ent: validator failed for field "Proxy.connection_mode": %w`, err)}
 		}
 	}
 	if _, ok := _c.mutation.Host(); !ok {
@@ -398,6 +424,10 @@ func (_c *ProxyCreate) createSpec() (*Proxy, *sqlgraph.CreateSpec) {
 	if value, ok := _c.mutation.Protocol(); ok {
 		_spec.SetField(proxy.FieldProtocol, field.TypeString, value)
 		_node.Protocol = value
+	}
+	if value, ok := _c.mutation.ConnectionMode(); ok {
+		_spec.SetField(proxy.FieldConnectionMode, field.TypeString, value)
+		_node.ConnectionMode = value
 	}
 	if value, ok := _c.mutation.Host(); ok {
 		_spec.SetField(proxy.FieldHost, field.TypeString, value)
@@ -583,6 +613,18 @@ func (u *ProxyUpsert) SetProtocol(v string) *ProxyUpsert {
 // UpdateProtocol sets the "protocol" field to the value that was provided on create.
 func (u *ProxyUpsert) UpdateProtocol() *ProxyUpsert {
 	u.SetExcluded(proxy.FieldProtocol)
+	return u
+}
+
+// SetConnectionMode sets the "connection_mode" field.
+func (u *ProxyUpsert) SetConnectionMode(v string) *ProxyUpsert {
+	u.Set(proxy.FieldConnectionMode, v)
+	return u
+}
+
+// UpdateConnectionMode sets the "connection_mode" field to the value that was provided on create.
+func (u *ProxyUpsert) UpdateConnectionMode() *ProxyUpsert {
+	u.SetExcluded(proxy.FieldConnectionMode)
 	return u
 }
 
@@ -835,6 +877,20 @@ func (u *ProxyUpsertOne) SetProtocol(v string) *ProxyUpsertOne {
 func (u *ProxyUpsertOne) UpdateProtocol() *ProxyUpsertOne {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateProtocol()
+	})
+}
+
+// SetConnectionMode sets the "connection_mode" field.
+func (u *ProxyUpsertOne) SetConnectionMode(v string) *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetConnectionMode(v)
+	})
+}
+
+// UpdateConnectionMode sets the "connection_mode" field to the value that was provided on create.
+func (u *ProxyUpsertOne) UpdateConnectionMode() *ProxyUpsertOne {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateConnectionMode()
 	})
 }
 
@@ -1277,6 +1333,20 @@ func (u *ProxyUpsertBulk) SetProtocol(v string) *ProxyUpsertBulk {
 func (u *ProxyUpsertBulk) UpdateProtocol() *ProxyUpsertBulk {
 	return u.Update(func(s *ProxyUpsert) {
 		s.UpdateProtocol()
+	})
+}
+
+// SetConnectionMode sets the "connection_mode" field.
+func (u *ProxyUpsertBulk) SetConnectionMode(v string) *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.SetConnectionMode(v)
+	})
+}
+
+// UpdateConnectionMode sets the "connection_mode" field to the value that was provided on create.
+func (u *ProxyUpsertBulk) UpdateConnectionMode() *ProxyUpsertBulk {
+	return u.Update(func(s *ProxyUpsert) {
+		s.UpdateConnectionMode()
 	})
 }
 

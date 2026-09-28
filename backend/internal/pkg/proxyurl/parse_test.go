@@ -57,6 +57,16 @@ func TestParse_有效HTTPS代理(t *testing.T) {
 	}
 }
 
+func TestParse_IndependentConnectionMarkerDoesNotReachProxyClient(t *testing.T) {
+	trimmed, parsed, err := Parse("https://user:pass@proxy.example.com:443#" + PerRequestFragment)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if trimmed != "https://user:pass@proxy.example.com:443" || parsed.Fragment != "" {
+		t.Fatalf("proxy URL marker was not stripped: %q, fragment %q", trimmed, parsed.Fragment)
+	}
+}
+
 func TestParse_有效SOCKS5代理_自动升级为SOCKS5H(t *testing.T) {
 	trimmed, parsed, err := Parse("socks5://127.0.0.1:1080")
 	if err != nil {

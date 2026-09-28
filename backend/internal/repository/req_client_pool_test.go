@@ -56,6 +56,21 @@ func TestGetSharedReqClient_ReuseCachedClient(t *testing.T) {
 	require.Same(t, first, second)
 }
 
+func TestGetSharedReqClient_PerRequestProxyURLRemainsUsable(t *testing.T) {
+	proxy := httptest.NewServer(http.HandlerFunc(func(writer http.ResponseWriter, _ *http.Request) {
+		writer.WriteHeader(http.StatusNoContent)
+	}))
+	defer proxy.Close()
+	client, err := getSharedReqClient(reqClientOptions{
+		ProxyURL: proxy.URL + "#sub2api-per-request",
+		Timeout:  time.Second,
+	})
+	require.NoError(t, err)
+	response, err := client.R().Get("http://example.com/")
+	require.NoError(t, err)
+	require.Equal(t, http.StatusNoContent, response.StatusCode)
+}
+
 func TestGetSharedReqClient_IgnoresNonClientCache(t *testing.T) {
 	sharedReqClients = sync.Map{}
 	opts := reqClientOptions{

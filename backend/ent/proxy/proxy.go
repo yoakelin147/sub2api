@@ -25,6 +25,8 @@ const (
 	FieldName = "name"
 	// FieldProtocol holds the string denoting the protocol field in the database.
 	FieldProtocol = "protocol"
+	// FieldConnectionMode holds the string denoting the connection_mode field in the database.
+	FieldConnectionMode = "connection_mode"
 	// FieldHost holds the string denoting the host field in the database.
 	FieldHost = "host"
 	// FieldPort holds the string denoting the port field in the database.
@@ -76,6 +78,7 @@ var Columns = []string{
 	FieldDeletedAt,
 	FieldName,
 	FieldProtocol,
+	FieldConnectionMode,
 	FieldHost,
 	FieldPort,
 	FieldUsername,
@@ -115,6 +118,10 @@ var (
 	NameValidator func(string) error
 	// ProtocolValidator is a validator for the "protocol" field. It is called by the builders before save.
 	ProtocolValidator func(string) error
+	// DefaultConnectionMode holds the default value on creation for the "connection_mode" field.
+	DefaultConnectionMode string
+	// ConnectionModeValidator is a validator for the "connection_mode" field. It is called by the builders before save.
+	ConnectionModeValidator func(string) error
 	// HostValidator is a validator for the "host" field. It is called by the builders before save.
 	HostValidator func(string) error
 	// UsernameValidator is a validator for the "username" field. It is called by the builders before save.
@@ -164,6 +171,11 @@ func ByName(opts ...sql.OrderTermOption) OrderOption {
 // ByProtocol orders the results by the protocol field.
 func ByProtocol(opts ...sql.OrderTermOption) OrderOption {
 	return sql.OrderByField(FieldProtocol, opts...).ToFunc()
+}
+
+// ByConnectionMode orders the results by the connection_mode field.
+func ByConnectionMode(opts ...sql.OrderTermOption) OrderOption {
+	return sql.OrderByField(FieldConnectionMode, opts...).ToFunc()
 }
 
 // ByHost orders the results by the host field.

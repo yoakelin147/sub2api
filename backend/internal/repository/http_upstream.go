@@ -116,6 +116,7 @@ type poolSettings struct {
 	maxConnsPerHost       int           // 每主机最大连接数（含活跃）
 	idleConnTimeout       time.Duration // 空闲连接超时时间
 	responseHeaderTimeout time.Duration // 等待响应头超时时间
+	perRequest            bool
 }
 
 type openAIHTTP2Settings struct {
@@ -218,6 +219,7 @@ func (s *httpUpstreamService) Do(req *http.Request, proxyURL string, accountID i
 
 	// 执行请求
 	client := s.httpClientForUpstreamRequest(entry.client, req)
+	client = withProxyRequestHeaders(client, entry.proxyKey)
 	client = httpClientWithGrokAccessDeniedFallback(client)
 	resp, err := servertiming.Do(client, req)
 	if err != nil {
@@ -512,6 +514,7 @@ func (s *httpUpstreamService) getClientEntryWithTLS(proxyURL string, accountID i
 	}
 	settings := s.resolvePoolSettings(isolation, accountConcurrency)
 	settings = s.applyProfilePoolSettings(settings, upstreamProfile)
+	settings.perRequest = strings.HasSuffix(proxyKey, "#"+service.ProxyPerRequestURLFragment)
 	// TLS 指纹客户端使用独立的缓存键，加 "tls:" 前缀
 	cacheKey := "tls:" + buildCacheKey(isolation, proxyKey, accountID, upstreamProtocolModeDefault)
 	poolKey := buildPoolKey(settings, upstreamProtocolModeDefault) + ":tls"
@@ -675,6 +678,10 @@ func (s *httpUpstreamService) getClientEntry(proxyURL string, accountID int64, a
 	protocolMode := s.resolveProtocolMode(profile, proxyKey, parsedProxy)
 	settings := s.resolvePoolSettings(isolation, accountConcurrency)
 	settings = s.applyProfilePoolSettings(settings, profile)
+	settings.perRequest = strings.HasSuffix(proxyKey, "#"+service.ProxyPerRequestURLFragment)
+	if settings.perRequest && protocolMode == upstreamProtocolModeOpenAIH2 {
+		protocolMode = upstreamProtocolModeOpenAIH1
+	}
 	// 构建缓存键（根据隔离策略不同）
 	cacheKey := buildCacheKey(isolation, proxyKey, accountID, protocolMode)
 	// 构建连接池配置键（用于检测配置变更）
@@ -1226,6 +1233,7 @@ func (s *openAIHTTP2FallbackState) recordFailure(now time.Time, threshold int, w
 //   - *url.URL: 解析后的 URL（空返回 nil）
 //   - error: 非空代理 URL 解析失败时返回错误（禁止回退到直连）
 func normalizeProxyURL(raw string) (string, *url.URL, error) {
+	perRequest := strings.HasSuffix(strings.TrimSpace(raw), "#"+service.ProxyPerRequestURLFragment)
 	_, parsed, err := proxyurl.Parse(raw)
 	if err != nil {
 		return "", nil, err
@@ -1239,6 +1247,7 @@ func normalizeProxyURL(raw string) (string, *url.URL, error) {
 	parsed.Path = ""
 	parsed.RawPath = ""
 	parsed.RawQuery = ""
+	perRequest = perRequest && (parsed.Scheme == "http" || parsed.Scheme == "https")
 	parsed.Fragment = ""
 	parsed.ForceQuery = false
 	if hostname := parsed.Hostname(); hostname != "" {
@@ -1253,7 +1262,11 @@ func normalizeProxyURL(raw string) (string, *url.URL, error) {
 			parsed.Host = hostname
 		}
 	}
-	return parsed.String(), parsed, nil
+	key := parsed.String()
+	if perRequest {
+		key += "#" + service.ProxyPerRequestURLFragment
+	}
+	return key, parsed, nil
 }
 
 // defaultPoolSettings 获取默认连接池配置
@@ -1338,24 +1351,32 @@ func buildUpstreamTransport(settings poolSettings, proxyURL *url.URL, protocolMo
 		IdleConnTimeout:       settings.idleConnTimeout,
 		ResponseHeaderTimeout: settings.responseHeaderTimeout,
 	}
-	switch protocolMode {
-	case upstreamProtocolModeLongStreamH2, upstreamProtocolModeOpenAIH2:
-		transport.ForceAttemptHTTP2 = true
-		// 显式配置 http2 并启用 PING 健康探测，剔除代理/NAT 静默掐断的死连接，
-		// 避免请求挂在死连接上直到 TCP 重传超时（分钟级）。
-		if _, err := enableHTTP2KeepAlive(transport, protocolMode); err != nil {
-			return nil, err
+	if settings.perRequest {
+		transport.DisableKeepAlives = true
+		transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
+	} else {
+		switch protocolMode {
+		case upstreamProtocolModeLongStreamH2, upstreamProtocolModeOpenAIH2:
+			transport.ForceAttemptHTTP2 = true
+			// 显式配置 http2 并启用 PING 健康探测，剔除代理/NAT 静默掐断的死连接，
+			// 避免请求挂在死连接上直到 TCP 重传超时（分钟级）。
+			if _, err := enableHTTP2KeepAlive(transport, protocolMode); err != nil {
+				return nil, err
+			}
+		case upstreamProtocolModeOpenAIH1:
+			transport.ForceAttemptHTTP2 = false
+			transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
+		case upstreamProtocolModeOpenAIH1Fallback:
+			// 显式禁用 HTTP/2，确保代理不兼容场景回退到 HTTP/1.1。
+			transport.ForceAttemptHTTP2 = false
+			transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
 		}
-	case upstreamProtocolModeOpenAIH1:
-		transport.ForceAttemptHTTP2 = false
-		transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
-	case upstreamProtocolModeOpenAIH1Fallback:
-		// 显式禁用 HTTP/2，确保代理不兼容场景回退到 HTTP/1.1。
-		transport.ForceAttemptHTTP2 = false
-		transport.TLSNextProto = make(map[string]func(string, *tls.Conn) http.RoundTripper)
 	}
 	if err := proxyutil.ConfigureTransportProxy(transport, proxyURL); err != nil {
 		return nil, err
+	}
+	if settings.perRequest {
+		transport.GetProxyConnectHeader = proxyRequestConnectHeaders
 	}
 	return transport, nil
 }
@@ -1405,6 +1426,7 @@ func buildUpstreamTransportWithTLSFingerprint(settings poolSettings, proxyURL *u
 		ResponseHeaderTimeout: settings.responseHeaderTimeout,
 		// 禁用默认的 TLS，我们使用自定义的 DialTLSContext
 		ForceAttemptHTTP2: false,
+		DisableKeepAlives: settings.perRequest,
 	}
 
 	// 根据代理类型选择合适的 TLS 指纹 Dialer
@@ -1429,6 +1451,9 @@ func buildUpstreamTransportWithTLSFingerprint(settings poolSettings, proxyURL *u
 			// HTTP/HTTPS 代理：使用 HTTPProxyDialer（CONNECT 隧道）
 			slog.Debug("tls_fingerprint_transport_http_connect", "proxy", proxyURL.Host)
 			httpDialer := tlsfingerprint.NewHTTPProxyDialer(profile, proxyURL)
+			if settings.perRequest {
+				httpDialer.SetConnectHeader(proxyRequestHeaders)
+			}
 			transport.DialTLSContext = httpDialer.DialTLSContext
 		default:
 			// 未知代理类型，回退到普通代理配置（无 TLS 指纹）

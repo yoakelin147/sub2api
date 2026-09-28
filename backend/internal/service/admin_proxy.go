@@ -56,16 +56,23 @@ func (s *adminServiceImpl) GetProxiesByIDs(ctx context.Context, ids []int64) ([]
 }
 
 func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyInput) (*Proxy, error) {
+	mode := input.ConnectionMode
+	if mode == "" {
+		mode = ProxyConnectionModeReuse
+	}
+	if !validProxyConnectionMode(input.Protocol, mode) {
+		return nil, infraerrors.BadRequest("PROXY_CONNECTION_MODE_INVALID", "per_request requires an HTTP or HTTPS proxy")
+	}
 	if !isJSONTimeInRange(input.ExpiresAt) {
 		return nil, infraerrors.BadRequest("PROXY_EXPIRY_INVALID", "proxy expiry year must be between 0 and 9999")
 	}
 	// 规范化 fallback_mode
-	mode := input.FallbackMode
-	if mode == "" {
-		mode = FallbackModeNone
+	fallbackMode := input.FallbackMode
+	if fallbackMode == "" {
+		fallbackMode = FallbackModeNone
 	}
 	// 校验：mode=proxy 必须有 backup
-	if mode == FallbackModeProxy && input.BackupProxyID == nil {
+	if fallbackMode == FallbackModeProxy && input.BackupProxyID == nil {
 		return nil, infraerrors.BadRequest("PROXY_BACKUP_REQUIRED", "backup proxy required when fallback_mode=proxy")
 	}
 	if input.ExpiryWarnDays < 0 {
@@ -75,13 +82,14 @@ func (s *adminServiceImpl) CreateProxy(ctx context.Context, input *CreateProxyIn
 	proxy := &Proxy{
 		Name:           input.Name,
 		Protocol:       input.Protocol,
+		ConnectionMode: mode,
 		Host:           input.Host,
 		Port:           input.Port,
 		Username:       input.Username,
 		Password:       input.Password,
 		Status:         StatusActive,
 		ExpiresAt:      input.ExpiresAt,
-		FallbackMode:   mode,
+		FallbackMode:   fallbackMode,
 		BackupProxyID:  input.BackupProxyID,
 		ExpiryWarnDays: input.ExpiryWarnDays,
 	}
@@ -127,6 +135,12 @@ func (s *adminServiceImpl) UpdateProxy(ctx context.Context, id int64, input *Upd
 	}
 	if input.Protocol != "" {
 		proxy.Protocol = input.Protocol
+	}
+	if input.ConnectionMode != "" {
+		proxy.ConnectionMode = input.ConnectionMode
+	}
+	if !validProxyConnectionMode(proxy.Protocol, proxy.ConnectionMode) {
+		return nil, infraerrors.BadRequest("PROXY_CONNECTION_MODE_INVALID", "per_request requires an HTTP or HTTPS proxy")
 	}
 	if input.Host != "" {
 		proxy.Host = input.Host

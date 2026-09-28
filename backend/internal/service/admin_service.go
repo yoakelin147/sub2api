@@ -527,6 +527,7 @@ type BulkUpdateAccountsResult struct {
 type CreateProxyInput struct {
 	Name           string
 	Protocol       string
+	ConnectionMode string
 	Host           string
 	Port           int
 	Username       string
@@ -542,6 +543,7 @@ type CreateProxyInput struct {
 type UpdateProxyInput struct {
 	Name           string
 	Protocol       string
+	ConnectionMode string
 	Host           string
 	Port           int
 	Username       *string

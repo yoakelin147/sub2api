@@ -70,6 +70,7 @@ func (h *ProxyHandler) ExportData(c *gin.Context) {
 			ProxyKey:        key,
 			Name:            p.Name,
 			Protocol:        p.Protocol,
+			ConnectionMode:  p.ConnectionMode,
 			Host:            p.Host,
 			Port:            p.Port,
 			Username:        p.Username,
@@ -151,7 +152,7 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		normalizedStatus := normalizeProxyStatus(item.Status)
 		if existing, ok := proxyByKey[key]; ok {
 			result.ProxyReused++
-			if normalizedStatus != "" && normalizedStatus != existing.Status {
+			if normalizedStatus != "" && normalizedStatus != existing.Status || item.ConnectionMode != "" && item.ConnectionMode != existing.ConnectionMode {
 				// 已存在代理同步 status 时，同时保留/覆盖导入 item 的完整字段，
 				// 避免 UpdateProxy 零值覆盖有效期/fallback 配置。
 				var existingExpiresAt *time.Time
@@ -178,12 +179,13 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 					ClearBackupID:  existingBackupProxyID == nil,
 					ExpiryWarnDays: &item.ExpiryWarnDays,
 					// 保留已存在代理的网络配置字段
-					Name:     existing.Name,
-					Protocol: existing.Protocol,
-					Host:     existing.Host,
-					Port:     existing.Port,
-					Username: &existing.Username,
-					Password: &existing.Password,
+					Name:           existing.Name,
+					Protocol:       existing.Protocol,
+					ConnectionMode: item.ConnectionMode,
+					Host:           existing.Host,
+					Port:           existing.Port,
+					Username:       &existing.Username,
+					Password:       &existing.Password,
 				}
 				if _, err := h.adminService.UpdateProxy(ctx, existing.ID, updateInput); err != nil {
 					result.Errors = append(result.Errors, DataImportError{
@@ -226,6 +228,7 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 		created, err := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
 			Name:           defaultProxyName(item.Name),
 			Protocol:       item.Protocol,
+			ConnectionMode: item.ConnectionMode,
 			Host:           item.Host,
 			Port:           item.Port,
 			Username:       item.Username,
@@ -264,6 +267,7 @@ func (h *ProxyHandler) ImportData(c *gin.Context) {
 				ExpiryWarnDays: &item.ExpiryWarnDays,
 				Name:           created.Name,
 				Protocol:       created.Protocol,
+				ConnectionMode: created.ConnectionMode,
 				Host:           created.Host,
 				Port:           created.Port,
 				Username:       &created.Username,

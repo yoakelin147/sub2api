@@ -122,13 +122,14 @@
             <span class="font-medium text-gray-900 dark:text-white">{{ value }}</span>
           </template>
 
-          <template #cell-protocol="{ value }">
+          <template #cell-protocol="{ value, row }">
             <span
               v-if="value"
               :class="['badge', value.startsWith('socks5') ? 'badge-primary' : 'badge-gray']"
             >
               {{ value.toUpperCase() }}
             </span>
+            <span v-if="row.connection_mode === 'per_request'" class="ml-1 badge badge-primary">{{ t('admin.proxies.perRequestShort') }}</span>
             <span v-else class="text-sm text-gray-400">-</span>
           </template>
 
@@ -441,6 +442,11 @@
           <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
           <Select v-model="createForm.protocol" :options="protocolSelectOptions" />
         </div>
+        <div v-if="createForm.protocol === 'http' || createForm.protocol === 'https'">
+          <label class="input-label">{{ t('admin.proxies.connectionMode') }}</label>
+          <Select v-model="createForm.connection_mode" :options="connectionModeOptions" />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.perRequestHint') }}</p>
+        </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="input-label">{{ t('admin.proxies.host') }}</label>
@@ -680,6 +686,11 @@
         <div>
           <label class="input-label">{{ t('admin.proxies.protocol') }}</label>
           <Select v-model="editForm.protocol" :options="protocolSelectOptions" />
+        </div>
+        <div v-if="editForm.protocol === 'http' || editForm.protocol === 'https'">
+          <label class="input-label">{{ t('admin.proxies.connectionMode') }}</label>
+          <Select v-model="editForm.connection_mode" :options="connectionModeOptions" />
+          <p class="mt-1 text-xs text-gray-500 dark:text-gray-400">{{ t('admin.proxies.perRequestHint') }}</p>
         </div>
         <div class="grid grid-cols-2 gap-4">
           <div>
@@ -968,7 +979,7 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { useAppStore } from '@/stores/app'
 import { adminAPI } from '@/api/admin'
-import type { Proxy, ProxyAccountSummary, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
+import type { Proxy, ProxyAccountSummary, ProxyConnectionMode, ProxyProtocol, ProxyQualityCheckResult } from '@/types'
 import type { Column } from '@/components/common/types'
 import AppLayout from '@/components/layout/AppLayout.vue'
 import TablePageLayout from '@/components/layout/TablePageLayout.vue'
@@ -1030,6 +1041,11 @@ const protocolSelectOptions = computed(() => [
   { value: 'https', label: t('admin.proxies.protocols.https') },
   { value: 'socks5', label: t('admin.proxies.protocols.socks5') },
   { value: 'socks5h', label: t('admin.proxies.protocols.socks5h') }
+])
+
+const connectionModeOptions = computed(() => [
+  { value: 'reuse', label: t('admin.proxies.connectionModeReuse') },
+  { value: 'per_request', label: t('admin.proxies.connectionModePerRequest') },
 ])
 
 const editStatusOptions = computed(() => [
@@ -1124,6 +1140,7 @@ const batchParseResult = reactive({
 const createForm = reactive({
   name: '',
   protocol: 'http' as ProxyProtocol,
+  connection_mode: 'reuse' as ProxyConnectionMode,
   host: '',
   port: 8080,
   username: '',
@@ -1137,6 +1154,7 @@ const createForm = reactive({
 const editForm = reactive({
   name: '',
   protocol: 'http' as ProxyProtocol,
+  connection_mode: 'reuse' as ProxyConnectionMode,
   host: '',
   port: 8080,
   username: '',
@@ -1258,6 +1276,7 @@ const closeCreateModal = () => {
   createMode.value = 'standard'
   createForm.name = ''
   createForm.protocol = 'http'
+  createForm.connection_mode = 'reuse'
   createForm.host = ''
   createForm.port = 8080
   createForm.username = ''
@@ -1394,6 +1413,7 @@ const handleCreateProxy = async () => {
     await adminAPI.proxies.create({
       name: createForm.name.trim(),
       protocol: createForm.protocol,
+      connection_mode: createForm.protocol === 'http' || createForm.protocol === 'https' ? createForm.connection_mode : 'reuse',
       host: createForm.host.trim(),
       port: createForm.port,
       username: createForm.username.trim() || null,
@@ -1418,6 +1438,7 @@ const handleEdit = (proxy: Proxy) => {
   editingProxy.value = proxy
   editForm.name = proxy.name
   editForm.protocol = proxy.protocol
+  editForm.connection_mode = proxy.connection_mode || 'reuse'
   editForm.host = proxy.host
   editForm.port = proxy.port
   editForm.username = proxy.username || ''
@@ -1459,6 +1480,7 @@ const handleUpdateProxy = async () => {
     const updateData: any = {
       name: editForm.name.trim(),
       protocol: editForm.protocol,
+      connection_mode: editForm.protocol === 'http' || editForm.protocol === 'https' ? editForm.connection_mode : 'reuse',
       host: editForm.host.trim(),
       port: editForm.port,
       username: editForm.username.trim(),

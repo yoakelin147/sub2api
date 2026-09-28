@@ -20,6 +20,8 @@ var allowedSchemes = map[string]bool{
 	"socks5h": true,
 }
 
+const PerRequestFragment = "sub2api-per-request"
+
 // Parse 解析并验证代理 URL。
 //
 // 语义:
@@ -32,6 +34,7 @@ var allowedSchemes = map[string]bool{
 //   - url.Parse 失败返回 error（不含原始 URL，防凭据泄露）
 //   - Host 为空返回 error（用 Redacted() 脱敏）
 //   - Scheme 必须为 http/https/socks5/socks5h
+//   - 内部独立连接标记在返回给标准代理客户端前剥离
 //   - socks5:// 自动升级为 socks5h://（确保 DNS 由代理端解析，防止 DNS 泄漏）
 func Parse(raw string) (trimmed string, parsed *url.URL, err error) {
 	trimmed = strings.TrimSpace(raw)
@@ -52,6 +55,10 @@ func Parse(raw string) (trimmed string, parsed *url.URL, err error) {
 	scheme := strings.ToLower(parsed.Scheme)
 	if !allowedSchemes[scheme] {
 		return "", nil, fmt.Errorf("unsupported proxy scheme %q (allowed: http, https, socks5, socks5h)", scheme)
+	}
+	if parsed.Fragment == PerRequestFragment {
+		parsed.Fragment = ""
+		trimmed = parsed.String()
 	}
 
 	// 自动升级 socks5 → socks5h，确保 DNS 由代理端解析，防止 DNS 泄漏。

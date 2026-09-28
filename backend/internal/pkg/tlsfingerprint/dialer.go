@@ -41,8 +41,9 @@ type Dialer struct {
 // HTTPProxyDialer creates TLS connections through HTTP/HTTPS proxies with custom fingerprints.
 // It handles the CONNECT tunnel establishment before performing TLS handshake.
 type HTTPProxyDialer struct {
-	profile  *Profile
-	proxyURL *url.URL
+	profile       *Profile
+	proxyURL      *url.URL
+	connectHeader func(context.Context) http.Header
 }
 
 // SOCKS5ProxyDialer creates TLS connections through SOCKS5 proxies with custom fingerprints.
@@ -132,6 +133,10 @@ func NewHTTPProxyDialer(profile *Profile, proxyURL *url.URL) *HTTPProxyDialer {
 	return &HTTPProxyDialer{profile: profile, proxyURL: proxyURL}
 }
 
+func (d *HTTPProxyDialer) SetConnectHeader(header func(context.Context) http.Header) {
+	d.connectHeader = header
+}
+
 // NewSOCKS5ProxyDialer creates a new TLS fingerprint dialer that works through SOCKS5 proxies.
 // It establishes a SOCKS5 tunnel before performing TLS handshake with custom fingerprint.
 func NewSOCKS5ProxyDialer(profile *Profile, proxyURL *url.URL) *SOCKS5ProxyDialer {
@@ -211,6 +216,11 @@ func (d *HTTPProxyDialer) DialTLSContext(ctx context.Context, network, addr stri
 		URL:    &url.URL{Opaque: addr},
 		Host:   addr,
 		Header: make(http.Header),
+	}
+	if d.connectHeader != nil {
+		if headers := d.connectHeader(ctx); headers != nil {
+			req.Header = headers
+		}
 	}
 
 	// Add proxy authentication if present

@@ -34,6 +34,16 @@ func TestProxyURL(t *testing.T) {
 			want: "socks5://user:pass@socks.example.com:1080",
 		},
 		{
+			name: "independent HTTP proxy",
+			proxy: Proxy{
+				Protocol:       "http",
+				ConnectionMode: ProxyConnectionModePerRequest,
+				Host:           "proxy.example.com",
+				Port:           8080,
+			},
+			want: "http://proxy.example.com:8080#sub2api-per-request",
+		},
+		{
 			name: "username only keeps no auth for compatibility",
 			proxy: Proxy{
 				Protocol: "http",

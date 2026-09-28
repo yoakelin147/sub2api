@@ -79,3 +79,43 @@ func TestAdminProxyPartialUpdateValidatesMergedFallback(t *testing.T) {
 		})
 	}
 }
+
+func TestAdminProxyUpdateConnectionMode(t *testing.T) {
+	for _, tc := range []struct {
+		name         string
+		protocol     string
+		mode         string
+		originalMode string
+		wantProtocol string
+		wantMode     string
+		wantError    bool
+	}{
+		{name: "enable per request", mode: ProxyConnectionModePerRequest, wantProtocol: "https", wantMode: ProxyConnectionModePerRequest},
+		{name: "preserve mode", wantProtocol: "https", wantMode: ProxyConnectionModeReuse},
+		{name: "switch to socks", protocol: "socks5", mode: ProxyConnectionModeReuse, wantProtocol: "socks5", wantMode: ProxyConnectionModeReuse},
+		{name: "reject socks per request", protocol: "socks5", mode: ProxyConnectionModePerRequest, wantError: true},
+		{name: "reject switching independent proxy to socks", protocol: "socks5", originalMode: ProxyConnectionModePerRequest, wantError: true},
+		{name: "reject invalid mode", mode: "unexpected", wantError: true},
+	} {
+		t.Run(tc.name, func(t *testing.T) {
+			originalMode := tc.originalMode
+			if originalMode == "" {
+				originalMode = ProxyConnectionModeReuse
+			}
+			repo := &updatingProxyRepoStub{proxyRepoStub: &proxyRepoStub{}, proxy: &Proxy{
+				ID: 9, Protocol: "https", ConnectionMode: originalMode,
+			}}
+			svc := &adminServiceImpl{proxyRepo: repo}
+			got, err := svc.UpdateProxy(context.Background(), 9, &UpdateProxyInput{Protocol: tc.protocol, ConnectionMode: tc.mode})
+			if tc.wantError {
+				require.Error(t, err)
+				require.Zero(t, repo.updateCalls)
+				return
+			}
+			require.NoError(t, err)
+			require.Equal(t, tc.wantProtocol, got.Protocol)
+			require.Equal(t, tc.wantMode, got.ConnectionMode)
+			require.Equal(t, 1, repo.updateCalls)
+		})
+	}
+}

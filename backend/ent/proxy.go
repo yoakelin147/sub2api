@@ -27,6 +27,8 @@ type Proxy struct {
 	Name string `json:"name,omitempty"`
 	// Protocol holds the value of the "protocol" field.
 	Protocol string `json:"protocol,omitempty"`
+	// ConnectionMode holds the value of the "connection_mode" field.
+	ConnectionMode string `json:"connection_mode,omitempty"`
 	// Host holds the value of the "host" field.
 	Host string `json:"host,omitempty"`
 	// Port holds the value of the "port" field.
@@ -100,7 +102,7 @@ func (*Proxy) scanValues(columns []string) ([]any, error) {
 		switch columns[i] {
 		case proxy.FieldID, proxy.FieldPort, proxy.FieldBackupProxyID, proxy.FieldExpiryWarnDays:
 			values[i] = new(sql.NullInt64)
-		case proxy.FieldName, proxy.FieldProtocol, proxy.FieldHost, proxy.FieldUsername, proxy.FieldPassword, proxy.FieldStatus, proxy.FieldFallbackMode:
+		case proxy.FieldName, proxy.FieldProtocol, proxy.FieldConnectionMode, proxy.FieldHost, proxy.FieldUsername, proxy.FieldPassword, proxy.FieldStatus, proxy.FieldFallbackMode:
 			values[i] = new(sql.NullString)
 		case proxy.FieldCreatedAt, proxy.FieldUpdatedAt, proxy.FieldDeletedAt, proxy.FieldExpiresAt:
 			values[i] = new(sql.NullTime)
@@ -155,6 +157,12 @@ func (_m *Proxy) assignValues(columns []string, values []any) error {
 				return fmt.Errorf("unexpected type %T for field protocol", values[i])
 			} else if value.Valid {
 				_m.Protocol = value.String
+			}
+		case proxy.FieldConnectionMode:
+			if value, ok := values[i].(*sql.NullString); !ok {
+				return fmt.Errorf("unexpected type %T for field connection_mode", values[i])
+			} else if value.Valid {
+				_m.ConnectionMode = value.String
 			}
 		case proxy.FieldHost:
 			if value, ok := values[i].(*sql.NullString); !ok {
@@ -281,6 +289,9 @@ func (_m *Proxy) String() string {
 	builder.WriteString(", ")
 	builder.WriteString("protocol=")
 	builder.WriteString(_m.Protocol)
+	builder.WriteString(", ")
+	builder.WriteString("connection_mode=")
+	builder.WriteString(_m.ConnectionMode)
 	builder.WriteString(", ")
 	builder.WriteString("host=")
 	builder.WriteString(_m.Host)

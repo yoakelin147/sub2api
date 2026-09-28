@@ -83,6 +83,20 @@ func (_u *ProxyUpdate) SetNillableProtocol(v *string) *ProxyUpdate {
 	return _u
 }
 
+// SetConnectionMode sets the "connection_mode" field.
+func (_u *ProxyUpdate) SetConnectionMode(v string) *ProxyUpdate {
+	_u.mutation.SetConnectionMode(v)
+	return _u
+}
+
+// SetNillableConnectionMode sets the "connection_mode" field if the given value is not nil.
+func (_u *ProxyUpdate) SetNillableConnectionMode(v *string) *ProxyUpdate {
+	if v != nil {
+		_u.SetConnectionMode(*v)
+	}
+	return _u
+}
+
 // SetHost sets the "host" field.
 func (_u *ProxyUpdate) SetHost(v string) *ProxyUpdate {
 	_u.mutation.SetHost(v)
@@ -389,6 +403,11 @@ func (_u *ProxyUpdate) check() error {
 			return &ValidationError{Name: "protocol", err: fmt.Errorf(`ent: validator failed for field "Proxy.protocol": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ConnectionMode(); ok {
+		if err := proxy.ConnectionModeValidator(v); err != nil {
+			return &ValidationError{Name: "connection_mode", err: fmt.Errorf(`ent: validator failed for field "Proxy.connection_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Host(); ok {
 		if err := proxy.HostValidator(v); err != nil {
 			return &ValidationError{Name: "host", err: fmt.Errorf(`ent: validator failed for field "Proxy.host": %w`, err)}
@@ -443,6 +462,9 @@ func (_u *ProxyUpdate) sqlSave(ctx context.Context) (_node int, err error) {
 	}
 	if value, ok := _u.mutation.Protocol(); ok {
 		_spec.SetField(proxy.FieldProtocol, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ConnectionMode(); ok {
+		_spec.SetField(proxy.FieldConnectionMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Host(); ok {
 		_spec.SetField(proxy.FieldHost, field.TypeString, value)
@@ -672,6 +694,20 @@ func (_u *ProxyUpdateOne) SetProtocol(v string) *ProxyUpdateOne {
 func (_u *ProxyUpdateOne) SetNillableProtocol(v *string) *ProxyUpdateOne {
 	if v != nil {
 		_u.SetProtocol(*v)
+	}
+	return _u
+}
+
+// SetConnectionMode sets the "connection_mode" field.
+func (_u *ProxyUpdateOne) SetConnectionMode(v string) *ProxyUpdateOne {
+	_u.mutation.SetConnectionMode(v)
+	return _u
+}
+
+// SetNillableConnectionMode sets the "connection_mode" field if the given value is not nil.
+func (_u *ProxyUpdateOne) SetNillableConnectionMode(v *string) *ProxyUpdateOne {
+	if v != nil {
+		_u.SetConnectionMode(*v)
 	}
 	return _u
 }
@@ -995,6 +1031,11 @@ func (_u *ProxyUpdateOne) check() error {
 			return &ValidationError{Name: "protocol", err: fmt.Errorf(`ent: validator failed for field "Proxy.protocol": %w`, err)}
 		}
 	}
+	if v, ok := _u.mutation.ConnectionMode(); ok {
+		if err := proxy.ConnectionModeValidator(v); err != nil {
+			return &ValidationError{Name: "connection_mode", err: fmt.Errorf(`ent: validator failed for field "Proxy.connection_mode": %w`, err)}
+		}
+	}
 	if v, ok := _u.mutation.Host(); ok {
 		if err := proxy.HostValidator(v); err != nil {
 			return &ValidationError{Name: "host", err: fmt.Errorf(`ent: validator failed for field "Proxy.host": %w`, err)}
@@ -1066,6 +1107,9 @@ func (_u *ProxyUpdateOne) sqlSave(ctx context.Context) (_node *Proxy, err error)
 	}
 	if value, ok := _u.mutation.Protocol(); ok {
 		_spec.SetField(proxy.FieldProtocol, field.TypeString, value)
+	}
+	if value, ok := _u.mutation.ConnectionMode(); ok {
+		_spec.SetField(proxy.FieldConnectionMode, field.TypeString, value)
 	}
 	if value, ok := _u.mutation.Host(); ok {
 		_spec.SetField(proxy.FieldHost, field.TypeString, value)

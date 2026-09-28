@@ -39,6 +39,7 @@ type DataProxy struct {
 	ProxyKey        string `json:"proxy_key"`
 	Name            string `json:"name"`
 	Protocol        string `json:"protocol"`
+	ConnectionMode  string `json:"connection_mode,omitempty"`
 	Host            string `json:"host"`
 	Port            int    `json:"port"`
 	Username        string `json:"username,omitempty"`
@@ -173,6 +174,7 @@ func (h *AccountHandler) ExportData(c *gin.Context) {
 			ProxyKey:        key,
 			Name:            p.Name,
 			Protocol:        p.Protocol,
+			ConnectionMode:  p.ConnectionMode,
 			Host:            p.Host,
 			Port:            p.Port,
 			Username:        p.Username,
@@ -288,8 +290,8 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		if existingID, ok := proxyKeyToID[key]; ok {
 			proxyKeyToID[key] = existingID
 			result.ProxyReused++
-			if normalizedStatus != "" {
-				if proxy, getErr := h.adminService.GetProxy(ctx, existingID); getErr == nil && proxy != nil && proxy.Status != normalizedStatus {
+			if normalizedStatus != "" || item.ConnectionMode != "" {
+				if proxy, getErr := h.adminService.GetProxy(ctx, existingID); getErr == nil && proxy != nil && (proxy.Status != normalizedStatus && normalizedStatus != "" || item.ConnectionMode != "" && proxy.ConnectionMode != item.ConnectionMode) {
 					// 同步 status 时传入完整字段，避免零值覆盖已存在代理的有效期/fallback 配置。
 					var existingExpiresAt *time.Time
 					if item.ExpiresAt != nil {
@@ -316,6 +318,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 						ExpiryWarnDays: &item.ExpiryWarnDays,
 						Name:           proxy.Name,
 						Protocol:       proxy.Protocol,
+						ConnectionMode: item.ConnectionMode,
 						Host:           proxy.Host,
 						Port:           proxy.Port,
 						Username:       &proxy.Username,
@@ -354,6 +357,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 		created, createErr := h.adminService.CreateProxy(ctx, &service.CreateProxyInput{
 			Name:           defaultProxyName(item.Name),
 			Protocol:       item.Protocol,
+			ConnectionMode: item.ConnectionMode,
 			Host:           item.Host,
 			Port:           item.Port,
 			Username:       item.Username,
@@ -392,6 +396,7 @@ func (h *AccountHandler) importData(ctx context.Context, req DataImportRequest) 
 				ExpiryWarnDays: &item.ExpiryWarnDays,
 				Name:           created.Name,
 				Protocol:       created.Protocol,
+				ConnectionMode: created.ConnectionMode,
 				Host:           created.Host,
 				Port:           created.Port,
 				Username:       &created.Username,
@@ -673,6 +678,9 @@ func validateDataProxy(item DataProxy) error {
 	case "http", "https", "socks5", "socks5h":
 	default:
 		return fmt.Errorf("proxy protocol is invalid: %s", item.Protocol)
+	}
+	if item.ConnectionMode != "" && item.ConnectionMode != service.ProxyConnectionModeReuse && (item.ConnectionMode != service.ProxyConnectionModePerRequest || item.Protocol != "http" && item.Protocol != "https") {
+		return fmt.Errorf("proxy connection_mode is invalid: %s", item.ConnectionMode)
 	}
 	if item.Status != "" {
 		normalizedStatus := normalizeProxyStatus(item.Status)
