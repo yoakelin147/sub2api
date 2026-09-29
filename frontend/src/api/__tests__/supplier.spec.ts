@@ -26,6 +26,13 @@ describe('supplier API', () => {
     expect(get).toHaveBeenCalledWith('/supplier/oauth/grok/capabilities')
   })
 
+  it('loads models only from the supplier-scoped account route', async () => {
+    get.mockResolvedValueOnce({ data: [{ id: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol' }] })
+    const { getAccountTestModels } = await import('@/api/supplier')
+    expect(await getAccountTestModels(11)).toHaveLength(1)
+    expect(get).toHaveBeenCalledWith('/supplier/accounts/11/models')
+  })
+
   it('sends a caller-visible idempotency key for single and batch creates', async () => {
     post.mockResolvedValue({ data: {} })
     const { createAccount, batchCreateAccounts } = await import('@/api/supplier')

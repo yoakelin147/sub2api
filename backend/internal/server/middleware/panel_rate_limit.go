@@ -17,6 +17,7 @@ import (
 
 // panelRateLimitWindow 面板限流固定窗口时长（所有档位均按每分钟计数）。
 const panelRateLimitWindow = time.Minute
+const supplierAccountTestRPM = 3
 
 // panelRateLimitAllower 抽象底层限流原语，便于单测注入。
 type panelRateLimitAllower interface {
@@ -83,6 +84,31 @@ func (p *PanelRateLimiter) Supplier() gin.HandlerFunc {
 		if err != nil {
 			slog.Warn("supplier panel rate limit check failed, allowing request", "error", err)
 			c.Next()
+			return
+		}
+		if !result.Allowed {
+			abortPanelRateLimited(c, result.RetryAfter)
+			return
+		}
+		c.Next()
+	}
+}
+
+func (p *PanelRateLimiter) SupplierTest() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if p == nil || p.limiter == nil {
+			AbortWithError(c, http.StatusServiceUnavailable, "SUPPLIER_TEST_LIMIT_UNAVAILABLE", "supplier account test limit is unavailable")
+			return
+		}
+		supplierID, ok := GetSupplierIDFromContext(c)
+		if !ok || supplierID <= 0 {
+			AbortWithError(c, http.StatusUnauthorized, "SUPPLIER_AUTH_REQUIRED", "Supplier authentication required")
+			return
+		}
+		result, err := p.limiter.Allow(c.Request.Context(), "panel:supplier:test:"+strconv.FormatInt(supplierID, 10), supplierAccountTestRPM, panelRateLimitWindow)
+		if err != nil {
+			slog.Warn("supplier account test rate limit check failed", "error", err)
+			AbortWithError(c, http.StatusServiceUnavailable, "SUPPLIER_TEST_LIMIT_UNAVAILABLE", "supplier account test limit is unavailable")
 			return
 		}
 		if !result.Allowed {

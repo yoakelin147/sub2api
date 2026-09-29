@@ -375,7 +375,8 @@ import { useClipboard } from '@/composables/useClipboard'
 import { buildApiUrl } from '@/api/client'
 import { ADMIN_UI_REQUEST_HEADER } from '@/api/adminUIRequest'
 import { adminAPI } from '@/api/admin'
-import type { Account, ClaudeModel } from '@/types'
+import { getAccountTestModels } from '@/api/supplier'
+import type { ClaudeModel } from '@/types'
 
 const { t } = useI18n()
 const { copyToClipboard } = useClipboard()
@@ -390,10 +391,11 @@ interface PreviewMedia {
   mimeType?: string
 }
 
-const props = defineProps<{
+const props = withDefaults(defineProps<{
   show: boolean
-  account: Account | null
-}>()
+  account: { id: number; name: string; platform: string; type: string; status: string; review_status?: string } | null
+  supplierMode?: boolean
+}>(), { supplierMode: false })
 
 const emit = defineEmits<{
   (e: 'close'): void
@@ -675,6 +677,7 @@ const testModeSummary = computed(() => {
 
 const canStartTest = computed(() => {
   if (status.value === 'connecting') return false
+  if (props.supplierMode && props.account?.review_status !== 'approved') return false
   if (isGrokAccount.value) {
     if (
       grokTestMode.value === 'search' ||
@@ -766,7 +769,9 @@ const loadAvailableModels = async () => {
   loadingModels.value = true
   selectedModelId.value = '' // Reset selection before loading
   try {
-    const models = await adminAPI.accounts.getAvailableModels(props.account.id)
+    const models = props.supplierMode
+      ? await getAccountTestModels(props.account.id)
+      : await adminAPI.accounts.getAvailableModels(props.account.id)
     availableModels.value = props.account.platform === 'gemini' || props.account.platform === 'antigravity'
       ? sortTestModels(models)
       : models
@@ -878,7 +883,7 @@ const startTest = async () => {
     }
 
     // Use the configured API base; EventSource does not support POST.
-    const url = buildApiUrl(`/admin/accounts/${props.account.id}/test`)
+    const url = buildApiUrl(`${props.supplierMode ? '/supplier' : '/admin'}/accounts/${props.account.id}/test`)
 
     // Use fetch with streaming for SSE since EventSource doesn't support POST
     const response = await fetch(url, {
@@ -886,13 +891,23 @@ const startTest = async () => {
       headers: {
         Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
         'Content-Type': 'application/json',
-        [ADMIN_UI_REQUEST_HEADER]: '1'
+        ...(!props.supplierMode ? { [ADMIN_UI_REQUEST_HEADER]: '1' } : {})
       },
       body: JSON.stringify(requestBody),
       signal: abortController.signal
     })
 
     if (!response.ok) {
+      if (props.supplierMode && response.status === 429) {
+        throw new Error(t('supplier.accounts.testRateLimited', { seconds: response.headers.get('Retry-After') || '60' }))
+      }
+      if (props.supplierMode && response.status === 403) {
+        const failure = await response.json().catch(() => null) as { reason?: string; message?: string } | null
+        if (failure?.reason === 'SUPPLIER_ACCOUNT_TEST_NOT_APPROVED') {
+          throw new Error(t('supplier.accounts.testRequiresApproval'))
+        }
+        throw new Error(failure?.message || `HTTP error! status: ${response.status}`)
+      }
       throw new Error(`HTTP error! status: ${response.status}`)
     }
 

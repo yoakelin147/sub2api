@@ -81,7 +81,7 @@
     <BaseDialog :show="reviewAction !== null" :title="reviewAction ? t(`supplier.admin.${reviewAction}`) : ''" width="normal" :close-on-escape="!working" :show-close-button="!working" @close="reviewAction = null">
       <form id="supplier-review-form" class="space-y-4" @submit.prevent="review">
         <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('supplier.admin.reviewSelection', { count: selectedIds.length }) }}</p>
-        <p v-if="reviewAction === 'approve'" class="text-sm text-amber-700 dark:text-amber-300">{{ t('supplier.admin.reviewTestHint') }}</p>
+        <p v-if="reviewAction === 'approve'" class="text-sm text-amber-700 dark:text-amber-300">{{ t(approvalStatus === 'active' ? 'supplier.admin.reviewTestHint' : 'supplier.admin.reviewDisabledHint') }}</p>
         <fieldset v-if="reviewAction === 'approve'">
           <legend class="input-label">{{ t('supplier.admin.groupIds') }}</legend>
           <p v-if="groupsLoading" role="status" class="py-4 text-sm text-gray-500">{{ t('common.loading') }}</p>
@@ -93,6 +93,14 @@
             <p v-if="eligibleGroups.length === 0" class="text-sm text-gray-500">{{ t('common.noData') }}</p>
           </div>
           <p class="input-hint">{{ t('supplier.admin.groupIdsHint') }}</p>
+        </fieldset>
+        <fieldset v-if="reviewAction === 'approve'" class="space-y-2">
+          <legend class="input-label">{{ t('supplier.admin.approvedRuntimeStatus') }}</legend>
+          <div class="flex flex-wrap gap-4 text-sm text-gray-700 dark:text-gray-300">
+            <label class="flex items-center gap-2"><input v-model="approvalStatus" type="radio" name="supplier-approved-status" value="disabled" data-test="supplier-review-status-disabled" :disabled="working" />{{ t('supplier.admin.approveDisabled') }}</label>
+            <label class="flex items-center gap-2"><input v-model="approvalStatus" type="radio" name="supplier-approved-status" value="active" data-test="supplier-review-status-active" :disabled="working" />{{ t('supplier.admin.approveActive') }}</label>
+          </div>
+          <p class="input-hint">{{ t('supplier.admin.approvedRuntimeStatusHint') }}</p>
         </fieldset>
         <label class="block"><span class="input-label">{{ t('supplier.admin.reviewNote') }}</span><textarea v-model="reviewNote" class="input" rows="3" :disabled="working"></textarea></label>
       </form>
@@ -182,6 +190,7 @@ const groups = ref<AdminGroup[]>([])
 const groupsLoading = ref(false)
 const groupsError = ref('')
 const selectedGroupIds = ref<number[]>([])
+const approvalStatus = ref<'active' | 'disabled'>('disabled')
 const reviewNote = ref('')
 const reviewAction = ref<'approve' | 'reject' | 'pause' | null>(null)
 const working = ref(false)
@@ -346,6 +355,7 @@ async function loadGroups() {
 
 function openReview(action: 'approve' | 'reject' | 'pause') {
   selectedGroupIds.value = []
+  approvalStatus.value = 'disabled'
   reviewNote.value = ''
   reviewAction.value = action
   if (action === 'approve') void loadGroups()
@@ -355,7 +365,7 @@ async function review() {
   if (!canReview.value) return
   working.value = true
   try {
-    const input = { account_ids: [...selectedIds.value], note: reviewNote.value || null, group_ids: reviewAction.value === 'approve' ? [...selectedGroupIds.value] : undefined }
+    const input = { account_ids: [...selectedIds.value], note: reviewNote.value || null, group_ids: reviewAction.value === 'approve' ? [...selectedGroupIds.value] : undefined, status: reviewAction.value === 'approve' ? approvalStatus.value : undefined }
     if (reviewAction.value === 'approve') await suppliersAPI.approveAccounts(props.supplierId, input)
     else if (reviewAction.value === 'reject') await suppliersAPI.rejectAccounts(props.supplierId, input)
     else await suppliersAPI.pauseAccounts(props.supplierId, input)

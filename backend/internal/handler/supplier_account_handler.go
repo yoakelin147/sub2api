@@ -62,9 +62,12 @@ type supplierAccountBatchRequest struct {
 }
 
 type supplierAccountTestRequest struct {
-	Model  string `json:"model"`
-	Prompt string `json:"prompt"`
-	Mode   string `json:"mode"`
+	Model        string `json:"model"`
+	ModelID      string `json:"model_id"`
+	Prompt       string `json:"prompt"`
+	Mode         string `json:"mode"`
+	ImageDataURL string `json:"image_data_url"`
+	AudioDataURL string `json:"audio_data_url"`
 }
 
 func (h *SupplierHandler) ListProxies(c *gin.Context) {
@@ -228,9 +231,34 @@ func (h *SupplierHandler) TestAccount(c *gin.Context) {
 	if !ok {
 		return
 	}
+	account, err := h.accounts.GetByID(c.Request.Context(), supplierID, accountID)
+	if err != nil {
+		response.ErrorFrom(c, err)
+		return
+	}
+	if account.ReviewStatus != service.AccountReviewStatusApproved {
+		response.ErrorFrom(c, service.ErrSupplierAccountTestNotApproved)
+		return
+	}
 	var request supplierAccountTestRequest
-	if err := decodeStrictSupplierJSON(c, &request); err != nil {
+	if err := decodeStrictSupplierJSONLimit(c, &request, 10<<20); err != nil {
 		response.ErrorFrom(c, service.ErrSupplierAccountInputInvalid)
+		return
+	}
+	modelID := request.ModelID
+	if modelID == "" {
+		modelID = request.Model
+	}
+	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": accountID})
+	_ = h.tester.TestAccount(c, account, modelID, request.Prompt, request.Mode, service.AccountTestOptions{
+		ImageDataURL: request.ImageDataURL,
+		AudioDataURL: request.AudioDataURL,
+	})
+}
+
+func (h *SupplierHandler) GetAccountTestModels(c *gin.Context) {
+	supplierID, accountID, ok := supplierAndAccountIDs(c)
+	if !ok {
 		return
 	}
 	account, err := h.accounts.GetByID(c.Request.Context(), supplierID, accountID)
@@ -238,8 +266,11 @@ func (h *SupplierHandler) TestAccount(c *gin.Context) {
 		response.ErrorFrom(c, err)
 		return
 	}
-	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID, "account_id": accountID})
-	_ = h.tester.TestAccount(c, account, request.Model, request.Prompt, request.Mode)
+	if account.ReviewStatus != service.AccountReviewStatusApproved {
+		response.ErrorFrom(c, service.ErrSupplierAccountTestNotApproved)
+		return
+	}
+	response.Success(c, supplierAccountTestModels(account))
 }
 
 func supplierAndAccountIDs(c *gin.Context) (int64, int64, bool) {

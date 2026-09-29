@@ -9,6 +9,7 @@
       </select>
       <textarea v-else-if="field === 'service_account_json'" class="input font-mono text-sm" rows="5" autocomplete="off" spellcheck="false" :value="typeof credentials[field] === 'object' ? JSON.stringify(credentials[field], null, 2) : credentials[field] as string" :disabled="disabled" :data-field="field" @input="update(field, ($event.target as HTMLTextAreaElement).value)"></textarea>
       <input v-else class="input" :type="secretFields.includes(field) ? 'password' : field === 'email' ? 'email' : 'text'" autocomplete="off" spellcheck="false" :value="credentials[field] ?? ''" :placeholder="field === 'base_url' ? 'https://…' : ''" :disabled="disabled" :data-field="field" @input="update(field, ($event.target as HTMLInputElement).value)" />
+      <span v-if="field === 'base_url' && kind.type === 'apikey' && !required.includes(field)" class="input-hint" data-test="api-key-default-base-url-hint">{{ t('supplier.accounts.apiKeyDefaultBaseUrlHint') }}</span>
     </label>
   </div>
 </template>

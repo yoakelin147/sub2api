@@ -49,6 +49,7 @@ type supplierMemberRequest struct {
 type supplierAccountReviewRequest struct {
 	AccountIDs []int64 `json:"account_ids" binding:"required,min=1"`
 	GroupIDs   []int64 `json:"group_ids"`
+	Status     string  `json:"status" binding:"omitempty,oneof=active disabled"`
 	Note       *string `json:"note"`
 }
 
@@ -426,6 +427,7 @@ func (h *SupplierHandler) reviewAccounts(c *gin.Context, action string) {
 	}
 	err := h.accounts.Review(c.Request.Context(), supplierID, service.SupplierAccountReviewInput{
 		AccountIDs: request.AccountIDs, Action: action, GroupIDs: request.GroupIDs,
+		Status:     request.Status,
 		ReviewerID: subject.UserID, Note: request.Note,
 	})
 	if err != nil {
@@ -436,9 +438,17 @@ func (h *SupplierHandler) reviewAccounts(c *gin.Context, action string) {
 	for _, accountID := range request.AccountIDs {
 		accountIDs = append(accountIDs, strconv.FormatInt(accountID, 10))
 	}
-	middleware.SetAuditExtra(c, map[string]any{
+	auditExtra := map[string]any{
 		"supplier_id": supplierID, "account_ids": strings.Join(accountIDs, ","), "requested_count": len(request.AccountIDs),
-	})
+	}
+	if action == service.SupplierAccountReviewApprove {
+		status := request.Status
+		if status == "" {
+			status = service.StatusActive
+		}
+		auditExtra["status"] = status
+	}
+	middleware.SetAuditExtra(c, auditExtra)
 	response.Success(c, gin.H{"updated": len(request.AccountIDs), "action": action})
 }
 

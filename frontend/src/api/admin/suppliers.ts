@@ -72,6 +72,7 @@ export interface SupplierMemberInput {
 export interface SupplierReviewInput {
   account_ids: number[]
   group_ids?: number[]
+  status?: 'active' | 'disabled'
   note?: string | null
 }
 

@@ -1,5 +1,5 @@
 import { apiClient } from './client'
-import type { PaginatedResponse } from '@/types'
+import type { ClaudeModel, PaginatedResponse } from '@/types'
 
 export interface SupplierAccountKind {
   platform: string
@@ -249,6 +249,11 @@ export async function testAccount(
   return completed
 }
 
+export async function getAccountTestModels(id: number): Promise<ClaudeModel[]> {
+  const { data } = await apiClient.get<ClaudeModel[]>(`/supplier/accounts/${id}/models`)
+  return data
+}
+
 export async function getAccessTokenStatus(): Promise<SupplierTokenStatus> {
   const { data } = await apiClient.get<SupplierTokenStatus>('/supplier/access-token')
   return data
@@ -272,6 +277,7 @@ export default {
   updateAccount,
   deleteAccount,
   testAccount,
+  getAccountTestModels,
   getAccessTokenStatus,
   regenerateAccessToken,
   revokeAccessToken,

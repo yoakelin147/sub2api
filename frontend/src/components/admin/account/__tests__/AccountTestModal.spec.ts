@@ -1,9 +1,11 @@
 import { flushPromises, mount } from '@vue/test-utils'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import AccountTestModal from '../AccountTestModal.vue'
+import { ADMIN_UI_REQUEST_HEADER } from '@/api/adminUIRequest'
 
-const { getAvailableModels, copyToClipboard } = vi.hoisted(() => ({
+const { getAvailableModels, getAccountTestModels, copyToClipboard } = vi.hoisted(() => ({
   getAvailableModels: vi.fn(),
+  getAccountTestModels: vi.fn(),
   copyToClipboard: vi.fn()
 }))
 
@@ -14,6 +16,7 @@ vi.mock('@/api/admin', () => ({
     }
   }
 }))
+vi.mock('@/api/supplier', () => ({ getAccountTestModels }))
 
 vi.mock('@/composables/useClipboard', () => ({
   useClipboard: () => ({
@@ -36,6 +39,7 @@ vi.mock('vue-i18n', async () => {
         if (key === 'admin.accounts.imagePreviewAlt' && params?.index) {
           return `test-image-${params.index}`
         }
+        if (key === 'supplier.accounts.testRateLimited') return `rate-limited-${params?.seconds}`
         return messages[key] || key
       }
     })
@@ -68,11 +72,12 @@ function mountModal(account: Record<string, unknown> = {
   platform: 'gemini',
   type: 'apikey',
   status: 'active'
-}) {
+}, supplierMode = false) {
   return mount(AccountTestModal, {
     props: {
       show: false,
-      account
+      account,
+      supplierMode,
     } as any,
     global: {
       stubs: {
@@ -96,6 +101,7 @@ describe('AccountTestModal', () => {
       { id: 'gemini-2.5-flash-image', display_name: 'Gemini 2.5 Flash Image' },
       { id: 'gemini-3.1-flash-image', display_name: 'Gemini 3.1 Flash Image' }
     ])
+    getAccountTestModels.mockResolvedValue([{ id: 'gpt-5.6-sol', display_name: 'GPT-5.6 Sol' }])
     copyToClipboard.mockReset()
     Object.defineProperty(globalThis, 'localStorage', {
       value: {
@@ -146,6 +152,34 @@ describe('AccountTestModal', () => {
     const preview = wrapper.find('img[alt="test-image-1"]')
     expect(preview.exists()).toBe(true)
     expect(preview.attributes('src')).toBe('data:image/png;base64,QUJD')
+  })
+
+  it('uses supplier-owned models and SSE test endpoint after approval', async () => {
+    const wrapper = mountModal({ id: 11, name: 'Supplier Account', platform: 'openai', type: 'apikey', status: 'active', review_status: 'approved' }, true)
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    expect(getAccountTestModels).toHaveBeenCalledWith(11)
+    expect(getAvailableModels).not.toHaveBeenCalled()
+    const start = wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!
+    expect(start.attributes('disabled')).toBeUndefined()
+    await start.trigger('click')
+    await flushPromises()
+    const [url, request] = (global.fetch as any).mock.calls[0]
+    expect(url).toContain('/supplier/accounts/11/test')
+    expect(request.headers).not.toHaveProperty(ADMIN_UI_REQUEST_HEADER)
+    expect(JSON.parse(request.body).model_id).toBe('gpt-5.6-sol')
+    wrapper.unmount()
+  })
+
+  it('shows the supplier test cooldown from Retry-After', async () => {
+    global.fetch = vi.fn().mockResolvedValue({ ok: false, status: 429, headers: { get: () => '30' } }) as any
+    const wrapper = mountModal({ id: 11, name: 'Supplier Account', platform: 'openai', type: 'apikey', status: 'active', review_status: 'approved' }, true)
+    await wrapper.setProps({ show: true })
+    await flushPromises()
+    await wrapper.findAll('button').find(button => button.text().includes('admin.accounts.startTest'))!.trigger('click')
+    await flushPromises()
+    expect(wrapper.text()).toContain('rate-limited-30')
+    wrapper.unmount()
   })
 
   it('grok 账号测试默认选择 Grok 模型', async () => {

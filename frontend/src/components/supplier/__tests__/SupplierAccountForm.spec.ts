@@ -4,6 +4,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { createPinia } from 'pinia'
 import OAuthAuthorizationFlow from '@/components/account/OAuthAuthorizationFlow.vue'
 import SupplierAccountForm from '../SupplierAccountForm.vue'
+import SupplierCredentialFields from '../SupplierCredentialFields.vue'
+import zhSupplier from '@/i18n/locales/zh/supplier'
 
 const { generateSupplierOAuthURL, exchangeSupplierOAuthCode, exchangeSupplierOAuthCredential, getSupplierGrokOAuthCapabilities } = vi.hoisted(() => ({
   generateSupplierOAuthURL: vi.fn(),
@@ -36,6 +38,18 @@ const BaseDialogStub = {
 }
 
 describe('SupplierAccountForm', () => {
+  it('explains the official API URL default only for optional API Key base URLs', async () => {
+    const zhI18n = createI18n({ legacy: false, locale: 'zh', messages: { zh: zhSupplier } })
+    const wrapper = mount(SupplierCredentialFields, {
+      props: { kind: { platform: 'openai', type: 'apikey' }, credentials: {} },
+      global: { plugins: [zhI18n] },
+    })
+    expect(wrapper.get('[data-test="api-key-default-base-url-hint"]').text()).toBe('supplier.accounts.apiKeyDefaultBaseUrlHint')
+    expect(zhSupplier.supplier.accounts.apiKeyDefaultBaseUrlHint).toContain('默认使用该平台官网 API 地址')
+    await wrapper.setProps({ kind: { platform: 'antigravity', type: 'apikey' } })
+    expect(wrapper.find('[data-test="api-key-default-base-url-hint"]').exists()).toBe(false)
+    wrapper.unmount()
+  })
   it('offers platform-specific optional settings and sends their API values', async () => {
     const global = { plugins: [createPinia(), i18n], stubs: { BaseDialog: BaseDialogStub } }
     const proxies = [{ id: 3, name: 'Platform proxy' }]

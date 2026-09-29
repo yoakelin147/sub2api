@@ -117,6 +117,7 @@ describe('SupplierDetail', () => {
     await approveButton.trigger('click')
     await flushPromises()
     expect(wrapper.get('button[form="supplier-review-form"]').attributes('disabled')).toBeDefined()
+    expect((wrapper.get('[data-test="supplier-review-status-disabled"]').element as HTMLInputElement).checked).toBe(true)
     await wrapper.get('input[value="3"]').setValue(true)
     await wrapper.get('#supplier-review-form').trigger('submit')
     await flushPromises()
@@ -124,7 +125,23 @@ describe('SupplierDetail', () => {
     expect(approveAccounts).toHaveBeenCalledWith(7, {
       account_ids: [11],
       group_ids: [3],
+      status: 'disabled',
       note: null,
+    })
+  })
+
+  it('can approve selected accounts for immediate activation', async () => {
+    const wrapper = mount(SupplierDetail, { props: { supplier }, global })
+    await flushPromises()
+    await wrapper.get('input[aria-label="Pending Account"]').setValue(true)
+    await wrapper.findAll('button').find(button => button.text() === 'supplier.admin.approve')!.trigger('click')
+    await flushPromises()
+    await wrapper.get('input[value="3"]').setValue(true)
+    await wrapper.get('[data-test="supplier-review-status-active"]').setValue(true)
+    await wrapper.get('#supplier-review-form').trigger('submit')
+    await flushPromises()
+    expect(approveAccounts).toHaveBeenCalledWith(7, {
+      account_ids: [11], group_ids: [3], status: 'active', note: null,
     })
   })
 

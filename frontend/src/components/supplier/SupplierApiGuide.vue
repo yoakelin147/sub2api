@@ -68,7 +68,7 @@ const props = defineProps<{ profile?: SupplierProfile | null }>()
 
 const { t } = useI18n()
 const appStore = useAppStore()
-const operations = ['verify', 'proxies', 'oauthUrl', 'oauthExchange', 'oauthCredential', 'create', 'batch', 'update', 'list'] as const
+const operations = ['verify', 'proxies', 'oauthUrl', 'oauthExchange', 'oauthCredential', 'create', 'batch', 'update', 'delete', 'list'] as const
 const operation = ref<typeof operations[number]>('verify')
 const language = ref('bash')
 const kindKey = ref('openai:apikey')
@@ -80,7 +80,7 @@ watch(operation, () => { if (isOAuthOperation.value && !selectableKinds.value.so
 const apiBase = new URL(getAPIBaseURL(), window.location.origin).href.replace(/\/$/, '')
 const isWrite = computed(() => operation.value === 'create' || operation.value === 'batch' || operation.value === 'update')
 const hasBody = computed(() => isWrite.value || isOAuthOperation.value)
-const method = computed(() => operation.value === 'update' ? 'PUT' : hasBody.value ? 'POST' : 'GET')
+const method = computed(() => operation.value === 'update' ? 'PUT' : operation.value === 'delete' ? 'DELETE' : hasBody.value ? 'POST' : 'GET')
 const endpoint = computed(() => ({
   verify: '/supplier/me',
   proxies: '/supplier/proxies',
@@ -90,6 +90,7 @@ const endpoint = computed(() => ({
   create: '/supplier/accounts',
   batch: '/supplier/accounts/batch',
   update: '/supplier/accounts/123',
+  delete: '/supplier/accounts/123',
   list: '/supplier/accounts?page=1&page_size=20',
 })[operation.value])
 const example = computed(() => {
@@ -118,7 +119,7 @@ const example = computed(() => {
       "$headers = @{ 'x-api-key' = $SUPPLIER_TOKEN }",
       ...(operation.value === 'create' || operation.value === 'batch' ? ["$headers['Idempotency-Key'] = '" + requestKey + "'"] : []),
       ...(hasBody.value ? ["$body = @'", body, "'@"] : []),
-      'Invoke-RestMethod -Method ' + (method.value === 'GET' ? 'Get' : method.value === 'PUT' ? 'Put' : 'Post') + ' -Uri "$API_BASE' + endpoint.value + '" -Headers $headers' + (hasBody.value ? " -ContentType 'application/json' -Body ([System.Text.Encoding]::UTF8.GetBytes($body))" : ''),
+      'Invoke-RestMethod -Method ' + method.value[0] + method.value.slice(1).toLowerCase() + ' -Uri "$API_BASE' + endpoint.value + '" -Headers $headers' + (hasBody.value ? " -ContentType 'application/json' -Body ([System.Text.Encoding]::UTF8.GetBytes($body))" : ''),
     ].join('\n')
   }
   const quote = (value: string) => "'" + value.replace(/'/g, "'\\''") + "'"

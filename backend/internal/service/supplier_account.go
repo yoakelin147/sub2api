@@ -41,6 +41,7 @@ type SupplierAccountReviewInput struct {
 	AccountIDs []int64
 	Action     string
 	GroupIDs   []int64
+	Status     string
 	ReviewerID int64
 	Note       *string
 }

@@ -30,9 +30,10 @@ func RegisterSupplierRoutes(
 	accounts.POST("", h.CreateAccount)
 	accounts.POST("/batch", h.BatchCreateAccounts)
 	accounts.GET("/:id", h.GetAccount)
+	accounts.GET("/:id/models", h.GetAccountTestModels)
 	accounts.PUT("/:id", h.UpdateAccount)
 	accounts.DELETE("/:id", h.DeleteAccount)
-	accounts.POST("/:id/test", h.TestAccount)
+	accounts.POST("/:id/test", panelRateLimiter.SupplierTest(), h.TestAccount)
 
 	accessToken := supplier.Group("/access-token")
 	accessToken.Use(middleware.SupplierJWTOnly())

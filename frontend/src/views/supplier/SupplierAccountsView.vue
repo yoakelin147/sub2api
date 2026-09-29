@@ -84,11 +84,11 @@
                 <td class="px-4 py-3 text-sm text-gray-600 dark:text-gray-300">{{ formatDate(account.expires_at) }}</td>
                 <td class="px-4 py-3">
                   <div class="flex justify-end gap-1">
-                    <button class="btn btn-ghost btn-sm" :title="t('supplier.accounts.test')" @click="test(account)"><Icon name="play" size="sm" /></button>
+                    <button class="btn btn-ghost btn-sm" :disabled="account.review_status !== 'approved'" :title="account.review_status === 'approved' ? t('supplier.accounts.testRateHint') : t('supplier.accounts.testRequiresApproval')" :aria-label="t('supplier.accounts.test')" @click="testingAccount = account"><Icon name="play" size="sm" /></button>
                     <button class="btn btn-ghost btn-sm" :title="t('common.edit')" @click="openEdit(account)"><Icon name="edit" size="sm" /></button>
                     <button
                       class="btn btn-ghost btn-sm"
-                      :disabled="account.status !== 'active' && (account.review_status !== 'approved' || reviewRequired)"
+                      :disabled="account.status !== 'active' && account.review_status !== 'approved'"
                       :title="account.status === 'active' ? t('supplier.accounts.pause') : t('supplier.accounts.enable')"
                       @click="toggleStatus(account)"
                     >
@@ -107,6 +107,7 @@
 
     <SupplierAccountForm :show="showForm" :kinds="allowedKinds" :proxies="proxies" :review-required="reviewRequired" :approved-groups="approvedGroups" :group-options="groupOptions" :account="editingAccount" :saving="saving" :server-error="saveError" @close="showForm = false" @submit="save" />
     <SupplierBatchImportDialog :show="showBatch" :proxies="proxies" :review-required="reviewRequired" :approved-groups="approvedGroups" @close="showBatch = false" @completed="batchCompleted" />
+    <AccountTestModal :show="testingAccount !== null" :account="testingAccount" supplier-mode @close="testingAccount = null" />
   </AppLayout>
 </template>
 
@@ -118,6 +119,7 @@ import Icon from '@/components/icons/Icon.vue'
 import Pagination from '@/components/common/Pagination.vue'
 import SupplierAccountForm from '@/components/supplier/SupplierAccountForm.vue'
 import SupplierBatchImportDialog from '@/components/supplier/SupplierBatchImportDialog.vue'
+import AccountTestModal from '@/components/admin/account/AccountTestModal.vue'
 import { useAppStore } from '@/stores/app'
 import {
   createAccount,
@@ -125,7 +127,6 @@ import {
   getProfile,
   listAccounts,
   listProxies,
-  testAccount,
   updateAccount,
   type SupplierAccount,
   type SupplierAccountFilters,
@@ -155,6 +156,7 @@ const total = ref(0)
 const showForm = ref(false)
 const showBatch = ref(false)
 const editingAccount = ref<SupplierAccount | null>(null)
+const testingAccount = ref<SupplierAccount | null>(null)
 const filters = reactive<SupplierAccountFilters>({ search: '', platform: '', type: '', status: '', review_status: '' })
 
 const platforms = computed(() => [...new Set(allowedKinds.value.map((kind) => kind.platform))].sort())
@@ -236,16 +238,6 @@ async function toggleStatus(account: SupplierAccount) {
   try {
     await updateAccount(account.id, { status: account.status === 'active' ? 'disabled' : 'active' })
     await load()
-  } catch (error) {
-    appStore.showError((error as { message?: string }).message || t('common.unknownError'))
-  }
-}
-
-async function test(account: SupplierAccount) {
-  try {
-    const success = await testAccount(account.id, {})
-    if (success) appStore.showSuccess(t('supplier.accounts.testSucceeded'))
-    else appStore.showError(t('supplier.accounts.testFailed'))
   } catch (error) {
     appStore.showError((error as { message?: string }).message || t('common.unknownError'))
   }

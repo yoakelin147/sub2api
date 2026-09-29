@@ -2,17 +2,100 @@ package handler
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"strings"
 	"testing"
 
+	"github.com/Wei-Shaw/sub2api/internal/domain"
 	"github.com/Wei-Shaw/sub2api/internal/server/middleware"
 	"github.com/Wei-Shaw/sub2api/internal/service"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 )
+
+type supplierTestAccountRepository struct {
+	service.SupplierAccountRepository
+	account *service.Account
+}
+
+func (r *supplierTestAccountRepository) GetOwnedByID(_ context.Context, supplierID, accountID int64) (*service.Account, error) {
+	if r.account.ID != accountID || r.account.SupplierID == nil || *r.account.SupplierID != supplierID {
+		return nil, service.ErrSupplierAccountNotFound
+	}
+	return r.account, nil
+}
+
+type supplierTestSupplierRepository struct {
+	service.SupplierRepository
+	supplier *service.Supplier
+}
+
+func (r *supplierTestSupplierRepository) GetByID(_ context.Context, _ int64) (*service.Supplier, error) {
+	return r.supplier, nil
+}
+
+func TestSupplierCannotTestPendingAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	supplierID := int64(7)
+	accountRepo := &supplierTestAccountRepository{account: &service.Account{ID: 11, SupplierID: &supplierID, ReviewStatus: service.AccountReviewStatusPending}}
+	supplierRepo := &supplierTestSupplierRepository{supplier: &service.Supplier{ID: supplierID, Status: domain.SupplierStatusActive}}
+	h := &SupplierHandler{accounts: service.NewSupplierAccountService(accountRepo, service.NewSupplierService(supplierRepo), nil, nil, nil, nil)}
+	router := gin.New()
+	router.Use(func(c *gin.Context) { c.Set(string(middleware.ContextKeySupplierID), supplierID); c.Next() })
+	router.POST("/supplier/accounts/:id/test", h.TestAccount)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/supplier/accounts/11/test", strings.NewReader(`{"model_id":"gpt-5.6-sol"}`)))
+	require.Equal(t, http.StatusForbidden, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "SUPPLIER_ACCOUNT_TEST_NOT_APPROVED")
+}
+
+func TestSupplierApprovedAccountUsesStreamingTester(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	supplierID := int64(7)
+	accountRepo := &supplierTestAccountRepository{account: &service.Account{
+		ID: 11, Name: "Synthetic", SupplierID: &supplierID, ReviewStatus: service.AccountReviewStatusApproved,
+		Platform: service.PlatformOpenAI, Type: service.AccountTypeAPIKey, Extra: map[string]any{"synthetic_ui_test": true},
+	}}
+	supplierRepo := &supplierTestSupplierRepository{supplier: &service.Supplier{ID: supplierID, Status: domain.SupplierStatusActive}}
+	h := &SupplierHandler{accounts: service.NewSupplierAccountService(accountRepo, service.NewSupplierService(supplierRepo), nil, nil, nil, nil), tester: &service.AccountTestService{}}
+	router := gin.New()
+	router.Use(func(c *gin.Context) { c.Set(string(middleware.ContextKeySupplierID), supplierID); c.Next() })
+	router.POST("/supplier/accounts/:id/test", h.TestAccount)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, httptest.NewRequest(http.MethodPost, "/supplier/accounts/11/test", strings.NewReader(`{"model_id":"gpt-5.6-sol"}`)))
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Contains(t, recorder.Body.String(), `"model":"gpt-5.6-sol"`)
+	require.Contains(t, recorder.Body.String(), `"type":"test_complete"`)
+}
+
+func TestSupplierTestModelsRequireApprovedOwnedAccount(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	supplierID := int64(7)
+	accountRepo := &supplierTestAccountRepository{account: &service.Account{
+		ID: 11, SupplierID: &supplierID, Platform: service.PlatformOpenAI,
+		Type: service.AccountTypeAPIKey, ReviewStatus: service.AccountReviewStatusPending,
+		Credentials: map[string]any{"api_key": "SECRET"},
+	}}
+	supplierRepo := &supplierTestSupplierRepository{supplier: &service.Supplier{ID: supplierID, Status: domain.SupplierStatusActive}}
+	h := &SupplierHandler{accounts: service.NewSupplierAccountService(accountRepo, service.NewSupplierService(supplierRepo), nil, nil, nil, nil)}
+	router := gin.New()
+	router.Use(func(c *gin.Context) { c.Set(string(middleware.ContextKeySupplierID), supplierID); c.Next() })
+	router.GET("/supplier/accounts/:id/models", h.GetAccountTestModels)
+	request := httptest.NewRequest(http.MethodGet, "/supplier/accounts/11/models", nil)
+	recorder := httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	require.Equal(t, http.StatusForbidden, recorder.Code)
+
+	accountRepo.account.ReviewStatus = service.AccountReviewStatusApproved
+	recorder = httptest.NewRecorder()
+	router.ServeHTTP(recorder, request)
+	require.Equal(t, http.StatusOK, recorder.Code)
+	require.Contains(t, recorder.Body.String(), "gpt-5.6-sol")
+	require.NotContains(t, recorder.Body.String(), "SECRET")
+}
 
 func TestSupplierCreateAccountRequiresIdempotencyKey(t *testing.T) {
 	previous := service.DefaultIdempotencyCoordinator()

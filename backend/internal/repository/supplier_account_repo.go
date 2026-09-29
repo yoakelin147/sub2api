@@ -272,6 +272,10 @@ func (r *accountRepository) ReviewOwned(ctx context.Context, supplierID int64, i
 	now := time.Now().UTC()
 	switch input.Action {
 	case service.SupplierAccountReviewApprove:
+		status := input.Status
+		if status == "" {
+			status = service.StatusActive
+		}
 		if err := lockLiveGroups(ctx, client, input.GroupIDs); err != nil {
 			return err
 		}
@@ -290,8 +294,8 @@ func (r *accountRepository) ReviewOwned(ctx context.Context, supplierID int64, i
 			}
 		}
 		update.SetReviewStatus(service.AccountReviewStatusApproved).
-			SetStatus(service.StatusActive).
-			SetSchedulable(true).
+			SetStatus(status).
+			SetSchedulable(status == service.StatusActive).
 			SetReviewedAt(now).
 			SetReviewedBy(input.ReviewerID).
 			SetNillableReviewNote(input.Note)

@@ -223,6 +223,33 @@ func TestPanelRateLimiterSupplierUsesTenantScopeForJWTAndMachineToken(t *testing
 	require.Equal(t, int64(3), allower.counts["panel:supplier:7"])
 }
 
+func TestPanelRateLimiterSupplierTestHasIndependentTenantLimit(t *testing.T) {
+	allower := &fakePanelAllower{}
+	limiter := (&PanelRateLimiter{limiter: allower}).SupplierTest()
+	router := gin.New()
+	router.Use(func(c *gin.Context) { c.Set(string(ContextKeySupplierID), int64(7)); c.Next() })
+	router.Use(limiter)
+	router.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+	for range supplierAccountTestRPM {
+		require.Equal(t, http.StatusOK, performPanelRequest(router, "127.0.0.1:1000").Code)
+	}
+	blocked := performPanelRequest(router, "127.0.0.1:1000")
+	require.Equal(t, http.StatusTooManyRequests, blocked.Code)
+	require.NotEmpty(t, blocked.Header().Get("Retry-After"))
+	allower.mu.Lock()
+	defer allower.mu.Unlock()
+	require.Equal(t, int64(supplierAccountTestRPM+1), allower.counts["panel:supplier:test:7"])
+}
+
+func TestPanelRateLimiterSupplierTestFailsClosed(t *testing.T) {
+	limiter := (&PanelRateLimiter{limiter: &fakePanelAllower{err: errors.New("redis unavailable")}}).SupplierTest()
+	router := gin.New()
+	router.Use(func(c *gin.Context) { c.Set(string(ContextKeySupplierID), int64(7)); c.Next() })
+	router.Use(limiter)
+	router.GET("/test", func(c *gin.Context) { c.Status(http.StatusOK) })
+	require.Equal(t, http.StatusServiceUnavailable, performPanelRequest(router, "127.0.0.1:1000").Code)
+}
+
 func TestPanelRateLimiterAdminExemption(t *testing.T) {
 	// 豁免开启：管理员不计数
 	p := &PanelRateLimiter{

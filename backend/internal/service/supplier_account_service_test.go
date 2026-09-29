@@ -110,18 +110,25 @@ func TestSupplierAccountServiceCredentialChangeRequiresReview(t *testing.T) {
 	require.False(t, updated.Schedulable)
 }
 
-func TestSupplierCannotResumeAdministratorPausedAccount(t *testing.T) {
+func TestSupplierCanToggleApprovedAccountWithReviewRequired(t *testing.T) {
 	proxyID, supplierID := int64(11), int64(7)
 	supplier := &Supplier{ID: supplierID, Status: domain.SupplierStatusActive, ReviewRequired: true}
 	repo := &supplierAccountRepositoryStub{account: &Account{ID: 3, SupplierID: &supplierID, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, Credentials: map[string]any{"api_key": "secret"}, ProxyID: &proxyID, ReviewStatus: AccountReviewStatusApproved, Status: StatusDisabled}}
 	svc := NewSupplierAccountService(repo, NewSupplierService(&supplierTokenRepositoryStub{supplier: supplier}), nil, NewProxyService(&supplierProxyRepoStub{proxy: &Proxy{ID: proxyID, Status: StatusActive}}), &config.Config{}, nil)
 	active := StatusActive
-	_, err := svc.Update(context.Background(), supplierID, 3, UpdateSupplierAccountInput{Status: &active})
-	require.ErrorIs(t, err, ErrSupplierAccountInputInvalid)
-	supplier.ReviewRequired = false
 	updated, err := svc.Update(context.Background(), supplierID, 3, UpdateSupplierAccountInput{Status: &active})
 	require.NoError(t, err)
 	require.Equal(t, StatusActive, updated.Status)
+	require.True(t, updated.Schedulable)
+	disabled := StatusDisabled
+	updated, err = svc.Update(context.Background(), supplierID, 3, UpdateSupplierAccountInput{Status: &disabled})
+	require.NoError(t, err)
+	require.Equal(t, StatusDisabled, updated.Status)
+	require.False(t, updated.Schedulable)
+	repo.account.ReviewStatus = AccountReviewStatusPending
+	_, err = svc.Update(context.Background(), supplierID, 3, UpdateSupplierAccountInput{Status: &active})
+	require.ErrorIs(t, err, ErrSupplierAccountInputInvalid)
+	require.Equal(t, StatusDisabled, repo.account.Status)
 }
 
 func TestSupplierAccountServiceAdminEditPreservesSecretsAndReview(t *testing.T) {
@@ -201,6 +208,25 @@ func TestSupplierAccountServiceReviewRejectsOAuthOnlyGroupForAPIKey(t *testing.T
 	err := svc.Review(context.Background(), 7, SupplierAccountReviewInput{AccountIDs: []int64{3}, GroupIDs: []int64{4}, Action: SupplierAccountReviewApprove, ReviewerID: 9})
 	require.ErrorIs(t, err, ErrSupplierAccountInputInvalid)
 	require.Nil(t, repo.reviewed)
+}
+
+func TestSupplierApprovalAcceptsInitialRuntimeStatus(t *testing.T) {
+	proxyID := int64(11)
+	repo := &supplierAccountRepositoryStub{accounts: []*Account{{ID: 3, Platform: PlatformOpenAI, Type: AccountTypeAPIKey, ProxyID: &proxyID}}}
+	svc := NewSupplierAccountService(repo, nil, &supplierGroupRepoStub{group: &Group{ID: 4, Platform: PlatformOpenAI, Status: StatusActive}},
+		NewProxyService(&supplierProxyRepoStub{proxy: &Proxy{ID: proxyID, Status: StatusActive}}), &config.Config{}, nil)
+	input := SupplierAccountReviewInput{AccountIDs: []int64{3}, GroupIDs: []int64{4}, Action: SupplierAccountReviewApprove, ReviewerID: 9}
+
+	require.NoError(t, svc.Review(context.Background(), 7, input))
+	require.Equal(t, StatusActive, repo.reviewed.Status)
+	input.Status = StatusDisabled
+	require.NoError(t, svc.Review(context.Background(), 7, input))
+	require.Equal(t, StatusDisabled, repo.reviewed.Status)
+	input.Status = "pending"
+	require.ErrorIs(t, svc.Review(context.Background(), 7, input), ErrSupplierAccountInputInvalid)
+	input.Action = SupplierAccountReviewPause
+	input.Status = StatusActive
+	require.ErrorIs(t, svc.Review(context.Background(), 7, input), ErrSupplierAccountInputInvalid)
 }
 
 type supplierAccountRepositoryStub struct {

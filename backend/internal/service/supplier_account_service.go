@@ -28,6 +28,10 @@ var (
 		"ACCOUNT_KIND_NOT_ALLOWED",
 		"supplier is not allowed to submit this account kind",
 	)
+	ErrSupplierAccountTestNotApproved = infraerrors.Forbidden(
+		"SUPPLIER_ACCOUNT_TEST_NOT_APPROVED",
+		"supplier account must be approved before testing",
+	)
 	ErrSupplierAccountInputInvalid = infraerrors.New(
 		http.StatusUnprocessableEntity,
 		"SUPPLIER_ACCOUNT_INPUT_INVALID",
@@ -622,7 +626,7 @@ func (s *SupplierAccountService) updateOwned(ctx context.Context, supplierID, ac
 			account.Status = StatusDisabled
 			account.Schedulable = false
 		case StatusActive:
-			if account.ReviewStatus != AccountReviewStatusApproved || !admin && supplier.ReviewRequired {
+			if account.ReviewStatus != AccountReviewStatusApproved {
 				return nil, ErrSupplierAccountInputInvalid
 			}
 			account.Status = StatusActive
@@ -754,6 +758,12 @@ func (s *SupplierAccountService) Review(ctx context.Context, supplierID int64, i
 	input.AccountIDs = ids
 	switch input.Action {
 	case SupplierAccountReviewApprove:
+		if input.Status == "" {
+			input.Status = StatusActive
+		}
+		if input.Status != StatusActive && input.Status != StatusDisabled {
+			return ErrSupplierAccountInputInvalid
+		}
 		if len(input.GroupIDs) == 0 || s.groups == nil {
 			return ErrSupplierAccountInputInvalid
 		}
@@ -764,6 +774,9 @@ func (s *SupplierAccountService) Review(ctx context.Context, supplierID int64, i
 		}
 		input.GroupIDs = uniquePositiveInt64s(input.GroupIDs)
 	case SupplierAccountReviewReject, SupplierAccountReviewPause:
+		if input.Status != "" {
+			return ErrSupplierAccountInputInvalid
+		}
 		input.GroupIDs = nil
 	default:
 		return ErrSupplierAccountInputInvalid

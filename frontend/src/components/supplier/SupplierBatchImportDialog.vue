@@ -13,9 +13,11 @@
         </div>
       </fieldset>
 
+      <p class="text-sm text-gray-600 dark:text-gray-300">{{ t('supplier.batch.inputGuide') }}</p>
+
       <label class="block">
         <span class="input-label">{{ t('supplier.batch.input') }}</span>
-        <textarea v-model="input" class="input min-h-72 font-mono text-xs" spellcheck="false"></textarea>
+        <textarea v-model="input" class="input min-h-72 font-mono text-xs" spellcheck="false" :placeholder="formatExample"></textarea>
         <p class="input-hint">{{ formatHint }}</p>
       </label>
       <label class="block">
@@ -71,7 +73,7 @@ import { parseSupplierAccountImport, type SupplierImportFormat } from '@/feature
 
 const props = defineProps<{ show: boolean; proxies: SupplierProxyOption[]; reviewRequired?: boolean; approvedGroups?: Record<string, number[]> }>()
 const emit = defineEmits<{ (event: 'close'): void; (event: 'completed'): void }>()
-const { t } = useI18n()
+const { t, tm } = useI18n()
 
 const format = ref<SupplierImportFormat>('json')
 const input = ref('')
@@ -87,6 +89,7 @@ const formats = computed(() => [
   { value: 'text' as const, label: t('supplier.batch.text') },
 ])
 const formatHint = computed(() => t(`supplier.batch.formatHint${format.value[0].toUpperCase()}${format.value.slice(1)}`))
+const formatExample = computed(() => tm(`supplier.batch.example${format.value[0].toUpperCase()}${format.value.slice(1)}`) as string)
 
 watch(() => props.show, (show) => {
   if (!show) return
