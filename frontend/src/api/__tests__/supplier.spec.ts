@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 
 const post = vi.fn()
 const get = vi.fn()
@@ -9,6 +9,21 @@ vi.mock('@/api/client', () => ({ apiClient: { post, get, put, delete: remove } }
 
 describe('supplier API', () => {
   beforeEach(() => vi.clearAllMocks())
+  afterEach(() => vi.unstubAllGlobals())
+
+  it('generates a secure idempotency key when randomUUID is unavailable on HTTP', async () => {
+    const getRandomValues = vi.fn((bytes: Uint8Array) => {
+      bytes.set(Array.from({ length: 16 }, (_, index) => index))
+      return bytes
+    })
+    vi.stubGlobal('crypto', { getRandomValues })
+    const { createSupplierIdempotencyKey } = await import('@/api/supplier')
+
+    expect(createSupplierIdempotencyKey()).toBe('00010203-0405-4607-8809-0a0b0c0d0e0f')
+    expect(getRandomValues).toHaveBeenCalledOnce()
+    vi.stubGlobal('crypto', {})
+    expect(createSupplierIdempotencyKey).toThrow('Secure random UUID generation is unavailable')
+  })
 
   it('sends Gemini options and a supplier-scoped code exchange without changing proxies', async () => {
     post.mockResolvedValue({ data: {} })
