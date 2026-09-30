@@ -13,6 +13,7 @@ export interface SupplierTokenStatus {
   last_used_at: string | null
 }
 
+
 export interface SupplierStats {
   member_count: number
   account_count: number
