@@ -126,14 +126,14 @@ const example = computed(() => {
   return [
     'API_BASE=' + quote(apiBase),
     "SUPPLIER_TOKEN='REPLACE_WITH_FULL_SUPPLIER_TOKEN'",
-    'curl --fail-with-body -sS -X ' + method.value + ' "$API_BASE' + endpoint.value + '" \\',
+    'curl -sS -X ' + method.value + ' "$API_BASE' + endpoint.value + '" \\',
     '  -H "x-api-key: $SUPPLIER_TOKEN"' + (hasBody.value ? ' \\' : ''),
     ...(isWrite.value ? [
       ...(operation.value === 'update' ? [] : ['  -H ' + quote('Idempotency-Key: ' + requestKey) + ' \\']),
       '  -H ' + quote('Content-Type: application/json') + ' \\',
-      '  --data-raw ' + quote(body),
+      '  -d ' + quote(body),
     ] : []),
-    ...(!isWrite.value && hasBody.value ? ["  -H 'Content-Type: application/json' \\", '  --data-raw ' + quote(body)] : []),
+    ...(!isWrite.value && hasBody.value ? ["  -H 'Content-Type: application/json' \\", '  -d ' + quote(body)] : []),
   ].join('\n')
 })
 

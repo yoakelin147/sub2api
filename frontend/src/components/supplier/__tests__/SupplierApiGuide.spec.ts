@@ -10,6 +10,20 @@ const i18n = createI18n({ legacy: false, locale: 'zh', messages: { zh: zhSupplie
 const options = { global: { plugins: [createPinia(), i18n], stubs: { Icon: true, RouterLink: { template: '<a><slot/></a>' } } } }
 
 describe('SupplierApiGuide', () => {
+  it('uses curl 7.29-compatible options for every supplier operation', async () => {
+    const wrapper = mount(SupplierApiGuide, options)
+    for (const operation of ['verify', 'proxies', 'oauthUrl', 'oauthExchange', 'oauthCredential', 'create', 'batch', 'update', 'delete', 'list']) {
+      await wrapper.get('[data-test="guide-operation"]').setValue(operation)
+      const command = wrapper.get('pre').text()
+      expect(command).toContain('curl -sS -X ')
+      expect(command).not.toMatch(/--fail-with-body|--data-raw/)
+      if (['oauthUrl', 'oauthExchange', 'oauthCredential', 'create', 'batch', 'update'].includes(operation)) {
+        expect(command).toContain('  -d ')
+      }
+    }
+    wrapper.unmount()
+  })
+
   it('documents allowed account options with platform scope and accepted values', () => {
     const wrapper = mount(SupplierApiGuide, { ...options, props: { profile: { review_required: false, auto_approve_groups: { openai: [42] } } as never } })
     const optionsText = wrapper.get('[data-test="supplier-extra-guide"]').text()
@@ -30,7 +44,7 @@ describe('SupplierApiGuide', () => {
     expect(command).toContain('x-api-key: $SUPPLIER_TOKEN')
     expect(command).toContain('Idempotency-Key:')
     expect(command).toContain('REPLACE_WITH_FULL_SUPPLIER_TOKEN')
-    const body = JSON.parse(command.split("--data-raw '")[1].slice(0, -1))
+    const body = JSON.parse(command.split("-d '")[1].slice(0, -1))
     expect(body).toEqual({ name: 'Account 10001', platform: 'antigravity', type: 'apikey', proxy_id: 123, credentials: { api_key: 'REPLACE_WITH_API_KEY', base_url: 'https://YOUR_ALLOWED_UPSTREAM_HOST' } })
     expect(command).not.toMatch(/supplier_id|group_ids|review_status/)
     wrapper.unmount()
@@ -56,7 +70,7 @@ describe('SupplierApiGuide', () => {
     await wrapper.get('[data-test="guide-operation"]').setValue('oauthUrl')
     const urlCommand = wrapper.get('pre').text()
     expect(urlCommand).toContain('POST "$API_BASE/supplier/oauth/openai/auth-url"')
-    expect(JSON.parse(urlCommand.split("--data-raw '")[1].slice(0, -1))).toEqual({ proxy_id: 123, type: 'oauth' })
+    expect(JSON.parse(urlCommand.split("-d '")[1].slice(0, -1))).toEqual({ proxy_id: 123, type: 'oauth' })
     expect(urlCommand).not.toContain('Idempotency-Key')
     await wrapper.get('[data-test="guide-operation"]').setValue('oauthExchange')
     await wrapper.get('[data-test="guide-language"]').setValue('powershell')
@@ -100,7 +114,7 @@ describe('SupplierApiGuide', () => {
     await wrapper.get('[data-test="guide-operation"]').setValue('create')
     await wrapper.get('[data-test="guide-kind"]').setValue('openai:oauth')
     const command = wrapper.get('pre').text()
-    const body = JSON.parse(command.split("--data-raw '")[1].slice(0, -1))
+    const body = JSON.parse(command.split("-d '")[1].slice(0, -1))
     expect(body.credentials).toEqual({ email: 'REPLACE_WITH_EMAIL', password: 'REPLACE_WITH_PASSWORD', access_token: 'REPLACE_WITH_ACCESS_TOKEN' })
     expect(body).not.toHaveProperty('external_id')
     wrapper.unmount()
@@ -110,7 +124,7 @@ describe('SupplierApiGuide', () => {
     const wrapper = mount(SupplierApiGuide, { ...options, props: { profile: { review_required: false, auto_approve_groups: { openai: [42, 43] } } as never } })
     await wrapper.get('[data-test="guide-operation"]').setValue('create')
     const create = wrapper.get('pre').text()
-    const body = JSON.parse(create.split("--data-raw '")[1].slice(0, -1))
+    const body = JSON.parse(create.split("-d '")[1].slice(0, -1))
     expect(body.group_ids).toEqual([42, 43])
     expect(body.credentials.model_mapping).toEqual({ YOUR_MODEL: 'UPSTREAM_MODEL' })
     expect(body.extra).toEqual({ openai_compact_mode: 'auto' })
@@ -119,8 +133,8 @@ describe('SupplierApiGuide', () => {
     const update = wrapper.get('pre').text()
     expect(update).toContain(' -X PUT ')
     expect(update).not.toContain('Idempotency-Key')
-    expect(JSON.parse(update.split("--data-raw '")[1].slice(0, -1)).group_ids).toEqual([42, 43])
-    expect(JSON.parse(update.split("--data-raw '")[1].slice(0, -1)).credentials).toEqual({ model_mapping: { YOUR_MODEL: 'UPSTREAM_MODEL' } })
+    expect(JSON.parse(update.split("-d '")[1].slice(0, -1)).group_ids).toEqual([42, 43])
+    expect(JSON.parse(update.split("-d '")[1].slice(0, -1)).credentials).toEqual({ model_mapping: { YOUR_MODEL: 'UPSTREAM_MODEL' } })
     await wrapper.get('[data-test="guide-language"]').setValue('powershell')
     expect(wrapper.get('pre').text()).toContain('Invoke-RestMethod -Method Put')
     wrapper.unmount()
@@ -133,7 +147,7 @@ describe('SupplierApiGuide', () => {
     expect(curl).toContain('-X DELETE "$API_BASE/supplier/accounts/123"')
     expect(curl).toContain('x-api-key: $SUPPLIER_TOKEN')
     expect(curl).not.toContain('Idempotency-Key')
-    expect(curl).not.toContain('--data-raw')
+    expect(curl).not.toContain('  -d ')
     expect(wrapper.text()).toContain('supplier.guide.results.delete')
     expect(zhSupplier.supplier.guide.results.delete).toContain('DELETE 不需要请求体')
     await wrapper.get('[data-test="guide-language"]').setValue('powershell')
