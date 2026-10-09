@@ -1,6 +1,7 @@
 package handler
 
 import (
+	"net/http"
 	"strings"
 
 	"github.com/Wei-Shaw/sub2api/internal/pkg/response"
@@ -82,7 +83,7 @@ func (h *SupplierHandler) GenerateSupplierOAuthURL(c *gin.Context) {
 		return
 	}
 	middleware.SetAuditExtra(c, map[string]any{"supplier_id": supplierID})
-	response.Success(c, result)
+	c.PureJSON(http.StatusOK, response.Response{Code: 0, Message: "success", Data: result})
 }
 
 func (h *SupplierHandler) ExchangeSupplierOAuthCode(c *gin.Context) {
